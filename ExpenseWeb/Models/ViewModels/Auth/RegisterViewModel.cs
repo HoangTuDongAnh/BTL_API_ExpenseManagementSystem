@@ -4,21 +4,20 @@ namespace ExpenseWeb.Models.ViewModels.Auth
 {
     public class RegisterViewModel
     {
-        [Required]
+        [Required(ErrorMessage = "Full name is required.")]
         public string FullName { get; set; }
 
-        [Required]
-        [EmailAddress]
+        [Required(ErrorMessage = "Email is required.")]
+        [EmailAddress(ErrorMessage = "Invalid email format.")]
         public string Email { get; set; }
 
         public string PhoneNumber { get; set; }
 
-        [Required]
-        [MinLength(6)]
+        [Required(ErrorMessage = "Password is required.")]
+        [MinLength(6, ErrorMessage = "Password must be at least 6 characters.")]
         public string Password { get; set; }
 
         [Display(Name = "I agree to the terms and conditions")]
-        [Range(typeof(bool), "true", "true", ErrorMessage = "You must agree to the terms.")]
         public bool AgreeTerms { get; set; }
     }
 }

@@ -64,6 +64,11 @@ namespace ExpenseWeb.Controllers
         [HttpPost]
         public async Task<IActionResult> Register(RegisterViewModel model)
         {
+            if (!model.AgreeTerms)
+            {
+                ModelState.AddModelError(nameof(model.AgreeTerms), "You must agree to the terms and conditions.");
+            }
+
             if (!ModelState.IsValid)
             {
                 return View(model);

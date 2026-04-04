@@ -29,6 +29,8 @@
                     <p class="mb-6">Start managing your personal finances more easily.</p>
 
                     <form asp-action="Register" asp-controller="Auth" method="post" class="mb-6">
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
                         <div class="mb-6">
                             <label asp-for="FullName" class="form-label">Full name</label>
                             <input asp-for="FullName"
@@ -54,7 +56,7 @@
                             <span asp-validation-for="PhoneNumber" class="text-danger"></span>
                         </div>
 
-                        <div class="form-password-toggle">
+                        <div class="mb-6 form-password-toggle">
                             <label asp-for="Password" class="form-label">Password</label>
                             <div class="input-group input-group-merge">
                                 <input asp-for="Password"
@@ -70,12 +72,12 @@
 
                         <div class="my-7">
                             <div class="form-check mb-0">
-                                <input asp-for="AgreeTerms" class="form-check-input" />
+                                <input asp-for="AgreeTerms" type="checkbox" class="form-check-input" />
                                 <label asp-for="AgreeTerms" class="form-check-label">
                                     I agree to <a href="javascript:void(0);">terms and conditions</a>
                                 </label>
                             </div>
-                            <span asp-validation-for="AgreeTerms" class="text-danger"></span>
+                            <span asp-validation-for="AgreeTerms" class="text-danger d-block mt-1"></span>
                         </div>
 
                         <button class="btn btn-primary d-grid w-100" type="submit">Sign up</button>
