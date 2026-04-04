@@ -1,4 +1,4 @@
-﻿from sqlalchemy import Column, DateTime, String
+﻿from sqlalchemy import Column, DateTime, String, Unicode
 from sqlalchemy.sql import func
 
 from app.core.database import Base
@@ -8,7 +8,7 @@ class User(Base):
     __tablename__ = "Users"
 
     UserID = Column(String(15), primary_key=True, index=True)
-    FullName = Column(String(100), nullable=False)
+    FullName = Column(Unicode(100), nullable=False)
     Email = Column(String(150), unique=True, nullable=False, index=True)
     PasswordHash = Column(String(255), nullable=False)
     PhoneNumber = Column(String(15), nullable=True)

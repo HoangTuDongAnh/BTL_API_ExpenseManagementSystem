@@ -1,4 +1,4 @@
-﻿from sqlalchemy import Boolean, Column, Date, DateTime, DECIMAL, ForeignKey, String
+﻿from sqlalchemy import Boolean, Column, Date, DateTime, DECIMAL, ForeignKey, String, Unicode
 from sqlalchemy.sql import func
 
 from app.core.database import Base
@@ -14,7 +14,7 @@ class Transaction(Base):
     TransactionType = Column(String(10), nullable=False)
     Amount = Column(DECIMAL(15, 2), nullable=False)
     TransactionDate = Column(Date, nullable=False)
-    Note = Column(String(500), nullable=True)
+    Note = Column(Unicode(500), nullable=True)
     IsRecurring = Column(Boolean, nullable=False, default=False)
     RecurInterval = Column(String(20), nullable=True)
     CreatedAt = Column(DateTime, nullable=False, server_default=func.getdate())
