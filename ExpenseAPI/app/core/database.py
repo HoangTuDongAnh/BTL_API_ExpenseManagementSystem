@@ -3,7 +3,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 connection_string = (
-    "DRIVER={SQL Server};"
+    "DRIVER={ODBC Driver 17 for SQL Server};"
     "SERVER=.\\SQLEXPRESS;"
     "DATABASE=ExpenseDB;"
     "Trusted_Connection=yes;"
@@ -17,7 +17,6 @@ engine = create_engine(DATABASE_URL, echo=True, future=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 
 Base = declarative_base()
-
 
 def get_db():
     db = SessionLocal()
