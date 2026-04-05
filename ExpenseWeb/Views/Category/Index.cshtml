@@ -1,0 +1,417 @@
+﻿@using System.IO
+@using System.Linq
+@inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment WebHostEnvironment
+
+@{
+    ViewBag.Title = "Danh mục";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+    var lang = (Context.Request.Query["lang"].FirstOrDefault() ?? "vi").ToLower();
+    string T(string vi, string en) => lang == "en" ? en : vi;
+
+    var categoryIconFolderPhysical = System.IO.Path.Combine(WebHostEnvironment.WebRootPath, "sneat", "img", "icons", "categories");
+    var categoryIconFiles = Directory.Exists(categoryIconFolderPhysical)
+        ? Directory.GetFiles(categoryIconFolderPhysical)
+            .Where(f =>
+            {
+                var ext = System.IO.Path.GetExtension(f).ToLower();
+                return ext == ".png" || ext == ".svg" || ext == ".webp" || ext == ".jpg" || ext == ".jpeg";
+            })
+            .Select(System.IO.Path.GetFileName)
+            .OrderBy(x => x)
+            .ToList()
+        : new List<string>();
+
+    var presetColors = new[]
+    {
+        "#FFAB00",
+        "#696CFF",
+        "#03C3EC",
+        "#71DD37",
+        "#FF3E1D",
+        "#8592A3",
+        "#8C57FF",
+        "#233446"
+    };
+
+    string iconAt(int index) => categoryIconFiles.Count > index
+        ? $"/sneat/img/icons/categories/{categoryIconFiles[index]}"
+        : "";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/sneat/css/pages/category-page.css" />
+}
+
+<div class="container-xxl flex-grow-1 container-p-y">
+    <div class="card">
+        <div class="card-header d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+            <div>
+                <h5 class="mb-1">@T("Danh sách danh mục", "Category List")</h5>
+                <p class="card-subtitle mb-0">
+                    @T("Chọn một danh mục để xem, sửa hoặc xóa.", "Click a category to view, edit, or delete.")
+                </p>
+            </div>
+
+            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
+                <i class="icon-base bx bx-plus me-1"></i> @T("Thêm danh mục", "Add Category")
+            </button>
+        </div>
+
+        <div class="card-body">
+            <div class="row g-4 category-grid">
+
+                <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                    <button type="button"
+                            class="card category-card text-start"
+                            data-bs-toggle="modal"
+                            data-bs-target="#categoryDetailModal"
+                            data-category-id="CAT000000001"
+                            data-category-name="Ăn uống"
+                            data-category-color="#FFAB00"
+                            data-category-icon="@iconAt(0)">
+                        <div class="card-body">
+                            <div class="category-icon-wrap" style="background: rgba(255,171,0,.14);">
+                                @if (categoryIconFiles.Count > 0)
+                                {
+                                    <img src="~/sneat/img/icons/categories/@categoryIconFiles[0]" class="category-icon-img" alt="food" />
+                                }
+                            </div>
+                            <div class="category-name">Ăn uống</div>
+                        </div>
+                    </button>
+                </div>
+
+                <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
+                    <button type="button"
+                            class="card category-card text-start"
+                            data-bs-toggle="modal"
+                            data-bs-target="#categoryDetailModal"
+                            data-category-id="CAT000000002"
+                            data-category-name="Đi lại"
+                            data-category-color="#696CFF"
+                            data-category-icon="@iconAt(1)">
+                        <div class="card-body">
+                            <div class="category-icon-wrap" style="background: rgba(105,108,255,.14);">
+                                @if (categoryIconFiles.Count > 1)
+                                {
+                                    <img src="~/sneat/img/icons/categories/@categoryIconFiles[1]" class="category-icon-img" alt="transport" />
+                                }
+                            </div>
+                            <div class="category-name">Đi lại</div>
+                        </div>
+                    </button>
+                </div>
+
+                <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
+                    <button type="button"
+                            class="card category-card text-start"
+                            data-bs-toggle="modal"
+                            data-bs-target="#categoryDetailModal"
+                            data-category-id="CAT000000003"
+                            data-category-name="Mua sắm"
+                            data-category-color="#03C3EC"
+                            data-category-icon="@iconAt(2)">
+                        <div class="card-body">
+                            <div class="category-icon-wrap" style="background: rgba(3,195,236,.14);">
+                                @if (categoryIconFiles.Count > 2)
+                                {
+                                    <img src="~/sneat/img/icons/categories/@categoryIconFiles[2]" class="category-icon-img" alt="shopping" />
+                                }
+                            </div>
+                            <div class="category-name">Mua sắm</div>
+                        </div>
+                    </button>
+                </div>
+
+                <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
+                    <button type="button"
+                            class="card category-card text-start"
+                            data-bs-toggle="modal"
+                            data-bs-target="#categoryDetailModal"
+                            data-category-id="CAT000000004"
+                            data-category-name="Giải trí"
+                            data-category-color="#8C57FF"
+                            data-category-icon="@iconAt(3)">
+                        <div class="card-body">
+                            <div class="category-icon-wrap" style="background: rgba(140,87,255,.14);">
+                                @if (categoryIconFiles.Count > 3)
+                                {
+                                    <img src="~/sneat/img/icons/categories/@categoryIconFiles[3]" class="category-icon-img" alt="entertainment" />
+                                }
+                            </div>
+                            <div class="category-name">Giải trí</div>
+                        </div>
+                    </button>
+                </div>
+
+                <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
+                    <button type="button"
+                            class="card category-card text-start"
+                            data-bs-toggle="modal"
+                            data-bs-target="#categoryDetailModal"
+                            data-category-id="CAT000000005"
+                            data-category-name="Sức khỏe"
+                            data-category-color="#71DD37"
+                            data-category-icon="@iconAt(4)">
+                        <div class="card-body">
+                            <div class="category-icon-wrap" style="background: rgba(113,221,55,.14);">
+                                @if (categoryIconFiles.Count > 4)
+                                {
+                                    <img src="~/sneat/img/icons/categories/@categoryIconFiles[4]" class="category-icon-img" alt="health" />
+                                }
+                            </div>
+                            <div class="category-name">Sức khỏe</div>
+                        </div>
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Category Modal -->
+<div class="modal fade category-modal" id="addCategoryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg category-modal-smaller">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h4 class="modal-title mb-1">@T("Thêm danh mục", "Add Category")</h4>
+                    <p class="text-body-secondary mb-0">@T("Tạo nhanh một danh mục mới.", "Create a new category quickly.")</p>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <label class="form-label">@T("Tên danh mục", "Category name")</label>
+                        <input type="text" id="addCategoryName" class="form-control" value="Ăn uống" />
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">@T("Màu sắc", "Color")</label>
+                        <div class="category-color-tools">
+                            <div class="category-color-presets">
+                                @foreach (var color in presetColors)
+                                {
+                                    <button type="button"
+                                            class="category-color-preset @(color == "#FFAB00" ? "active" : "")"
+                                            data-color="@color"
+                                            style="background:@color;">
+                                    </button>
+                                }
+                            </div>
+                            <div class="category-color-custom">
+                                <input type="color" id="addCategoryColor" class="form-control form-control-color" value="#FFAB00" />
+                                <span class="category-color-code" id="addCategoryColorCode">#FFAB00</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label">@T("Biểu tượng", "Icon")</label>
+                        <div class="category-icon-picker">
+                            @if (categoryIconFiles.Any())
+                            {
+                                for (int i = 0; i < categoryIconFiles.Count; i++)
+                                {
+                                    var fileName = categoryIconFiles[i];
+                                    <button type="button"
+                                            class="category-icon-option category-icon-option-add @(i == 0 ? "active" : "")"
+                                            data-icon="/sneat/img/icons/categories/@fileName">
+                                        <img src="~/sneat/img/icons/categories/@fileName" alt="@fileName" />
+                                    </button>
+                                }
+                            }
+                            else
+                            {
+                                <div class="text-muted small">@T("Chưa có icon trong thư mục categories.", "No category icons found in categories folder.")</div>
+                            }
+                        </div>
+                        <input type="hidden" id="addCategoryIcon" value="@(categoryIconFiles.Any() ? $"/sneat/img/icons/categories/{categoryIconFiles.First()}" : "")" />
+                    </div>
+
+                    <div class="col-12">
+                        <div class="category-preview card">
+                            <div class="card-body">
+                                <div class="category-preview-inline">
+                                    <div id="addPreviewIconWrap" class="category-icon-wrap" style="background: rgba(255,171,0,.14);">
+                                        @if (categoryIconFiles.Any())
+                                        {
+                                            <img id="addPreviewIcon" src="~/sneat/img/icons/categories/@categoryIconFiles.First()" class="category-icon-img" alt="icon" />
+                                        }
+                                        else
+                                        {
+                                            <img id="addPreviewIcon" src="" class="category-icon-img d-none" alt="icon" />
+                                        }
+                                    </div>
+                                    <div>
+                                        <div class="category-name" id="addPreviewName">Ăn uống</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">@T("Hủy", "Cancel")</button>
+                <button type="button" class="btn btn-primary" id="btnSaveCategoryStatic">@T("Lưu danh mục", "Save Category")</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Detail Category Modal -->
+<div class="modal fade category-modal" id="categoryDetailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg category-modal-smaller">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h4 class="modal-title mb-1">@T("Chi tiết danh mục", "Category Details")</h4>
+                    <p class="text-body-secondary mb-0">@T("Xem và chỉnh sửa nhanh danh mục.", "Quickly view and edit category info.")</p>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="category-detail-top card">
+                    <div class="card-body">
+                        <div class="category-preview-inline">
+                            <div id="detailHeadIconWrap" class="category-icon-wrap" style="background: rgba(255,171,0,.14);">
+                                <img id="detailHeadIcon" src="" class="category-icon-img" alt="icon" />
+                            </div>
+                            <div>
+                                <div class="category-name" id="detailCategoryTitle">Ăn uống</div>
+                                <div class="category-meta">
+                                    <span class="badge bg-label-primary me-1" id="detailCategoryId">CAT000000001</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-4 mt-1">
+                    <div class="col-md-6">
+                        <label class="form-label">@T("Tên danh mục", "Category name")</label>
+                        <input type="text" id="detailCategoryName" class="form-control" />
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">@T("Màu sắc", "Color")</label>
+                        <div class="category-color-tools">
+                            <div class="category-color-presets">
+                                @foreach (var color in presetColors)
+                                {
+                                    <button type="button"
+                                            class="category-color-preset-detail @(color == "#FFAB00" ? "active" : "")"
+                                            data-color="@color"
+                                            style="background:@color;">
+                                    </button>
+                                }
+                            </div>
+                            <div class="category-color-custom">
+                                <input type="color" id="detailCategoryColor" class="form-control form-control-color" value="#FFAB00" />
+                                <span class="category-color-code" id="detailCategoryColorCode">#FFAB00</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label">@T("Biểu tượng", "Icon")</label>
+                        <div class="category-icon-picker">
+                            @if (categoryIconFiles.Any())
+                            {
+                                for (int i = 0; i < categoryIconFiles.Count; i++)
+                                {
+                                    var fileName = categoryIconFiles[i];
+                                    <button type="button"
+                                            class="category-icon-option category-icon-option-detail @(i == 0 ? "active" : "")"
+                                            data-icon="/sneat/img/icons/categories/@fileName">
+                                        <img src="~/sneat/img/icons/categories/@fileName" alt="@fileName" />
+                                    </button>
+                                }
+                            }
+                        </div>
+                        <input type="hidden" id="detailCategoryIcon" value="@(categoryIconFiles.Any() ? $"/sneat/img/icons/categories/{categoryIconFiles.First()}" : "")" />
+                    </div>
+
+                    <div class="col-12">
+                        <div class="category-preview card">
+                            <div class="card-body">
+                                <div class="category-preview-inline">
+                                    <div id="detailPreviewIconWrap" class="category-icon-wrap" style="background: rgba(255,171,0,.14);">
+                                        <img id="detailPreviewIcon" src="" class="category-icon-img" alt="icon" />
+                                    </div>
+                                    <div>
+                                        <div class="category-name" id="detailPreviewName">Ăn uống</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="alert alert-warning mb-0">
+                            <i class="icon-base bx bx-info-circle me-1"></i>
+                            @T("Đây là giao diện tĩnh. Nút lưu/xóa hiện chỉ hiển thị thông báo.", "This is a static UI. Save/Delete currently show toast only.")
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer justify-content-between">
+                <button type="button" class="btn btn-outline-danger" id="btnDeleteCategoryStatic">
+                    <i class="icon-base bx bx-trash me-1"></i> @T("Xóa danh mục", "Delete Category")
+                </button>
+
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">@T("Đóng", "Close")</button>
+                    <button type="button" class="btn btn-primary" id="btnUpdateCategoryStatic">
+                        <i class="icon-base bx bx-save me-1"></i> @T("Lưu thay đổi", "Save Changes")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div class="toast-container position-fixed bottom-0 start-50 translate-middle-x p-4 category-toast-stack">
+    <div id="categorySavedToast" class="toast bg-success text-white" role="alert">
+        <div class="toast-header bg-success text-white">
+            <i class="icon-base bx bx-check-circle me-2"></i>
+            <strong class="me-auto">@T("Danh mục", "Category")</strong>
+            <small>@T("Vừa xong", "Now")</small>
+            <button type="button" class="btn-close btn-close-white ms-2 mb-1" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body">@T("Lưu danh mục thành công.", "Category saved successfully.")</div>
+    </div>
+
+    <div id="categoryUpdatedToast" class="toast bg-primary text-white" role="alert">
+        <div class="toast-header bg-primary text-white">
+            <i class="icon-base bx bx-edit me-2"></i>
+            <strong class="me-auto">@T("Danh mục", "Category")</strong>
+            <small>@T("Vừa xong", "Now")</small>
+            <button type="button" class="btn-close btn-close-white ms-2 mb-1" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body">@T("Cập nhật danh mục thành công.", "Category updated successfully.")</div>
+    </div>
+
+    <div id="categoryDeletedToast" class="toast bg-danger text-white" role="alert">
+        <div class="toast-header bg-danger text-white">
+            <i class="icon-base bx bx-trash me-2"></i>
+            <strong class="me-auto">@T("Danh mục", "Category")</strong>
+            <small>@T("Vừa xong", "Now")</small>
+            <button type="button" class="btn-close btn-close-white ms-2 mb-1" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body">@T("Xóa danh mục thành công.", "Category deleted successfully.")</div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/sneat/js/pages/category-page.js"></script>
+}
