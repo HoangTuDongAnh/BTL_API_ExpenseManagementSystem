@@ -1,360 +1,509 @@
-﻿@{
-    ViewBag.Title = "Dashboard";
+﻿@using System.IO
+@using System.Linq
+@inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment WebHostEnvironment
+
+@{
+    ViewBag.Title = "Wallet Dashboard";
     Layout = "~/Views/Shared/_Layout.cshtml";
+
+    var lang = (Context.Request.Query["lang"].FirstOrDefault() ?? "vi").ToLower();
+
+    string T(string vi, string en) => lang == "en" ? en : vi;
+
+    var currencyOptions = new[]
+    {
+        new { Code = "VND", NameVi = "Việt Nam Đồng", NameEn = "Vietnamese Dong", Flag = "/sneat/img/icons/currencies/vietnam.png" },
+        new { Code = "USD", NameVi = "Đô la Mỹ", NameEn = "US Dollar", Flag = "/sneat/img/icons/currencies/united-states.png" },
+        new { Code = "EUR", NameVi = "Euro", NameEn = "Euro", Flag = "/sneat/img/icons/currencies/european-union.png" },
+        new { Code = "JPY", NameVi = "Yên Nhật", NameEn = "Japanese Yen", Flag = "/sneat/img/icons/currencies/japan.png" },
+        new { Code = "KRW", NameVi = "Won Hàn", NameEn = "Korean Won", Flag = "/sneat/img/icons/currencies/south-korea.png" }
+    };
+
+    var walletIconFolderPhysical = System.IO.Path.Combine(WebHostEnvironment.WebRootPath, "sneat", "img", "icons", "wallets");
+    var walletIconFiles = Directory.Exists(walletIconFolderPhysical)
+        ? Directory.GetFiles(walletIconFolderPhysical)
+            .Where(f =>
+            {
+                var ext = System.IO.Path.GetExtension(f).ToLower();
+                return ext == ".png" || ext == ".svg" || ext == ".webp" || ext == ".jpg" || ext == ".jpeg";
+            })
+            .Select(System.IO.Path.GetFileName)
+            .OrderBy(x => x)
+            .ToList()
+        : new List<string>();
+
+    var presetColors = new[]
+    {
+        "#FFAB00",
+        "#696CFF",
+        "#03C3EC",
+        "#71DD37",
+        "#FF3E1D",
+        "#8592A3",
+        "#233446",
+        "#8C57FF"
+    };
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/sneat/css/pages/wallet-dashboard.css" />
 }
 
 <div class="container-xxl flex-grow-1 container-p-y">
-    <div class="row">
-        <div class="col-xxl-8 mb-6 order-0">
-            <div class="card">
-                <div class="d-flex align-items-start row">
-                    <div class="col-sm-7">
-                        <div class="card-body">
-                            <h5 class="card-title text-primary mb-3">Congratulations John! 🎉</h5>
-                            <p class="mb-6">
-                                You have done 72% more sales today.<br />Check your new badge in your profile.
-                            </p>
-                            <a href="javascript:;" class="btn btn-sm btn-outline-primary">View Badges</a>
-                        </div>
-                    </div>
-                    <div class="col-sm-5 text-center text-sm-left">
-                        <div class="card-body pb-0 px-0 px-md-6">
-                            <img src="~/Sneat/img/illustrations/man-with-laptop.png"
-                                 height="175"
-                                 alt="View Badge User" />
-                        </div>
-                    </div>
-                </div>
+    <div class="card">
+        <div class="card-header d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+            <div>
+                <h5 class="mb-1">@T("Danh sách ví", "Wallet List")</h5>
+                <p class="card-subtitle mb-0">
+                    @T("Chọn một ví để xem, sửa hoặc xóa.", "Click a wallet to view, edit, or delete.")
+                </p>
             </div>
+
+            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addWalletModal">
+                <i class="icon-base bx bx-plus me-1"></i> @T("Thêm ví mới", "Add New Wallet")
+            </button>
         </div>
 
-        <div class="col-xxl-4 col-lg-12 col-md-4 order-1">
-            <div class="row">
-                <div class="col-lg-6 col-md-12 col-6 mb-6">
-                    <div class="card h-100">
+        <div class="card-body">
+            <div class="row g-4 wallet-grid">
+
+                <div class="col-12 col-md-6 col-xl-4 col-wallet">
+                    <button type="button"
+                            class="card wallet-card-static text-start"
+                            data-bs-toggle="modal"
+                            data-bs-target="#walletDetailModal"
+                            data-wallet-id="W00010001"
+                            data-wallet-name="Tiền mặt"
+                            data-wallet-balance="1250000"
+                            data-wallet-initial="500000"
+                            data-wallet-currency="VND"
+                            data-wallet-color="#FFAB00"
+                            data-wallet-icon="/sneat/img/icons/wallets/@(walletIconFiles.Count > 0 ? walletIconFiles[0] : "")">
                         <div class="card-body">
-                            <div class="card-title d-flex align-items-start justify-content-between mb-4">
-                                <div class="avatar flex-shrink-0">
-                                    <img src="~/sneat/img/icons/unicons/chart-success.png" alt="chart success" class="rounded" />
+                            <div class="wallet-card-mini">
+                                <div class="wallet-card-mini-left">
+                                    <div class="wallet-image-box" style="background: rgba(255,171,0,.14);">
+                                        @if (walletIconFiles.Count > 0)
+                                        {
+                                            <img src="~/sneat/img/icons/wallets/@walletIconFiles[0]" alt="wallet icon" class="wallet-image-icon" />
+                                        }
+                                    </div>
+                                    <div>
+                                        <div class="wallet-name">Tiền mặt</div>
+                                        <div class="wallet-mini-type">@T("Tiền mặt", "Cash")</div>
+                                    </div>
+                                </div>
+                                <div class="wallet-card-mini-right">
+                                    <div class="wallet-balance-compact">1,250,000 VND</div>
                                 </div>
                             </div>
-                            <p class="mb-1">Profit</p>
-                            <h4 class="card-title mb-3">$12,628</h4>
-                            <small class="text-success fw-medium">
-                                <i class="icon-base bx bx-up-arrow-alt"></i> +72.80%
-                            </small>
                         </div>
-                    </div>
+                    </button>
                 </div>
 
-                <div class="col-lg-6 col-md-12 col-6 mb-6">
-                    <div class="card h-100">
+                <div class="col-12 col-md-6 col-xl-4 col-wallet">
+                    <button type="button"
+                            class="card wallet-card-static text-start"
+                            data-bs-toggle="modal"
+                            data-bs-target="#walletDetailModal"
+                            data-wallet-id="W00010002"
+                            data-wallet-name="Ngân hàng MB"
+                            data-wallet-balance="8750000"
+                            data-wallet-initial="3000000"
+                            data-wallet-currency="VND"
+                            data-wallet-color="#696CFF"
+                            data-wallet-icon="/sneat/img/icons/wallets/@(walletIconFiles.Count > 1 ? walletIconFiles[1] : (walletIconFiles.Count > 0 ? walletIconFiles[0] : ""))">
                         <div class="card-body">
-                            <div class="card-title d-flex align-items-start justify-content-between mb-4">
-                                <div class="avatar flex-shrink-0">
-                                    <img src="~/sneat/img/icons/unicons/wallet-info.png" alt="wallet info" class="rounded" />
+                            <div class="wallet-card-mini">
+                                <div class="wallet-card-mini-left">
+                                    <div class="wallet-image-box" style="background: rgba(105,108,255,.14);">
+                                        @if (walletIconFiles.Count > 1)
+                                        {
+                                            <img src="~/sneat/img/icons/wallets/@walletIconFiles[1]" alt="wallet icon" class="wallet-image-icon" />
+                                        }
+                                        else if (walletIconFiles.Count > 0)
+                                        {
+                                            <img src="~/sneat/img/icons/wallets/@walletIconFiles[0]" alt="wallet icon" class="wallet-image-icon" />
+                                        }
+                                    </div>
+                                    <div>
+                                        <div class="wallet-name">Ngân hàng MB</div>
+                                        <div class="wallet-mini-type">@T("Ngân hàng", "Bank")</div>
+                                    </div>
+                                </div>
+                                <div class="wallet-card-mini-right">
+                                    <div class="wallet-balance-compact">8,750,000 VND</div>
                                 </div>
                             </div>
-                            <p class="mb-1">Sales</p>
-                            <h4 class="card-title mb-3">$4,679</h4>
-                            <small class="text-success fw-medium">
-                                <i class="icon-base bx bx-up-arrow-alt"></i> +28.42%
-                            </small>
                         </div>
-                    </div>
+                    </button>
                 </div>
+
+                <div class="col-12 col-md-6 col-xl-4 col-wallet">
+                    <button type="button"
+                            class="card wallet-card-static text-start"
+                            data-bs-toggle="modal"
+                            data-bs-target="#walletDetailModal"
+                            data-wallet-id="W00010003"
+                            data-wallet-name="Quỹ du lịch"
+                            data-wallet-balance="4200"
+                            data-wallet-initial="2000"
+                            data-wallet-currency="USD"
+                            data-wallet-color="#03C3EC"
+                            data-wallet-icon="/sneat/img/icons/wallets/@(walletIconFiles.Count > 2 ? walletIconFiles[2] : (walletIconFiles.Count > 0 ? walletIconFiles[0] : ""))">
+                        <div class="card-body">
+                            <div class="wallet-card-mini">
+                                <div class="wallet-card-mini-left">
+                                    <div class="wallet-image-box" style="background: rgba(3,195,236,.14);">
+                                        @if (walletIconFiles.Count > 2)
+                                        {
+                                            <img src="~/sneat/img/icons/wallets/@walletIconFiles[2]" alt="wallet icon" class="wallet-image-icon" />
+                                        }
+                                        else if (walletIconFiles.Count > 0)
+                                        {
+                                            <img src="~/sneat/img/icons/wallets/@walletIconFiles[0]" alt="wallet icon" class="wallet-image-icon" />
+                                        }
+                                    </div>
+                                    <div>
+                                        <div class="wallet-name">Quỹ du lịch</div>
+                                        <div class="wallet-mini-type">@T("Tiết kiệm", "Saving")</div>
+                                    </div>
+                                </div>
+                                <div class="wallet-card-mini-right">
+                                    <div class="wallet-balance-compact">4,200 USD</div>
+                                </div>
+                            </div>
+                        </div>
+                    </button>
+                </div>
+
             </div>
         </div>
+    </div>
+</div>
 
-        <div class="col-12 col-xxl-8 order-2 order-md-3 order-xxl-2 mb-6 total-revenue">
-            <div class="card">
-                <div class="row row-bordered g-0">
-                    <div class="col-lg-8">
-                        <div class="card-header d-flex align-items-center justify-content-between">
-                            <div class="card-title mb-0">
-                                <h5 class="m-0 me-2">Total Revenue</h5>
-                            </div>
-                        </div>
-                        <div id="totalRevenueChart" class="px-3"></div>
+<!-- Add Wallet Modal -->
+<div class="modal fade wallet-modal" id="addWalletModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg wallet-modal-smaller">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h4 class="modal-title mb-1">@T("Thêm ví mới", "Add New Wallet")</h4>
+                    <p class="text-body-secondary mb-0">@T("Tạo nhanh một ví mới.", "Create a new wallet quickly.")</p>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <label class="form-label">@T("Tên ví", "Wallet name")</label>
+                        <input type="text" id="addWalletName" class="form-control" value="Tiền mặt" />
                     </div>
 
-                    <div class="col-lg-4">
-                        <div class="card-body px-xl-9 py-12 d-flex align-items-center flex-column">
-                            <div class="text-center mb-6">
-                                <div class="btn-group">
-                                    <button type="button" class="btn btn-outline-primary">2025</button>
+                    <div class="col-md-6">
+                        <label class="form-label">@T("Số dư ban đầu", "Initial balance")</label>
+                        <input type="number" id="addInitialBalance" class="form-control" value="0" min="0" />
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">@T("Loại tiền", "Currency")</label>
+                        <div class="dropdown w-100">
+                            <button class="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-between wallet-currency-button"
+                                    type="button"
+                                    data-bs-toggle="dropdown"
+                                    aria-expanded="false">
+                                <span class="d-flex align-items-center gap-2">
+                                    <img id="addWalletCurrencyFlag" class="wallet-dropdown-flag" src="@currencyOptions[0].Flag" alt="VND" />
+                                    <span id="addWalletCurrencyLabel">@currencyOptions[0].NameVi (VND)</span>
+                                </span>
+                                <i class="icon-base bx bx-chevron-down"></i>
+                            </button>
+
+                            <ul class="dropdown-menu wallet-dropdown-menu">
+                                @foreach (var currency in currencyOptions)
+                                {
+                                    <li>
+                                        <a href="#"
+                                           class="wallet-currency-option"
+                                           data-code="@currency.Code"
+                                           data-name="@(lang == "en" ? currency.NameEn : currency.NameVi)"
+                                           data-flag="@currency.Flag">
+                                            <img class="wallet-dropdown-flag" src="@currency.Flag" alt="@currency.Code" />
+                                            <span class="wallet-currency-meta">
+                                                <strong>@(lang == "en" ? currency.NameEn : currency.NameVi)</strong>
+                                                <small>@currency.Code</small>
+                                            </span>
+                                        </a>
+                                    </li>
+                                }
+                            </ul>
+                        </div>
+                        <input type="hidden" id="addWalletCurrencyCode" value="VND" />
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">@T("Màu ví", "Wallet color")</label>
+
+                        <div class="wallet-color-tools">
+                            <div class="wallet-color-presets">
+                                @foreach (var color in presetColors)
+                                {
                                     <button type="button"
-                                            class="btn btn-outline-primary dropdown-toggle dropdown-toggle-split"
-                                            data-bs-toggle="dropdown"
-                                            aria-expanded="false">
-                                        <span class="visually-hidden">Toggle Dropdown</span>
+                                            class="wallet-color-preset @(color == "#FFAB00" ? "active" : "")"
+                                            data-color="@color"
+                                            style="background:@color;">
                                     </button>
-                                    <ul class="dropdown-menu">
-                                        <li><a class="dropdown-item" href="javascript:void(0);">2024</a></li>
-                                        <li><a class="dropdown-item" href="javascript:void(0);">2023</a></li>
-                                    </ul>
-                                </div>
+                                }
                             </div>
 
-                            <div id="growthChart"></div>
-                            <div class="text-center fw-medium my-6">62% Company Growth</div>
+                            <div class="wallet-color-custom">
+                                <input type="color" id="addWalletColor" class="form-control form-control-color" value="#FFAB00" />
+                                <span class="wallet-color-code" id="addWalletColorCode">#FFAB00</span>
+                            </div>
+                        </div>
+                    </div>
 
-                            <div class="d-flex gap-11 justify-content-between">
-                                <div class="d-flex">
-                                    <div class="avatar me-2">
-                                        <span class="avatar-initial rounded-2 bg-label-primary">
-                                            <i class="icon-base bx bx-dollar icon-lg text-primary"></i>
-                                        </span>
-                                    </div>
-                                    <div class="d-flex flex-column">
-                                        <small>2025</small>
-                                        <h6 class="mb-0">$32.5k</h6>
-                                    </div>
-                                </div>
+                    <div class="col-12">
+                        <label class="form-label">@T("Icon ví", "Wallet icon")</label>
 
-                                <div class="d-flex">
-                                    <div class="avatar me-2">
-                                        <span class="avatar-initial rounded-2 bg-label-info">
-                                            <i class="icon-base bx bx-wallet icon-lg text-info"></i>
-                                        </span>
+                        <div class="wallet-image-picker">
+                            @if (walletIconFiles.Any())
+                            {
+                                for (int i = 0; i < walletIconFiles.Count; i++)
+                                {
+                                    var fileName = walletIconFiles[i];
+                                    <button type="button"
+                                            class="wallet-image-option wallet-image-option-add @(i == 0 ? "active" : "")"
+                                            data-icon="/sneat/img/icons/wallets/@fileName">
+                                        <img src="~/sneat/img/icons/wallets/@fileName" alt="@fileName" />
+                                    </button>
+                                }
+                            }
+                            else
+                            {
+                                <div class="text-muted small">@T("Chưa có icon trong thư mục wallets.", "No wallet icons found in wallets folder.")</div>
+                            }
+                        </div>
+                        <input type="hidden" id="addWalletIcon" value="@(walletIconFiles.Any() ? $"/sneat/img/icons/wallets/{walletIconFiles.First()}" : "")" />
+                    </div>
+
+                    <div class="col-12">
+                        <div class="wallet-preview-inline card">
+                            <div class="card-body">
+                                <div class="wallet-card-mini">
+                                    <div class="wallet-card-mini-left">
+                                        <div id="addPreviewIconWrap" class="wallet-image-box" style="background: rgba(255,171,0,.14);">
+                                            @if (walletIconFiles.Any())
+                                            {
+                                                <img id="addPreviewIcon" src="~/sneat/img/icons/wallets/@walletIconFiles.First()" alt="icon" class="wallet-image-icon" />
+                                            }
+                                            else
+                                            {
+                                                <img id="addPreviewIcon" src="" alt="icon" class="wallet-image-icon d-none" />
+                                            }
+                                        </div>
+                                        <div>
+                                            <div class="wallet-name" id="addPreviewName">Tiền mặt</div>
+                                            <div class="wallet-mini-type" id="addPreviewCurrencyBadge">VND</div>
+                                        </div>
                                     </div>
-                                    <div class="d-flex flex-column">
-                                        <small>2024</small>
-                                        <h6 class="mb-0">$41.2k</h6>
+                                    <div class="wallet-card-mini-right">
+                                        <div class="wallet-balance-compact" id="addPreviewBalance">0 VND</div>
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="addWalletDefault" checked />
+                            <label class="form-check-label" for="addWalletDefault">@T("Đặt làm ví mặc định", "Set as default wallet")</label>
                         </div>
                     </div>
                 </div>
             </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">@T("Hủy", "Cancel")</button>
+                <button type="button" class="btn btn-primary" id="btnSaveWalletStatic">@T("Lưu ví", "Save Wallet")</button>
+            </div>
         </div>
+    </div>
+</div>
 
-        <div class="col-12 col-md-8 col-lg-12 col-xxl-4 order-3 order-md-2 profile-report">
-            <div class="row">
-                <div class="col-6 mb-6 payments">
-                    <div class="card h-100">
-                        <div class="card-body">
-                            <div class="avatar flex-shrink-0 mb-4">
-                                <img src="~/sneat/img/icons/unicons/paypal.png" alt="paypal" class="rounded" />
-                            </div>
-                            <p class="mb-1">Payments</p>
-                            <h4 class="card-title mb-3">$2,456</h4>
-                            <small class="text-danger fw-medium">
-                                <i class="icon-base bx bx-down-arrow-alt"></i> -14.82%
-                            </small>
-                        </div>
-                    </div>
+<!-- Detail Wallet Modal -->
+<div class="modal fade wallet-modal" id="walletDetailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg wallet-modal-smaller">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h4 class="modal-title mb-1">@T("Chi tiết ví", "Wallet Details")</h4>
+                    <p class="text-body-secondary mb-0">@T("Xem và chỉnh sửa nhanh thông tin ví.", "Quickly view and edit wallet info.")</p>
                 </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
 
-                <div class="col-6 mb-6 transactions">
-                    <div class="card h-100">
-                        <div class="card-body">
-                            <div class="avatar flex-shrink-0 mb-4">
-                                <img src="~/sneat/img/icons/unicons/cc-primary.png" alt="Credit Card" class="rounded" />
-                            </div>
-                            <p class="mb-1">Transactions</p>
-                            <h4 class="card-title mb-3">$14,857</h4>
-                            <small class="text-success fw-medium">
-                                <i class="icon-base bx bx-up-arrow-alt"></i> +28.14%
-                            </small>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-12 mb-6 profile-report">
-                    <div class="card h-100">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center flex-sm-row flex-column gap-10 flex-wrap">
-                                <div class="d-flex flex-sm-column flex-row align-items-start justify-content-between">
-                                    <div class="card-title mb-6">
-                                        <h5 class="text-nowrap mb-1">Profile Report</h5>
-                                        <span class="badge bg-label-warning">YEAR 2022</span>
-                                    </div>
-                                    <div class="mt-sm-auto">
-                                        <span class="text-success text-nowrap fw-medium">
-                                            <i class="icon-base bx bx-up-arrow-alt"></i> 68.2%
-                                        </span>
-                                        <h4 class="mb-0">$84,686k</h4>
+            <div class="modal-body">
+                <div class="wallet-detail-top card">
+                    <div class="card-body">
+                        <div class="wallet-card-mini">
+                            <div class="wallet-card-mini-left">
+                                <div id="detailHeadIconWrap" class="wallet-image-box" style="background: rgba(255,171,0,.14);">
+                                    <img id="detailHeadIcon" src="" alt="wallet icon" class="wallet-image-icon" />
+                                </div>
+                                <div>
+                                    <div class="wallet-name" id="detailWalletTitle">Tiền mặt</div>
+                                    <div class="wallet-mini-type">
+                                        <span class="badge bg-label-primary me-1" id="detailWalletId">W00010001</span>
+                                        <span class="badge bg-label-success" id="detailWalletCurrency">VND</span>
                                     </div>
                                 </div>
-                                <div id="profileReportChart"></div>
                             </div>
+                            <div class="wallet-card-mini-right">
+                                <div class="wallet-balance-compact" id="detailCurrentBalance">1,250,000 VND</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-4 mt-1">
+                    <div class="col-md-6">
+                        <label class="form-label">@T("Tên ví", "Wallet name")</label>
+                        <input type="text" id="detailWalletName" class="form-control" />
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">@T("Số dư ban đầu", "Initial balance")</label>
+                        <input type="number" id="detailInitialBalance" class="form-control" />
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">@T("Màu ví", "Wallet color")</label>
+                        <div class="wallet-color-tools">
+                            <div class="wallet-color-presets">
+                                @foreach (var color in presetColors)
+                                {
+                                    <button type="button"
+                                            class="wallet-color-preset-detail @(color == "#FFAB00" ? "active" : "")"
+                                            data-color="@color"
+                                            style="background:@color;">
+                                    </button>
+                                }
+                            </div>
+
+                            <div class="wallet-color-custom">
+                                <input type="color" id="detailWalletColor" class="form-control form-control-color" value="#FFAB00" />
+                                <span class="wallet-color-code" id="detailWalletColorCode">#FFAB00</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">@T("Icon ví", "Wallet icon")</label>
+                        <div class="wallet-image-picker wallet-image-picker-detail">
+                            @if (walletIconFiles.Any())
+                            {
+                                for (int i = 0; i < walletIconFiles.Count; i++)
+                                {
+                                    var fileName = walletIconFiles[i];
+                                    <button type="button"
+                                            class="wallet-image-option wallet-image-option-detail @(i == 0 ? "active" : "")"
+                                            data-icon="/sneat/img/icons/wallets/@fileName">
+                                        <img src="~/sneat/img/icons/wallets/@fileName" alt="@fileName" />
+                                    </button>
+                                }
+                            }
+                        </div>
+                        <input type="hidden" id="detailWalletIcon" value="@(walletIconFiles.Any() ? $"/sneat/img/icons/wallets/{walletIconFiles.First()}" : "")" />
+                    </div>
+
+                    <div class="col-12">
+                        <div class="wallet-preview-inline card">
+                            <div class="card-body">
+                                <div class="wallet-card-mini">
+                                    <div class="wallet-card-mini-left">
+                                        <div id="detailPreviewIconWrap" class="wallet-image-box" style="background: rgba(255,171,0,.14);">
+                                            <img id="detailPreviewIcon" src="" alt="icon" class="wallet-image-icon" />
+                                        </div>
+                                        <div>
+                                            <div class="wallet-name" id="detailPreviewName">Tiền mặt</div>
+                                            <div class="wallet-mini-type" id="detailPreviewCurrency">VND</div>
+                                        </div>
+                                    </div>
+                                    <div class="wallet-card-mini-right">
+                                        <div class="wallet-balance-compact" id="detailPreviewBalance">500,000 VND</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="alert alert-warning mb-0">
+                            <i class="icon-base bx bx-info-circle me-1"></i>
+                            @T("Đây là giao diện tĩnh. Nút lưu/xóa hiện chỉ hiển thị thông báo.", "This is a static UI. Save/Delete currently show toast only.")
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <div class="col-md-6 col-lg-4 col-xl-4 order-0 mb-6">
-            <div class="card h-100">
-                <div class="card-header d-flex justify-content-between">
-                    <div class="card-title mb-0">
-                        <h5 class="mb-1 me-2">Order Statistics</h5>
-                        <p class="card-subtitle">42.82k Total Sales</p>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-6">
-                        <div class="d-flex flex-column align-items-center gap-1">
-                            <h3 class="mb-1">8,258</h3>
-                            <small>Total Orders</small>
-                        </div>
-                        <div id="orderStatisticsChart"></div>
-                    </div>
-                    <ul class="p-0 m-0">
-                        <li class="d-flex align-items-center mb-5">
-                            <div class="avatar flex-shrink-0 me-3">
-                                <span class="avatar-initial rounded bg-label-primary">
-                                    <i class="icon-base bx bx-mobile-alt"></i>
-                                </span>
-                            </div>
-                            <div class="d-flex w-100 flex-wrap align-items-center justify-content-between gap-2">
-                                <div class="me-2">
-                                    <h6 class="mb-0">Electronic</h6>
-                                    <small>Mobile, Earbuds, TV</small>
-                                </div>
-                                <div class="user-progress">
-                                    <h6 class="mb-0">82.5k</h6>
-                                </div>
-                            </div>
-                        </li>
+            <div class="modal-footer justify-content-between">
+                <button type="button" class="btn btn-outline-danger" id="btnDeleteWalletStatic">
+                    <i class="icon-base bx bx-trash me-1"></i> @T("Xóa ví", "Delete Wallet")
+                </button>
 
-                        <li class="d-flex align-items-center mb-5">
-                            <div class="avatar flex-shrink-0 me-3">
-                                <span class="avatar-initial rounded bg-label-success">
-                                    <i class="icon-base bx bx-closet"></i>
-                                </span>
-                            </div>
-                            <div class="d-flex w-100 flex-wrap align-items-center justify-content-between gap-2">
-                                <div class="me-2">
-                                    <h6 class="mb-0">Fashion</h6>
-                                    <small>T-shirt, Jeans, Shoes</small>
-                                </div>
-                                <div class="user-progress">
-                                    <h6 class="mb-0">23.8k</h6>
-                                </div>
-                            </div>
-                        </li>
-
-                        <li class="d-flex align-items-center">
-                            <div class="avatar flex-shrink-0 me-3">
-                                <span class="avatar-initial rounded bg-label-info">
-                                    <i class="icon-base bx bx-home-alt"></i>
-                                </span>
-                            </div>
-                            <div class="d-flex w-100 flex-wrap align-items-center justify-content-between gap-2">
-                                <div class="me-2">
-                                    <h6 class="mb-0">Decor</h6>
-                                    <small>Fine Art, Dining</small>
-                                </div>
-                                <div class="user-progress">
-                                    <h6 class="mb-0">849k</h6>
-                                </div>
-                            </div>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-6 col-lg-4 order-1 mb-6">
-            <div class="card h-100">
-                <div class="card-header nav-align-top">
-                    <ul class="nav nav-pills flex-wrap row-gap-2" role="tablist">
-                        <li class="nav-item">
-                            <button type="button" class="nav-link active" role="tab">Income</button>
-                        </li>
-                        <li class="nav-item">
-                            <button type="button" class="nav-link" role="tab">Expenses</button>
-                        </li>
-                        <li class="nav-item">
-                            <button type="button" class="nav-link" role="tab">Profit</button>
-                        </li>
-                    </ul>
-                </div>
-                <div class="card-body">
-                    <div class="d-flex mb-6">
-                        <div class="avatar flex-shrink-0 me-3">
-                            <img src="~/sneat/img/icons/unicons/wallet.png" alt="User" />
-                        </div>
-                        <div>
-                            <p class="mb-0">Total Balance</p>
-                            <div class="d-flex align-items-center">
-                                <h6 class="mb-0 me-1">$459.10</h6>
-                                <small class="text-success fw-medium">
-                                    <i class="icon-base bx bx-chevron-up icon-lg"></i> 42.9%
-                                </small>
-                            </div>
-                        </div>
-                    </div>
-                    <div id="incomeChart"></div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-6 col-lg-4 order-2 mb-6">
-            <div class="card h-100">
-                <div class="card-header d-flex align-items-center justify-content-between">
-                    <h5 class="card-title m-0 me-2">Transactions</h5>
-                </div>
-                <div class="card-body pt-4">
-                    <ul class="p-0 m-0">
-                        <li class="d-flex align-items-center mb-6">
-                            <div class="avatar flex-shrink-0 me-3">
-                                <img src="~/sneat/img/icons/unicons/paypal.png" alt="User" class="rounded" />
-                            </div>
-                            <div class="d-flex w-100 flex-wrap align-items-center justify-content-between gap-2">
-                                <div class="me-2">
-                                    <small class="d-block">Paypal</small>
-                                    <h6 class="fw-normal mb-0">Send money</h6>
-                                </div>
-                                <div class="user-progress d-flex align-items-center gap-2">
-                                    <h6 class="fw-normal mb-0">+82.6</h6>
-                                    <span class="text-body-secondary">USD</span>
-                                </div>
-                            </div>
-                        </li>
-
-                        <li class="d-flex align-items-center mb-6">
-                            <div class="avatar flex-shrink-0 me-3">
-                                <img src="~/sneat/img/icons/unicons/wallet.png" alt="User" class="rounded" />
-                            </div>
-                            <div class="d-flex w-100 flex-wrap align-items-center justify-content-between gap-2">
-                                <div class="me-2">
-                                    <small class="d-block">Wallet</small>
-                                    <h6 class="fw-normal mb-0">Mac'D</h6>
-                                </div>
-                                <div class="user-progress d-flex align-items-center gap-2">
-                                    <h6 class="fw-normal mb-0">+270.69</h6>
-                                    <span class="text-body-secondary">USD</span>
-                                </div>
-                            </div>
-                        </li>
-
-                        <li class="d-flex align-items-center">
-                            <div class="avatar flex-shrink-0 me-3">
-                                <img src="~/sneat/img/icons/unicons/cc-warning.png" alt="User" class="rounded" />
-                            </div>
-                            <div class="d-flex w-100 flex-wrap align-items-center justify-content-between gap-2">
-                                <div class="me-2">
-                                    <small class="d-block">Mastercard</small>
-                                    <h6 class="fw-normal mb-0">Ordered Food</h6>
-                                </div>
-                                <div class="user-progress d-flex align-items-center gap-2">
-                                    <h6 class="fw-normal mb-0">-92.45</h6>
-                                    <span class="text-body-secondary">USD</span>
-                                </div>
-                            </div>
-                        </li>
-                    </ul>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">@T("Đóng", "Close")</button>
+                    <button type="button" class="btn btn-primary" id="btnUpdateWalletStatic">
+                        <i class="icon-base bx bx-save me-1"></i> @T("Lưu thay đổi", "Save Changes")
+                    </button>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
+<!-- Bottom Toast -->
+<div class="toast-container position-fixed bottom-0 start-50 translate-middle-x p-4 wallet-toast-stack">
+    <div id="walletSavedToast" class="toast bg-success text-white" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header bg-success text-white">
+            <i class="icon-base bx bx-check-circle me-2"></i>
+            <strong class="me-auto">@T("Ví", "Wallet")</strong>
+            <small>@T("Vừa xong", "Now")</small>
+            <button type="button" class="btn-close btn-close-white ms-2 mb-1" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body">
+            @T("Lưu ví thành công.", "Wallet saved successfully.")
+        </div>
+    </div>
+
+    <div id="walletUpdatedToast" class="toast bg-primary text-white" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header bg-primary text-white">
+            <i class="icon-base bx bx-edit me-2"></i>
+            <strong class="me-auto">@T("Ví", "Wallet")</strong>
+            <small>@T("Vừa xong", "Now")</small>
+            <button type="button" class="btn-close btn-close-white ms-2 mb-1" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body">
+            @T("Cập nhật ví thành công.", "Wallet updated successfully.")
+        </div>
+    </div>
+
+    <div id="walletDeletedToast" class="toast bg-danger text-white" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header bg-danger text-white">
+            <i class="icon-base bx bx-trash me-2"></i>
+            <strong class="me-auto">@T("Ví", "Wallet")</strong>
+            <small>@T("Vừa xong", "Now")</small>
+            <button type="button" class="btn-close btn-close-white ms-2 mb-1" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body">
+            @T("Xóa ví thành công.", "Wallet deleted successfully.")
+        </div>
+    </div>
+</div>
+
 @section Scripts {
-    <script src="~/Sneat/js/dashboards-analytics.js"></script>
-    <script async defer src="https://buttons.github.io/buttons.js"></script>
+    <script src="~/sneat/js/pages/wallet-dashboard.js"></script>
 }
