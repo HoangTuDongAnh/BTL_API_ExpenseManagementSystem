@@ -5,7 +5,7 @@ load_dotenv()
 
 
 class Settings:
-    DB_SERVER: str = os.getenv("DB_SERVER", r".\SQLEXPRESS")
+    DB_SERVER: str = os.getenv("DB_SERVER", r"(localdb)\MSSQLLocalDB")
     DB_NAME: str = os.getenv("DB_NAME", "ExpenseDB")
 
     SECRET_KEY: str = os.getenv("SECRET_KEY", "change_this_secret")
