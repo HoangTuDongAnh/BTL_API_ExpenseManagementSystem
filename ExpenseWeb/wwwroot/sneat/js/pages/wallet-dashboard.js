@@ -229,4 +229,212 @@
 
     updateAddPreview();
     updateDetailPreview();
+
+    // =========================
+    // DASHBOARD REPORT CHARTS
+    // =========================
+    const cashflowChartEl = document.querySelector("#dashboardCashflowChart");
+    if (cashflowChartEl && typeof ApexCharts !== "undefined") {
+        const cashflowChartOptions = {
+            series: [
+                {
+                    name: "Thu",
+                    data: [12, 15, 14, 18, 17, 19, 16, 20, 22, 21, 23, 24]
+                },
+                {
+                    name: "Chi",
+                    data: [6, 7, 8, 9, 7, 10, 11, 9, 10, 12, 11, 13]
+                }
+            ],
+            chart: {
+                height: 320,
+                type: "area",
+                toolbar: {
+                    show: false
+                },
+                parentHeightOffset: 0
+            },
+            stroke: {
+                curve: "smooth",
+                width: 3
+            },
+            dataLabels: {
+                enabled: false
+            },
+            colors: ["#28c76f", "#ff3e1d"],
+            fill: {
+                type: "gradient",
+                gradient: {
+                    shadeIntensity: 0.4,
+                    opacityFrom: 0.35,
+                    opacityTo: 0.04,
+                    stops: [0, 95, 100]
+                }
+            },
+            markers: {
+                size: 4,
+                strokeWidth: 2,
+                hover: {
+                    size: 6
+                }
+            },
+            grid: {
+                borderColor: "rgba(67,89,113,0.08)",
+                strokeDashArray: 4,
+                padding: {
+                    left: 8,
+                    right: 8,
+                    top: 0,
+                    bottom: 0
+                }
+            },
+            legend: {
+                show: false
+            },
+            xaxis: {
+                categories: ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12"],
+                axisBorder: {
+                    show: false
+                },
+                axisTicks: {
+                    show: false
+                },
+                labels: {
+                    style: {
+                        colors: "#8592a3",
+                        fontSize: "13px"
+                    }
+                }
+            },
+            yaxis: {
+                labels: {
+                    style: {
+                        colors: "#8592a3",
+                        fontSize: "13px"
+                    },
+                    formatter: function (val) {
+                        return val + "M";
+                    }
+                }
+            },
+            tooltip: {
+                shared: true,
+                intersect: false,
+                y: {
+                    formatter: function (val) {
+                        return val + " triệu";
+                    }
+                }
+            }
+        };
+
+        new ApexCharts(cashflowChartEl, cashflowChartOptions).render();
+    }
+
+    const expenseDonutChartEl = document.querySelector("#dashboardExpenseDonutChart");
+    if (expenseDonutChartEl && typeof ApexCharts !== "undefined") {
+        const expenseDonutChartOptions = {
+            series: [34, 24, 18, 14, 10],
+            labels: ["Mua sắm", "Ăn uống", "Hóa đơn", "Di chuyển", "Khác"],
+            chart: {
+                height: 280,
+                type: "donut"
+            },
+            colors: ["#8c57ff", "#ffab00", "#ff3e1d", "#03c3ec", "#8592a3"],
+            stroke: {
+                width: 0
+            },
+            dataLabels: {
+                enabled: false
+            },
+            legend: {
+                show: false
+            },
+            plotOptions: {
+                pie: {
+                    donut: {
+                        size: "72%",
+                        labels: {
+                            show: true,
+                            name: {
+                                offsetY: 18
+                            },
+                            value: {
+                                fontSize: "1.15rem",
+                                fontWeight: 600,
+                                color: "#233446",
+                                offsetY: -10,
+                                formatter: function (val) {
+                                    return parseInt(val) + "%";
+                                }
+                            },
+                            total: {
+                                show: true,
+                                label: "Chi tiêu",
+                                color: "#8592a3",
+                                formatter: function () {
+                                    return "100%";
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            responsive: [
+                {
+                    breakpoint: 1400,
+                    options: {
+                        chart: {
+                            height: 260
+                        }
+                    }
+                }
+            ]
+        };
+
+        new ApexCharts(expenseDonutChartEl, expenseDonutChartOptions).render();
+    }
+
+    const savingGoalChartEl = document.querySelector("#dashboardSavingGoalChart");
+    if (savingGoalChartEl && typeof ApexCharts !== "undefined") {
+        const savingGoalChartOptions = {
+            series: [72],
+            chart: {
+                height: 220,
+                type: "radialBar"
+            },
+            colors: ["#696cff"],
+            plotOptions: {
+                radialBar: {
+                    hollow: {
+                        size: "60%"
+                    },
+                    track: {
+                        background: "rgba(67,89,113,0.08)"
+                    },
+                    dataLabels: {
+                        name: {
+                            show: true,
+                            fontSize: "14px",
+                            color: "#8592a3",
+                            offsetY: 20
+                        },
+                        value: {
+                            show: true,
+                            fontSize: "24px",
+                            fontWeight: 700,
+                            color: "#233446",
+                            offsetY: -20,
+                            formatter: function (val) {
+                                return parseInt(val) + "%";
+                            }
+                        }
+                    }
+                }
+            },
+            labels: ["Tiến độ"]
+        };
+
+        new ApexCharts(savingGoalChartEl, savingGoalChartOptions).render();
+    }
 });

@@ -182,6 +182,258 @@
     </div>
 </div>
 
+<div class="container-xxl flex-grow-1 container-p-y pt-0 dashboard-report-section">
+    <div class="row g-4">
+
+        <div class="col-12">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-1">
+                <div>
+                    <h5 class="mb-1">@T("Tổng quan tài chính", "Financial Overview")</h5>
+                    <p class="text-body-secondary mb-0">
+                        @T("Theo dõi nhanh thu chi, cơ cấu chi tiêu và tiến độ tài chính hiện tại.", "Track income, expense, spending structure and current financial progress.")
+                    </p>
+                </div>
+
+                <div class="dashboard-report-filter-chip">
+                    <i class="bx bx-calendar me-1"></i>
+                    @T("Tháng này", "This month")
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI -->
+        <div class="col-sm-6 col-xl-3">
+            <div class="card dashboard-report-kpi dashboard-report-kpi-success">
+                <div class="card-body">
+                    <div class="dashboard-report-kpi-top">
+                        <span class="dashboard-report-kpi-icon">
+                            <i class="bx bx-trending-up"></i>
+                        </span>
+                    </div>
+                    <div class="dashboard-report-kpi-label">@T("Tổng thu", "Total Income")</div>
+                    <h5 class="mb-1">18,000,000 VND</h5>
+                    <small>@T("Cập nhật theo kỳ đang chọn", "Based on current filter")</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-sm-6 col-xl-3">
+            <div class="card dashboard-report-kpi dashboard-report-kpi-danger">
+                <div class="card-body">
+                    <div class="dashboard-report-kpi-top">
+                        <span class="dashboard-report-kpi-icon">
+                            <i class="bx bx-trending-down"></i>
+                        </span>
+                    </div>
+                    <div class="dashboard-report-kpi-label">@T("Tổng chi", "Total Expense")</div>
+                    <h5 class="mb-1">4,982,000 VND</h5>
+                    <small>@T("Chi tiêu trong kỳ", "Spending in current period")</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-sm-6 col-xl-3">
+            <div class="card dashboard-report-kpi dashboard-report-kpi-primary">
+                <div class="card-body">
+                    <div class="dashboard-report-kpi-top">
+                        <span class="dashboard-report-kpi-icon">
+                            <i class="bx bx-bar-chart-alt-2"></i>
+                        </span>
+                    </div>
+                    <div class="dashboard-report-kpi-label">@T("Chênh lệch", "Net Cashflow")</div>
+                    <h5 class="mb-1">+13,018,000 VND</h5>
+                    <small>@T("Thu trừ chi", "Income minus expense")</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-sm-6 col-xl-3">
+            <div class="card dashboard-report-kpi dashboard-report-kpi-warning">
+                <div class="card-body">
+                    <div class="dashboard-report-kpi-top">
+                        <span class="dashboard-report-kpi-icon">
+                            <i class="bx bx-receipt"></i>
+                        </span>
+                    </div>
+                    <div class="dashboard-report-kpi-label">@T("Số giao dịch", "Transactions")</div>
+                    <h5 class="mb-1">24</h5>
+                    <small>@T("Trong tháng hiện tại", "In current month")</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Line chart -->
+        <div class="col-12 col-xl-8">
+            <div class="card dashboard-report-card h-100">
+                <div class="card-header border-0 pb-0 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+                    <div>
+                        <h6 class="mb-1">@T("Xu hướng thu chi", "Income & Expense Trend")</h6>
+                        <small class="text-body-secondary">
+                            @T("Theo dõi biến động thu và chi theo từng tháng.", "Track income and expense over time.")
+                        </small>
+                    </div>
+
+                    <div class="dashboard-report-legend">
+                        <span><i class="legend-dot legend-income"></i> @T("Thu", "Income")</span>
+                        <span><i class="legend-dot legend-expense"></i> @T("Chi", "Expense")</span>
+                    </div>
+                </div>
+
+                <div class="card-body">
+                    <div id="dashboardCashflowChart" class="dashboard-report-chart-lg"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Donut chart -->
+        <div class="col-12 col-xl-4">
+            <div class="card dashboard-report-card h-100">
+                <div class="card-header border-0 pb-0">
+                    <h6 class="mb-1">@T("Cơ cấu chi tiêu", "Expense Breakdown")</h6>
+                    <small class="text-body-secondary">
+                        @T("Phân bổ chi tiêu theo danh mục trong kỳ.", "Expense distribution by category.")
+                    </small>
+                </div>
+
+                <div class="card-body">
+                    <div id="dashboardExpenseDonutChart" class="dashboard-report-chart-donut mb-3"></div>
+
+                    <div class="dashboard-category-list">
+                        <div class="dashboard-category-item">
+                            <div class="dashboard-category-left">
+                                <span class="dashboard-category-dot shopping"></span>
+                                <span>@T("Mua sắm", "Shopping")</span>
+                            </div>
+                            <strong>34%</strong>
+                        </div>
+
+                        <div class="dashboard-category-item">
+                            <div class="dashboard-category-left">
+                                <span class="dashboard-category-dot food"></span>
+                                <span>@T("Ăn uống", "Food")</span>
+                            </div>
+                            <strong>24%</strong>
+                        </div>
+
+                        <div class="dashboard-category-item">
+                            <div class="dashboard-category-left">
+                                <span class="dashboard-category-dot bills"></span>
+                                <span>@T("Hóa đơn", "Bills")</span>
+                            </div>
+                            <strong>18%</strong>
+                        </div>
+
+                        <div class="dashboard-category-item">
+                            <div class="dashboard-category-left">
+                                <span class="dashboard-category-dot transport"></span>
+                                <span>@T("Di chuyển", "Transport")</span>
+                            </div>
+                            <strong>14%</strong>
+                        </div>
+
+                        <div class="dashboard-category-item">
+                            <div class="dashboard-category-left">
+                                <span class="dashboard-category-dot other"></span>
+                                <span>@T("Khác", "Other")</span>
+                            </div>
+                            <strong>10%</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top expenses -->
+        <div class="col-12 col-xl-6">
+            <div class="card dashboard-report-card h-100">
+                <div class="card-header border-0 pb-0">
+                    <h6 class="mb-1">@T("Chi tiêu nổi bật", "Top Expenses")</h6>
+                    <small class="text-body-secondary">
+                        @T("Các khoản chi lớn nhất trong kỳ đang chọn.", "Largest expenses in selected period.")
+                    </small>
+                </div>
+
+                <div class="card-body">
+                    <div class="dashboard-top-expense-list">
+                        <div class="dashboard-top-expense-item">
+                            <div>
+                                <div class="fw-semibold">@T("Mua bàn phím", "Keyboard purchase")</div>
+                                <small class="text-body-secondary">@T("Mua sắm • Thẻ Visa", "Shopping • Visa Card")</small>
+                            </div>
+                            <strong class="text-danger">-1,250,000</strong>
+                        </div>
+
+                        <div class="dashboard-top-expense-item">
+                            <div>
+                                <div class="fw-semibold">Netflix</div>
+                                <small class="text-body-secondary">@T("Hóa đơn • Thẻ Visa", "Bills • Visa Card")</small>
+                            </div>
+                            <strong class="text-danger">-260,000</strong>
+                        </div>
+
+                        <div class="dashboard-top-expense-item">
+                            <div>
+                                <div class="fw-semibold">@T("Ăn trưa cùng nhóm", "Lunch with team")</div>
+                                <small class="text-body-secondary">@T("Ăn uống • Ví tiền mặt", "Food • Cash Wallet")</small>
+                            </div>
+                            <strong class="text-danger">-120,000</strong>
+                        </div>
+
+                        <div class="dashboard-top-expense-item">
+                            <div>
+                                <div class="fw-semibold">@T("Grab đi làm", "Commute by Grab")</div>
+                                <small class="text-body-secondary">@T("Di chuyển • Ví tiền mặt", "Transport • Cash Wallet")</small>
+                            </div>
+                            <strong class="text-danger">-42,000</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Saving goal -->
+        <div class="col-12 col-xl-6">
+            <div class="card dashboard-report-card h-100">
+                <div class="card-header border-0 pb-0">
+                    <h6 class="mb-1">@T("Tiến độ mục tiêu", "Goal Progress")</h6>
+                    <small class="text-body-secondary">
+                        @T("Theo dõi tiến độ tiết kiệm hoặc ngân sách hiện tại.", "Track your current saving or budget goal.")
+                    </small>
+                </div>
+
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-5">
+                            <div id="dashboardSavingGoalChart" class="dashboard-report-chart-radial"></div>
+                        </div>
+                        <div class="col-md-7">
+                            <div class="dashboard-goal-list">
+                                <div class="dashboard-goal-item">
+                                    <span>@T("Mục tiêu", "Goal")</span>
+                                    <strong>10,000,000 VND</strong>
+                                </div>
+                                <div class="dashboard-goal-item">
+                                    <span>@T("Đã đạt", "Achieved")</span>
+                                    <strong>7,200,000 VND</strong>
+                                </div>
+                                <div class="dashboard-goal-item">
+                                    <span>@T("Còn thiếu", "Remaining")</span>
+                                    <strong class="text-warning">2,800,000 VND</strong>
+                                </div>
+                                <div class="dashboard-goal-item">
+                                    <span>@T("Tỷ lệ hoàn thành", "Completion")</span>
+                                    <strong class="text-primary">72%</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
 <!-- Add Wallet Modal -->
 <div class="modal fade wallet-modal" id="addWalletModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg wallet-modal-smaller">
@@ -505,5 +757,6 @@
 </div>
 
 @section Scripts {
+    <script src="~/sneat/vendor/libs/apex-charts/apexcharts.js"></script>
     <script src="~/sneat/js/pages/wallet-dashboard.js"></script>
 }
