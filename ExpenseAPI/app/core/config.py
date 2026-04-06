@@ -5,12 +5,20 @@ load_dotenv()
 
 
 class Settings:
-    DB_SERVER: str = os.getenv("DB_SERVER", r"(localdb)\MSSQLLocalDB")
+    # ================= DATABASE =================
+    DB_SERVER: str = os.getenv("DB_SERVER", r".\SQLEXPRESS")
     DB_NAME: str = os.getenv("DB_NAME", "ExpenseDB")
 
+    # ================= JWT =================
     SECRET_KEY: str = os.getenv("SECRET_KEY", "change_this_secret")
     ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
+
+    # ================= EMAIL =================
+    EMAIL_HOST: str = os.getenv("EMAIL_HOST", "smtp.gmail.com")
+    EMAIL_PORT: int = int(os.getenv("EMAIL_PORT", 587))
+    EMAIL_USER: str = os.getenv("EMAIL_USER", "bomluu3175@gmail.com")
+    EMAIL_PASSWORD: str = os.getenv("EMAIL_PASSWORD", "snpa vgkx ykwl qgyf")
 
 
 settings = Settings()
