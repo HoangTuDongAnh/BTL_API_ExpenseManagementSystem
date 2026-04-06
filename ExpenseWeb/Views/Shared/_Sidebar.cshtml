@@ -47,13 +47,6 @@
             <span class="menu-header-text">Expense Management</span>
         </li>
 
-        <li class="menu-item @(currentController == "Wallet" ? "active" : "")">
-            <a href="@Url.Action("Index", "Wallet")" class="menu-link">
-                <i class="menu-icon tf-icons bx bx-wallet"></i>
-                <div class="text-truncate">Wallets</div>
-            </a>
-        </li>
-
         <li class="menu-item @(currentController == "Category" ? "active" : "")">
             <a href="@Url.Action("Index", "Category")" class="menu-link">
                 <i class="menu-icon tf-icons bx bx-category"></i>
@@ -72,13 +65,6 @@
             <a href="@Url.Action("Index", "Transaction")" class="menu-link">
                 <i class="menu-icon tf-icons bx bx-transfer"></i>
                 <div class="text-truncate">Transactions</div>
-            </a>
-        </li>
-
-        <li class="menu-item @(currentController == "Report" ? "active" : "")">
-            <a href="@Url.Action("Dashboard", "Report")" class="menu-link">
-                <i class="menu-icon tf-icons bx bx-pie-chart-alt-2"></i>
-                <div class="text-truncate">Reports</div>
             </a>
         </li>
 
