@@ -1,0 +1,32 @@
+﻿.report-kpi-card {
+    border: 1px solid rgba(67,89,113,.1);
+    border-radius: 12px;
+    padding: 16px;
+    background: #fff;
+}
+
+    .report-kpi-card span {
+        font-size: 13px;
+        color: #8592a3;
+    }
+
+    .report-kpi-card h5 {
+        margin-top: 5px;
+        font-weight: 700;
+    }
+
+.report-filter-card {
+    border-radius: 12px;
+}
+
+#reportLineChart {
+    min-height: 320px;
+}
+
+#reportDonutChart {
+    min-height: 260px;
+}
+
+#reportBarChart {
+    min-height: 320px;
+}
