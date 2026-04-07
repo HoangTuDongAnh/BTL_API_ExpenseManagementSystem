@@ -28,13 +28,15 @@
             <div class="nav-align-top">
                 <ul class="nav nav-pills flex-column flex-md-row mb-6 gap-md-0 gap-2">
                     <li class="nav-item">
-                        <a class="nav-link active" href="javascript:void(0);">
-                            <i class="icon-base bx bx-user icon-sm me-1_5"></i> <span data-i18n="tab_profile">Hồ sơ</span>
+                        <a class="nav-link active" href="@Url.Action("Index", "Profile")">
+                            <i class="icon-base bx bx-user icon-sm me-1_5"></i>
+                            <span>Hồ sơ</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="pages-account-settings-notifications.html">
-                            <i class="icon-base bx bx-bell icon-sm me-1_5"></i> <span data-i18n="tab_notifications">Thông báo</span>
+                        <a class="nav-link" href="@Url.Action("Support", "Profile")">
+                            <i class="icon-base bx bx-help-circle icon-sm me-1_5"></i>
+                            <span>Hỗ trợ</span>
                         </a>
                     </li>
                 </ul>
@@ -48,75 +50,99 @@
                                  class="d-block w-px-150 h-px-150 rounded-circle mb-4"
                                  id="uploadedAvatar"
                                  style="object-fit: cover; box-shadow: 0 0 0 4px #eef0f2;" />
+
                             <div class="d-flex flex-column gap-2 w-100" style="max-width: 200px;">
                                 <label for="upload" class="btn btn-primary w-100" tabindex="0">
-                                    <i class="bx bx-upload me-2"></i> <span data-i18n="upload_btn">Tải ảnh mới</span>
+                                    <i class="bx bx-upload me-2"></i> Tải ảnh mới
                                     <input type="file" id="upload" class="account-file-input" hidden accept="image/png, image/jpeg" />
                                 </label>
+
                                 <button type="button" class="btn btn-outline-secondary account-image-reset w-100">
-                                    <i class="bx bx-reset me-2"></i> <span data-i18n="delete_btn">Xóa ảnh</span>
+                                    <i class="bx bx-reset me-2"></i> Xóa ảnh
                                 </button>
                             </div>
-                            <p class="text-muted small mt-3 text-center mb-0" data-i18n="format_desc">Định dạng: JPG, GIF, PNG<br>Kích thước tối đa 800KB</p>
+
+                            <p class="text-muted small mt-3 text-center mb-0">
+                                Định dạng: JPG, GIF, PNG<br />
+                                Kích thước tối đa 800KB
+                            </p>
                         </div>
 
                         <div class="col-12 col-md-8 ps-md-5 mt-4 mt-md-0">
-                            <h5 class="mb-4 text-heading"><i class="bx bx-detail me-2"></i><span data-i18n="personal_info_title">Thông tin cá nhân</span></h5>
+                            <h5 class="mb-4 text-heading">
+                                <i class="bx bx-detail me-2"></i>Thông tin cá nhân
+                            </h5>
+
                             <form id="formAccountSettings" method="POST" onsubmit="return false">
                                 <div class="row g-4">
                                     <div class="col-md-6">
-                                        <label for="lastName" class="form-label" data-i18n="label_lastname">Họ và Tên đệm</label>
+                                        <label for="lastName" class="form-label">Họ và Tên đệm</label>
                                         <input class="form-control" type="text" name="lastName" id="lastName" value="Nguyễn Văn" />
                                     </div>
+
                                     <div class="col-md-6">
-                                        <label for="firstName" class="form-label" data-i18n="label_firstname">Tên</label>
+                                        <label for="firstName" class="form-label">Tên</label>
                                         <input class="form-control" type="text" id="firstName" name="firstName" value="A" autofocus />
                                     </div>
+
                                     <div class="col-md-6">
-                                        <label for="email" class="form-label" data-i18n="label_email">E-mail</label>
+                                        <label for="email" class="form-label">E-mail</label>
                                         <input class="form-control" type="email" id="email" name="email" value="nguyenvana@example.com" />
                                     </div>
+
                                     <div class="col-md-6">
-                                        <label class="form-label" for="phoneNumber" data-i18n="label_phone">Số điện thoại</label>
+                                        <label class="form-label" for="phoneNumber">Số điện thoại</label>
                                         <div class="input-group input-group-merge">
                                             <span class="input-group-text">VN (+84)</span>
                                             <input type="text" id="phoneNumber" name="phoneNumber" class="form-control" value="987 654 321" />
                                         </div>
                                     </div>
+
                                     <div class="col-12">
-                                        <label for="address" class="form-label" data-i18n="label_address">Địa chỉ</label>
-                                        <input type="text" class="form-control" id="address" name="address" value="Quận Cầu Giấy, Hà Nội" data-i18n-placeholder="placeholder_address" placeholder="Quận/Huyện, Tỉnh/Thành phố" />
+                                        <label for="address" class="form-label">Địa chỉ</label>
+                                        <input type="text"
+                                               class="form-control"
+                                               id="address"
+                                               name="address"
+                                               value="Quận Cầu Giấy, Hà Nội"
+                                               placeholder="Quận/Huyện, Tỉnh/Thành phố" />
                                     </div>
+
                                     <div class="col-md-4">
-                                        <label class="form-label" for="country" data-i18n="label_country">Quốc gia</label>
+                                        <label class="form-label" for="country">Quốc gia</label>
                                         <select id="country" class="select2 form-select">
-                                            <option value="Vietnam" selected data-i18n="country_vn">Việt Nam</option>
-                                            <option value="USA" data-i18n="country_us">Hoa Kỳ</option>
-                                            <option value="Japan" data-i18n="country_jp">Nhật Bản</option>
-                                            <option value="Australia" data-i18n="country_au">Úc</option>
+                                            <option value="Vietnam" selected>Việt Nam</option>
+                                            <option value="USA">Hoa Kỳ</option>
+                                            <option value="Japan">Nhật Bản</option>
+                                            <option value="Australia">Úc</option>
                                         </select>
                                     </div>
+
                                     <div class="col-md-4">
-                                        <label for="currency" class="form-label fw-bold text-primary" data-i18n="label_currency">Tiền tệ mặc định</label>
+                                        <label for="currency" class="form-label fw-bold text-primary">Tiền tệ mặc định</label>
                                         <select id="currency" class="select2 form-select">
-                                            <option value="vnd" selected data-i18n="currency_vnd">VND (Đồng)</option>
-                                            <option value="usd" data-i18n="currency_usd">USD (Đô la)</option>
-                                            <option value="eur" data-i18n="currency_eur">EUR (Euro)</option>
-                                            <option value="jpy" data-i18n="currency_jpy">JPY (Yên)</option>
+                                            <option value="vnd" selected>VND (Đồng)</option>
+                                            <option value="usd">USD (Đô la)</option>
+                                            <option value="eur">EUR (Euro)</option>
+                                            <option value="jpy">JPY (Yên)</option>
                                         </select>
                                     </div>
+
                                     <div class="col-md-4">
-                                        <label for="timeZones" class="form-label" data-i18n="label_timezone">Múi giờ</label>
+                                        <label for="timeZones" class="form-label">Múi giờ</label>
                                         <select id="timeZones" class="select2 form-select">
-                                            <option value="+7" selected data-i18n="tz_hn">(GMT+07:00) Hà Nội</option>
-                                            <option value="+8" data-i18n="tz_sg">(GMT+08:00) Singapore</option>
-                                            <option value="-5" data-i18n="tz_us">(GMT-05:00) Mỹ</option>
+                                            <option value="+7" selected>(GMT+07:00) Hà Nội</option>
+                                            <option value="+8">(GMT+08:00) Singapore</option>
+                                            <option value="-5">(GMT-05:00) Mỹ</option>
                                         </select>
                                     </div>
                                 </div>
+
                                 <div class="mt-5 text-end">
-                                    <button type="reset" class="btn btn-outline-secondary me-2" data-i18n="btn_reset">Khôi phục</button>
-                                    <button type="submit" class="btn btn-primary"><i class="bx bx-save me-1"></i> <span data-i18n="btn_save">Lưu thay đổi</span></button>
+                                    <button type="reset" class="btn btn-outline-secondary me-2">Khôi phục</button>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="bx bx-save me-1"></i> Lưu thay đổi
+                                    </button>
                                 </div>
                             </form>
                         </div>
@@ -125,31 +151,44 @@
             </div>
 
             <div class="card border-danger mb-4">
-                <h5 class="card-header text-danger border-bottom border-danger bg-label-danger"><i class="bx bx-error-circle me-2"></i><span data-i18n="danger_zone_title">Khu vực nguy hiểm</span></h5>
+                <h5 class="card-header text-danger border-bottom border-danger bg-label-danger">
+                    <i class="bx bx-error-circle me-2"></i>Khu vực nguy hiểm
+                </h5>
+
                 <div class="card-body pt-4">
                     <div class="alert alert-warning mb-4">
-                        <h6 class="alert-heading fw-bold mb-1" data-i18n="danger_alert_title">Bạn có chắc chắn muốn xóa tài khoản?</h6>
-                        <p class="mb-0" data-i18n="danger_alert_desc">Mọi dữ liệu giao dịch, thống kê và ngân sách của bạn sẽ bị xóa vĩnh viễn. Hành động này không thể hoàn tác.</p>
+                        <h6 class="alert-heading fw-bold mb-1">Bạn có chắc chắn muốn xóa tài khoản?</h6>
+                        <p class="mb-0">
+                            Mọi dữ liệu giao dịch, thống kê và ngân sách của bạn sẽ bị xóa vĩnh viễn.
+                            Hành động này không thể hoàn tác.
+                        </p>
                     </div>
+
                     <form id="formAccountDeactivation" onsubmit="return false">
                         <div class="form-check mb-4">
                             <input class="form-check-input" type="checkbox" name="accountActivation" id="accountActivation" />
-                            <label class="form-check-label text-heading" for="accountActivation" data-i18n="danger_checkbox">Tôi xác nhận muốn xóa tài khoản và toàn bộ dữ liệu</label>
+                            <label class="form-check-label text-heading" for="accountActivation">
+                                Tôi xác nhận muốn xóa tài khoản và toàn bộ dữ liệu
+                            </label>
                         </div>
-                        <button type="submit" class="btn btn-danger deactivate-account" disabled id="btnDeactivate"><i class="bx bx-trash me-1"></i> <span data-i18n="btn_delete_account">Xóa tài khoản</span></button>
+
+                        <button type="submit" class="btn btn-danger deactivate-account" disabled id="btnDeactivate">
+                            <i class="bx bx-trash me-1"></i> Xóa tài khoản
+                        </button>
                     </form>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
 @section Scripts {
     <script>
         document.addEventListener("DOMContentLoaded", function () {
-            // Sự kiện Checkbox Xóa tài khoản
             const checkbox = document.getElementById('accountActivation');
             const btnDeactivate = document.getElementById('btnDeactivate');
-            if(checkbox && btnDeactivate) {
+
+            if (checkbox && btnDeactivate) {
                 checkbox.addEventListener('change', function () {
                     btnDeactivate.disabled = !this.checked;
                 });
