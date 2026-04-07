@@ -6,13 +6,11 @@ from app.core.security import create_access_token, hash_password, verify_passwor
 from app.models.user import User
 from app.repositories.user_repo import UserRepository
 from app.schemas.auth_schema import LoginRequest, RegisterRequest
-from app.services.otp_service import OTPService
 
 
 class AuthService:
     def __init__(self):
         self.user_repo = UserRepository()
-        self.otp_service = OTPService()
 
     def _generate_user_id(self, db: Session) -> str:
         date_part = datetime.now().strftime("%y%m%d")
@@ -46,12 +44,10 @@ class AuthService:
             PhoneNumber=data.phone_number,
             Avatar=data.avatar,
             Role="user",
-            Status="inactive",
+            Status="active",
         )
-        user = self.user_repo.create(db, user)
-        self.otp_service.create_otp(db, user.Email)
 
-        return user
+        return self.user_repo.create(db, user)
 
     def login(self, db: Session, data: LoginRequest):
         user = self.user_repo.get_by_email(db, data.email)
@@ -59,7 +55,7 @@ class AuthService:
             raise ValueError("Invalid email or password")
 
         if user.Status != "active":
-            raise ValueError("Please verify OTP first")
+            raise ValueError("Account is not active")
 
         if not verify_password(data.password, user.PasswordHash):
             raise ValueError("Invalid email or password")
@@ -73,17 +69,3 @@ class AuthService:
         )
 
         return {"access_token": token, "user": user}
-
-    def verify_otp(self, db: Session, email: str, otp: str):
-        # gọi OTP service để verify
-        self.otp_service.verify_otp(db, email, otp)
-
-        # cập nhật user sang verified
-        user = self.user_repo.get_by_email(db, email)
-        if not user:
-            raise ValueError("User not found")
-
-        user.Status = "active"  # hoặc is_verified = True nếu bạn dùng field đó
-        db.commit()
-
-        return user

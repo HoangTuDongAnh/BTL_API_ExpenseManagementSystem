@@ -14,7 +14,6 @@ namespace ExpenseWeb.Controllers
             _authApiService = authApiService;
         }
 
-        // ================= LOGIN =================
         [HttpGet]
         public IActionResult Login()
         {
@@ -44,11 +43,10 @@ namespace ExpenseWeb.Controllers
 
             if (!result.Success || result.Data == null)
             {
-                ModelState.AddModelError(string.Empty, result.ErrorMessage ?? "Invalid email or password.");
+                ModelState.AddModelError(string.Empty, "Invalid email or password.");
                 return View(model);
             }
 
-            // Save session
             HttpContext.Session.SetString("AccessToken", result.Data.access_token ?? "");
             HttpContext.Session.SetString("UserEmail", result.Data.user?.email ?? "");
             HttpContext.Session.SetString("UserFullName", result.Data.user?.full_name ?? "");
@@ -57,7 +55,6 @@ namespace ExpenseWeb.Controllers
             return RedirectToAction("Index", "Dashboard");
         }
 
-        // ================= REGISTER =================
         [HttpGet]
         public IActionResult Register()
         {
@@ -69,7 +66,7 @@ namespace ExpenseWeb.Controllers
         {
             if (!model.AgreeTerms)
             {
-                ModelState.AddModelError(nameof(model.AgreeTerms), "You must agree to the terms.");
+                ModelState.AddModelError(nameof(model.AgreeTerms), "You must agree to the terms and conditions.");
             }
 
             if (!ModelState.IsValid)
@@ -90,99 +87,32 @@ namespace ExpenseWeb.Controllers
 
             if (!result.Success)
             {
-                ModelState.AddModelError(string.Empty, "Registration failed.");
+                ModelState.AddModelError(string.Empty, "Registration failed. Email may already exist.");
                 return View(model);
             }
 
-            // 🔥 Lưu tạm để auto login
-            HttpContext.Session.SetString("TempEmail", model.Email);
-            HttpContext.Session.SetString("TempPassword", model.Password);
-
-            return RedirectToAction("VerifyOtp", new { email = model.Email });
+            TempData["SuccessMessage"] = "Registration successful. Please login.";
+            return RedirectToAction("Login");
         }
 
-        // ================= VERIFY OTP =================
         [HttpGet]
-        public IActionResult VerifyOtp(string email)
+        public IActionResult ForgotPassword()
         {
-            if (string.IsNullOrEmpty(email))
-            {
-                return RedirectToAction("Login");
-            }
-
-            return View(new VerifyOtpViewModel
-            {
-                Email = email
-            });
+            return View();
         }
 
         [HttpPost]
-        public async Task<IActionResult> VerifyOtp(VerifyOtpViewModel model)
+        public IActionResult ForgotPassword(ForgotPasswordViewModel model)
         {
             if (!ModelState.IsValid)
             {
                 return View(model);
             }
 
-            var result = await _authApiService.VerifyOtpAsync(model.Email, model.Otp);
-
-            if (!result.Success)
-            {
-                ModelState.AddModelError(string.Empty, result.ErrorMessage ?? "Invalid OTP.");
-                return View(model);
-            }
-
-            // ================= AUTO LOGIN =================
-            var email = HttpContext.Session.GetString("TempEmail");
-            var password = HttpContext.Session.GetString("TempPassword");
-
-            if (!string.IsNullOrEmpty(email) && !string.IsNullOrEmpty(password))
-            {
-                var loginResult = await _authApiService.LoginAsync(new LoginRequestDto
-                {
-                    email = email,
-                    password = password
-                });
-
-                if (loginResult.Success && loginResult.Data != null)
-                {
-                    HttpContext.Session.SetString("AccessToken", loginResult.Data.access_token ?? "");
-                    HttpContext.Session.SetString("UserEmail", loginResult.Data.user?.email ?? "");
-                    HttpContext.Session.SetString("UserFullName", loginResult.Data.user?.full_name ?? "");
-                    HttpContext.Session.SetString("UserRole", loginResult.Data.user?.role ?? "");
-
-                    // ❌ Xóa dữ liệu tạm
-                    HttpContext.Session.Remove("TempEmail");
-                    HttpContext.Session.Remove("TempPassword");
-
-                    return RedirectToAction("Index", "Dashboard");
-                }
-            }
-
-            // fallback nếu auto login fail
-            TempData["SuccessMessage"] = "Verify successful. Please login.";
+            TempData["SuccessMessage"] = "Reset password feature is not connected to API yet.";
             return RedirectToAction("Login");
         }
 
-        // ================= RESEND OTP =================
-        [HttpPost]
-        public async Task<IActionResult> ResendOtp(string email)
-        {
-            var result = await _authApiService.ResendOtpAsync(email);
-
-            if (result.Success)
-            {
-                TempData["SuccessMessage"] = "OTP resent successfully.";
-            }
-            else
-            {
-                TempData["ErrorMessage"] = result.ErrorMessage ?? "Failed to resend OTP.";
-            }
-
-            return RedirectToAction("VerifyOtp", new { email = email });
-        }
-
-        // ================= LOGOUT =================
         public IActionResult Logout()
         {
             HttpContext.Session.Clear();
