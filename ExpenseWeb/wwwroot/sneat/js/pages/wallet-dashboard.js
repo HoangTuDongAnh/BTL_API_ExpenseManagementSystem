@@ -9,226 +9,232 @@
     const toastUpdated = document.getElementById("walletUpdatedToast") ? new bootstrap.Toast(document.getElementById("walletUpdatedToast")) : null;
     const toastDeleted = document.getElementById("walletDeletedToast") ? new bootstrap.Toast(document.getElementById("walletDeletedToast")) : null;
 
+    const walletActionAlert = document.getElementById("walletActionAlert");
+    const detailWalletActionAlert = document.getElementById("detailWalletActionAlert");
+    const replacementWalletGroup = document.getElementById("replacementWalletGroup");
+    const replacementWalletId = document.getElementById("replacementWalletId");
+
     function formatCurrency(value, currencyCode) {
         const number = Number(value || 0);
-        return `${number.toLocaleString("vi-VN")} ${currencyCode}`;
+        return `${number.toLocaleString("vi-VN")} ${currencyCode || "VND"}`;
     }
 
-    function hexToRgba(hex, alpha) {
-        if (!hex || !hex.startsWith("#") || hex.length !== 7) {
-            return "rgba(255,171,0,0.14)";
-        }
-        const r = parseInt(hex.slice(1, 3), 16);
-        const g = parseInt(hex.slice(3, 5), 16);
-        const b = parseInt(hex.slice(5, 7), 16);
-        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    function showAlert(el, message) {
+        if (!el) return;
+        el.textContent = message || "Có lỗi xảy ra.";
+        el.classList.remove("d-none");
     }
 
-    function setActiveColor(buttonsSelector, color) {
-        document.querySelectorAll(buttonsSelector).forEach(function (btn) {
-            btn.classList.toggle("active", (btn.dataset.color || "").toUpperCase() === color.toUpperCase());
+    function hideAlert(el) {
+        if (!el) return;
+        el.textContent = "";
+        el.classList.add("d-none");
+    }
+
+    function getDeleteMode() {
+        const checked = document.querySelector('input[name="deleteWalletMode"]:checked');
+        return checked ? checked.value : "delete_all";
+    }
+
+    function toggleReplacementWallet() {
+        const mode = getDeleteMode();
+        replacementWalletGroup?.classList.toggle("d-none", mode !== "move_transactions");
+    }
+
+    function getWalletCards() {
+        return Array.from(document.querySelectorAll(".wallet-card-static[data-wallet-id]"));
+    }
+
+    function fillReplacementWalletOptions(currentWalletId) {
+        if (!replacementWalletId) return;
+        const options = Array.from(replacementWalletId.querySelectorAll("option"));
+        options.forEach(opt => {
+            if (!opt.value) {
+                opt.hidden = false;
+                return;
+            }
+            opt.hidden = opt.value === currentWalletId;
         });
+        replacementWalletId.value = "";
     }
 
-    function updateAddPreview() {
-        const name = document.getElementById("addWalletName")?.value || "Ví mới";
-        const balance = document.getElementById("addInitialBalance")?.value || 0;
-        const currency = document.getElementById("addWalletCurrencyCode")?.value || "VND";
-        const color = document.getElementById("addWalletColor")?.value || "#FFAB00";
-        const icon = document.getElementById("addWalletIcon")?.value || "";
+    function setDetailWalletData(trigger) {
+        if (!trigger) return;
 
-        const previewName = document.getElementById("addPreviewName");
-        const previewBalance = document.getElementById("addPreviewBalance");
-        const previewCurrency = document.getElementById("addPreviewCurrencyBadge");
-        const previewIcon = document.getElementById("addPreviewIcon");
-        const previewWrap = document.getElementById("addPreviewIconWrap");
-        const colorCode = document.getElementById("addWalletColorCode");
+        const walletId = trigger.getAttribute("data-wallet-id") || "";
+        const walletName = trigger.getAttribute("data-wallet-name") || "Ví";
+        const walletBalance = trigger.getAttribute("data-wallet-balance") || "0";
+        const walletInitial = trigger.getAttribute("data-wallet-initial") || "0";
+        const walletCurrency = trigger.getAttribute("data-wallet-currency") || "VND";
+        const walletIsDefault = (trigger.getAttribute("data-wallet-is-default") || "false") === "true";
+        const walletIcon = trigger.getAttribute("data-wallet-icon") || "";
 
-        if (previewName) previewName.textContent = name;
-        if (previewBalance) previewBalance.textContent = formatCurrency(balance, currency);
-        if (previewCurrency) previewCurrency.textContent = currency;
-        if (previewIcon && icon) {
-            previewIcon.src = icon;
-            previewIcon.classList.remove("d-none");
-        }
-        if (previewWrap) {
-            previewWrap.style.background = hexToRgba(color, 0.14);
-        }
-        if (colorCode) colorCode.textContent = color.toUpperCase();
+        const setText = (id, value) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = value;
+        };
+        const setValue = (id, value) => {
+            const el = document.getElementById(id);
+            if (el) el.value = value;
+        };
 
-        setActiveColor(".wallet-color-preset", color);
-    }
+        setValue("detailWalletIdValue", walletId);
+        setText("detailWalletId", walletId || "-");
+        setText("detailWalletTitle", walletName);
+        setValue("detailWalletName", walletName);
+        setText("detailWalletCurrency", walletCurrency);
+        setValue("detailWalletCurrencySelect", walletCurrency);
+        setText("detailCurrentBalance", formatCurrency(walletBalance, walletCurrency));
+        setValue("detailCurrentBalanceInput", formatCurrency(walletBalance, walletCurrency));
+        setValue("detailInitialBalance", walletInitial);
 
-    function updateDetailPreview() {
-        const name = document.getElementById("detailWalletName")?.value || "Ví";
-        const balance = document.getElementById("detailInitialBalance")?.value || 0;
-        const currency = document.getElementById("detailWalletCurrency")?.textContent?.trim() || "VND";
-        const color = document.getElementById("detailWalletColor")?.value || "#FFAB00";
-        const icon = document.getElementById("detailWalletIcon")?.value || "";
+        const defaultCheckbox = document.getElementById("detailWalletDefault");
+        if (defaultCheckbox) defaultCheckbox.checked = walletIsDefault;
 
-        const previewName = document.getElementById("detailPreviewName");
-        const previewBalance = document.getElementById("detailPreviewBalance");
-        const previewCurrency = document.getElementById("detailPreviewCurrency");
-        const previewIcon = document.getElementById("detailPreviewIcon");
-        const previewWrap = document.getElementById("detailPreviewIconWrap");
         const headIcon = document.getElementById("detailHeadIcon");
-        const headWrap = document.getElementById("detailHeadIconWrap");
-        const title = document.getElementById("detailWalletTitle");
-        const colorCode = document.getElementById("detailWalletColorCode");
+        if (headIcon) {
+            headIcon.src = walletIcon;
+            headIcon.classList.toggle("d-none", !walletIcon);
+        }
 
-        if (previewName) previewName.textContent = name;
-        if (previewBalance) previewBalance.textContent = formatCurrency(balance, currency);
-        if (previewCurrency) previewCurrency.textContent = currency;
-        if (title) title.textContent = name;
-
-        if (previewIcon && icon) previewIcon.src = icon;
-        if (headIcon && icon) headIcon.src = icon;
-
-        if (previewWrap) previewWrap.style.background = hexToRgba(color, 0.14);
-        if (headWrap) headWrap.style.background = hexToRgba(color, 0.14);
-        if (colorCode) colorCode.textContent = color.toUpperCase();
-
-        setActiveColor(".wallet-color-preset-detail", color);
+        fillReplacementWalletOptions(walletId);
+        hideAlert(detailWalletActionAlert);
+        document.getElementById("deleteWalletModeDeleteAll")?.click();
+        toggleReplacementWallet();
     }
 
-    ["addWalletName", "addInitialBalance", "addWalletColor"].forEach(function (id) {
-        const el = document.getElementById(id);
-        if (el) el.addEventListener("input", updateAddPreview);
+    walletDetailModalEl?.addEventListener("show.bs.modal", function (event) {
+        const trigger = event.relatedTarget;
+        setDetailWalletData(trigger);
     });
 
-    ["detailWalletName", "detailInitialBalance", "detailWalletColor"].forEach(function (id) {
-        const el = document.getElementById(id);
-        if (el) el.addEventListener("input", updateDetailPreview);
+    document.querySelectorAll('input[name="deleteWalletMode"]').forEach(function (radio) {
+        radio.addEventListener("change", toggleReplacementWallet);
     });
 
-    document.querySelectorAll(".wallet-color-preset").forEach(function (btn) {
-        btn.addEventListener("click", function () {
-            const color = btn.dataset.color || "#FFAB00";
-            const input = document.getElementById("addWalletColor");
-            if (input) input.value = color;
-            updateAddPreview();
+    async function sendJson(url, method, payload) {
+        const response = await fetch(url, {
+            method,
+            headers: {
+                "Content-Type": "application/json",
+                "X-Requested-With": "XMLHttpRequest"
+            },
+            body: payload ? JSON.stringify(payload) : null
         });
-    });
 
-    document.querySelectorAll(".wallet-color-preset-detail").forEach(function (btn) {
-        btn.addEventListener("click", function () {
-            const color = btn.dataset.color || "#FFAB00";
-            const input = document.getElementById("detailWalletColor");
-            if (input) input.value = color;
-            updateDetailPreview();
-        });
-    });
+        let data = null;
+        try {
+            data = await response.json();
+        } catch {
+            data = null;
+        }
 
-    document.querySelectorAll(".wallet-image-option-add").forEach(function (btn) {
-        btn.addEventListener("click", function () {
-            document.querySelectorAll(".wallet-image-option-add").forEach(function (item) {
-                item.classList.remove("active");
-            });
-            btn.classList.add("active");
+        if (!response.ok || !data?.success) {
+            throw new Error(data?.message || "Yêu cầu không thành công.");
+        }
 
-            const iconInput = document.getElementById("addWalletIcon");
-            if (iconInput) iconInput.value = btn.dataset.icon || "";
+        return data;
+    }
 
-            updateAddPreview();
-        });
-    });
+    document.getElementById("btnSaveWalletApi")?.addEventListener("click", async function () {
+        hideAlert(walletActionAlert);
 
-    document.querySelectorAll(".wallet-image-option-detail").forEach(function (btn) {
-        btn.addEventListener("click", function () {
-            document.querySelectorAll(".wallet-image-option-detail").forEach(function (item) {
-                item.classList.remove("active");
-            });
-            btn.classList.add("active");
+        const wallet_name = (document.getElementById("addWalletName")?.value || "").trim();
+        const initial_balance = Number(document.getElementById("addInitialBalance")?.value || 0);
+        const currency = document.getElementById("addWalletCurrencyCode")?.value || "VND";
+        const is_default = !!document.getElementById("addWalletDefault")?.checked;
 
-            const iconInput = document.getElementById("detailWalletIcon");
-            if (iconInput) iconInput.value = btn.dataset.icon || "";
+        if (!wallet_name) {
+            showAlert(walletActionAlert, "Tên ví không được để trống.");
+            return;
+        }
 
-            updateDetailPreview();
-        });
-    });
+        if (initial_balance < 0) {
+            showAlert(walletActionAlert, "Số dư ban đầu không được âm.");
+            return;
+        }
 
-    document.querySelectorAll(".wallet-currency-option").forEach(function (item) {
-        item.addEventListener("click", function (e) {
-            e.preventDefault();
-
-            const code = item.dataset.code || "VND";
-            const name = item.dataset.name || "Việt Nam Đồng";
-            const flag = item.dataset.flag || "";
-
-            const codeInput = document.getElementById("addWalletCurrencyCode");
-            const label = document.getElementById("addWalletCurrencyLabel");
-            const flagImg = document.getElementById("addWalletCurrencyFlag");
-
-            if (codeInput) codeInput.value = code;
-            if (label) label.textContent = `${name} (${code})`;
-            if (flagImg && flag) flagImg.src = flag;
-
-            updateAddPreview();
-        });
-    });
-
-    if (walletDetailModalEl) {
-        walletDetailModalEl.addEventListener("show.bs.modal", function (event) {
-            const trigger = event.relatedTarget;
-            if (!trigger) return;
-
-            const walletId = trigger.getAttribute("data-wallet-id") || "";
-            const walletName = trigger.getAttribute("data-wallet-name") || "Ví";
-            const walletBalance = trigger.getAttribute("data-wallet-balance") || "0";
-            const walletInitial = trigger.getAttribute("data-wallet-initial") || "0";
-            const walletCurrency = trigger.getAttribute("data-wallet-currency") || "VND";
-            const walletColor = trigger.getAttribute("data-wallet-color") || "#FFAB00";
-            const walletIcon = trigger.getAttribute("data-wallet-icon") || "";
-
-            const detailId = document.getElementById("detailWalletId");
-            const detailName = document.getElementById("detailWalletName");
-            const detailInitialBalance = document.getElementById("detailInitialBalance");
-            const detailCurrency = document.getElementById("detailWalletCurrency");
-            const detailBalance = document.getElementById("detailCurrentBalance");
-            const detailColor = document.getElementById("detailWalletColor");
-            const detailIcon = document.getElementById("detailWalletIcon");
-
-            if (detailId) detailId.textContent = walletId;
-            if (detailName) detailName.value = walletName;
-            if (detailInitialBalance) detailInitialBalance.value = walletInitial;
-            if (detailCurrency) detailCurrency.textContent = walletCurrency;
-            if (detailBalance) detailBalance.textContent = formatCurrency(walletBalance, walletCurrency);
-            if (detailColor) detailColor.value = walletColor;
-            if (detailIcon) detailIcon.value = walletIcon;
-
-            document.querySelectorAll(".wallet-image-option-detail").forEach(function (btn) {
-                btn.classList.toggle("active", btn.dataset.icon === walletIcon);
+        try {
+            await sendJson("/Dashboard/CreateWalletAjax", "POST", {
+                wallet_name,
+                initial_balance,
+                currency,
+                is_default
             });
 
-            updateDetailPreview();
-        });
-    }
+            addWalletModal?.hide();
+            toastSaved?.show();
+            window.location.reload();
+        } catch (error) {
+            showAlert(walletActionAlert, error.message);
+        }
+    });
 
-    const btnSave = document.getElementById("btnSaveWalletStatic");
-    if (btnSave) {
-        btnSave.addEventListener("click", function () {
-            if (addWalletModal) addWalletModal.hide();
-            if (toastSaved) toastSaved.show();
-        });
-    }
+    document.getElementById("btnUpdateWalletApi")?.addEventListener("click", async function () {
+        hideAlert(detailWalletActionAlert);
 
-    const btnUpdate = document.getElementById("btnUpdateWalletStatic");
-    if (btnUpdate) {
-        btnUpdate.addEventListener("click", function () {
-            if (toastUpdated) toastUpdated.show();
-        });
-    }
+        const walletId = document.getElementById("detailWalletIdValue")?.value || "";
+        const wallet_name = (document.getElementById("detailWalletName")?.value || "").trim();
+        const currency = document.getElementById("detailWalletCurrencySelect")?.value || "VND";
+        const is_default = !!document.getElementById("detailWalletDefault")?.checked;
 
-    const btnDelete = document.getElementById("btnDeleteWalletStatic");
-    if (btnDelete) {
-        btnDelete.addEventListener("click", function () {
-            if (walletDetailModal) walletDetailModal.hide();
-            if (toastDeleted) toastDeleted.show();
-        });
-    }
+        if (!walletId) {
+            showAlert(detailWalletActionAlert, "Không xác định được ví cần cập nhật.");
+            return;
+        }
 
-    updateAddPreview();
-    updateDetailPreview();
+        if (!wallet_name) {
+            showAlert(detailWalletActionAlert, "Tên ví không được để trống.");
+            return;
+        }
+
+        try {
+            await sendJson(`/Dashboard/UpdateWalletAjax/${encodeURIComponent(walletId)}`, "PUT", {
+                wallet_name,
+                currency,
+                is_default
+            });
+
+            toastUpdated?.show();
+            window.location.reload();
+        } catch (error) {
+            showAlert(detailWalletActionAlert, error.message);
+        }
+    });
+
+    document.getElementById("btnDeleteWalletApi")?.addEventListener("click", async function () {
+        hideAlert(detailWalletActionAlert);
+
+        const walletId = document.getElementById("detailWalletIdValue")?.value || "";
+        const mode = getDeleteMode();
+        const replacement_wallet_id = replacementWalletId?.value || null;
+
+        if (!walletId) {
+            showAlert(detailWalletActionAlert, "Không xác định được ví cần xóa.");
+            return;
+        }
+
+        if (mode === "move_transactions" && !replacement_wallet_id) {
+            showAlert(detailWalletActionAlert, "Hãy chọn ví nhận giao dịch.");
+            return;
+        }
+
+        const confirmed = window.confirm("Bạn có chắc muốn xóa ví này không?");
+        if (!confirmed) return;
+
+        try {
+            await sendJson(`/Dashboard/DeleteWalletAjax/${encodeURIComponent(walletId)}`, "DELETE", {
+                mode,
+                replacement_wallet_id
+            });
+
+            walletDetailModal?.hide();
+            toastDeleted?.show();
+            window.location.reload();
+        } catch (error) {
+            showAlert(detailWalletActionAlert, error.message);
+        }
+    });
 
     // =========================
     // DASHBOARD REPORT CHARTS
@@ -279,47 +285,36 @@
                 }
             },
             grid: {
-                borderColor: "rgba(67,89,113,0.08)",
-                strokeDashArray: 4,
+                strokeDashArray: 6,
+                borderColor: "rgba(67,89,113,.12)",
                 padding: {
                     left: 8,
                     right: 8,
-                    top: 0,
-                    bottom: 0
+                    top: -10,
+                    bottom: -8
                 }
-            },
-            legend: {
-                show: false
             },
             xaxis: {
                 categories: ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12"],
-                axisBorder: {
-                    show: false
-                },
                 axisTicks: {
                     show: false
                 },
-                labels: {
-                    style: {
-                        colors: "#8592a3",
-                        fontSize: "13px"
-                    }
+                axisBorder: {
+                    show: false
                 }
             },
             yaxis: {
                 labels: {
-                    style: {
-                        colors: "#8592a3",
-                        fontSize: "13px"
-                    },
                     formatter: function (val) {
                         return val + "M";
                     }
                 }
             },
+            legend: {
+                position: "top",
+                horizontalAlign: "left"
+            },
             tooltip: {
-                shared: true,
-                intersect: false,
                 y: {
                     formatter: function (val) {
                         return val + " triệu";
@@ -331,110 +326,53 @@
         new ApexCharts(cashflowChartEl, cashflowChartOptions).render();
     }
 
-    const expenseDonutChartEl = document.querySelector("#dashboardExpenseDonutChart");
-    if (expenseDonutChartEl && typeof ApexCharts !== "undefined") {
-        const expenseDonutChartOptions = {
-            series: [34, 24, 18, 14, 10],
-            labels: ["Mua sắm", "Ăn uống", "Hóa đơn", "Di chuyển", "Khác"],
+    const categoryDonutEl = document.querySelector("#dashboardCategoryDonutChart");
+    if (categoryDonutEl && typeof ApexCharts !== "undefined") {
+        const categoryDonutOptions = {
             chart: {
-                height: 280,
-                type: "donut"
+                type: "donut",
+                height: 325
             },
-            colors: ["#8c57ff", "#ffab00", "#ff3e1d", "#03c3ec", "#8592a3"],
-            stroke: {
-                width: 0
-            },
+            series: [32, 24, 18, 14, 12],
+            labels: ["Ăn uống", "Đi lại", "Hóa đơn", "Giải trí", "Khác"],
+            colors: ["#ffab00", "#696cff", "#03c3ec", "#71dd37", "#8592a3"],
             dataLabels: {
                 enabled: false
             },
+            stroke: {
+                width: 0
+            },
             legend: {
-                show: false
+                position: "bottom"
             },
             plotOptions: {
                 pie: {
                     donut: {
-                        size: "72%",
+                        size: "70%",
                         labels: {
                             show: true,
                             name: {
-                                offsetY: 18
+                                show: true
                             },
                             value: {
-                                fontSize: "1.15rem",
-                                fontWeight: 600,
-                                color: "#233446",
-                                offsetY: -10,
+                                show: true,
                                 formatter: function (val) {
-                                    return parseInt(val) + "%";
+                                    return val + "%";
                                 }
                             },
                             total: {
                                 show: true,
                                 label: "Chi tiêu",
-                                color: "#8592a3",
                                 formatter: function () {
-                                    return "100%";
+                                    return "4.98M";
                                 }
                             }
                         }
                     }
                 }
-            },
-            responsive: [
-                {
-                    breakpoint: 1400,
-                    options: {
-                        chart: {
-                            height: 260
-                        }
-                    }
-                }
-            ]
+            }
         };
 
-        new ApexCharts(expenseDonutChartEl, expenseDonutChartOptions).render();
-    }
-
-    const savingGoalChartEl = document.querySelector("#dashboardSavingGoalChart");
-    if (savingGoalChartEl && typeof ApexCharts !== "undefined") {
-        const savingGoalChartOptions = {
-            series: [72],
-            chart: {
-                height: 220,
-                type: "radialBar"
-            },
-            colors: ["#696cff"],
-            plotOptions: {
-                radialBar: {
-                    hollow: {
-                        size: "60%"
-                    },
-                    track: {
-                        background: "rgba(67,89,113,0.08)"
-                    },
-                    dataLabels: {
-                        name: {
-                            show: true,
-                            fontSize: "14px",
-                            color: "#8592a3",
-                            offsetY: 20
-                        },
-                        value: {
-                            show: true,
-                            fontSize: "24px",
-                            fontWeight: 700,
-                            color: "#233446",
-                            offsetY: -20,
-                            formatter: function (val) {
-                                return parseInt(val) + "%";
-                            }
-                        }
-                    }
-                }
-            },
-            labels: ["Tiến độ"]
-        };
-
-        new ApexCharts(savingGoalChartEl, savingGoalChartOptions).render();
+        new ApexCharts(categoryDonutEl, categoryDonutOptions).render();
     }
 });

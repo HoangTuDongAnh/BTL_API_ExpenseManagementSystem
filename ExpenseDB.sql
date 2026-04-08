@@ -1,10 +1,13 @@
 -- ============================================================
 --  ExpenseDB - Hệ thống Quản lý Chi tiêu Cá nhân
+--  Phiên bản chỉnh sửa cho Category + Budget theo Tuần/Tháng/Năm
 --  Database: SQL Server
 --  Ghi chú:
 --  - Dùng NVARCHAR cho dữ liệu tiếng Việt
 --  - Dùng mã khóa chính dạng chuỗi có prefix
---  - Không sử dụng CategoryType và WalletType
+--  - Category mặc định hệ thống: UserID = NULL, IsDefault = 1
+--  - Budget hỗ trợ 3 loại kỳ: week | month | year
+--  - SpentAmount là dữ liệu suy diễn từ Transactions
 -- ============================================================
 
 USE master;
@@ -37,7 +40,6 @@ GO
 -- ============================================================
 --  3. BẢNG USERS
 --  PK format: U + YYMMDD + 4 số
---  Ví dụ: U2503290001
 -- ============================================================
 CREATE TABLE dbo.Users (
     UserID          VARCHAR(15)     NOT NULL,
@@ -46,8 +48,8 @@ CREATE TABLE dbo.Users (
     PasswordHash    VARCHAR(255)    NOT NULL,
     PhoneNumber     VARCHAR(15)     NULL,
     Avatar          VARCHAR(255)    NULL,
-    Role            VARCHAR(20)     NOT NULL DEFAULT 'user',       -- user | admin
-    Status          VARCHAR(10)     NOT NULL DEFAULT 'active',     -- active | inactive | locked
+    Role            VARCHAR(20)     NOT NULL DEFAULT 'user',
+    Status          VARCHAR(10)     NOT NULL DEFAULT 'active',
     CreatedAt       DATETIME        NOT NULL DEFAULT GETDATE(),
     UpdatedAt       DATETIME        NOT NULL DEFAULT GETDATE(),
 
@@ -61,7 +63,6 @@ GO
 -- ============================================================
 --  4. BẢNG WALLETS
 --  PK format: W + 4 số cuối UserID + 4 số
---  Ví dụ: W00010001
 -- ============================================================
 CREATE TABLE dbo.Wallets (
     WalletID        VARCHAR(12)     NOT NULL,
@@ -88,16 +89,14 @@ GO
 -- ============================================================
 --  5. BẢNG CATEGORIES
 --  PK format: CAT + YYMMDD + 3 số
---  Ví dụ: CAT250329001
---  Ghi chú:
---  - UserID = NULL nghĩa là danh mục mặc định của hệ thống
+--  UserID = NULL nghĩa là danh mục mặc định của hệ thống
 -- ============================================================
 CREATE TABLE dbo.Categories (
     CategoryID      VARCHAR(15)     NOT NULL,
     UserID          VARCHAR(15)     NULL,
     CategoryName    NVARCHAR(100)   NOT NULL,
-    Icon            VARCHAR(50)     NULL,   -- tên icon hoặc mã icon
-    Color           VARCHAR(10)     NULL,   -- mã màu hex, ví dụ: #534AB7
+    Icon            VARCHAR(50)     NULL,
+    Color           VARCHAR(10)     NULL,
     IsDefault       BIT             NOT NULL DEFAULT 0,
     CreatedAt       DATETIME        NOT NULL DEFAULT GETDATE(),
     UpdatedAt       DATETIME        NOT NULL DEFAULT GETDATE(),
@@ -107,7 +106,6 @@ CREATE TABLE dbo.Categories (
         REFERENCES dbo.Users(UserID)
         ON DELETE SET NULL,
 
-    -- Mỗi user không được có 2 danh mục trùng tên
     CONSTRAINT UQ_Categories_UserName UNIQUE (UserID, CategoryName)
 );
 GO
@@ -115,7 +113,6 @@ GO
 -- ============================================================
 --  6. BẢNG TRANSACTIONS
 --  PK format: TXN + YYMMDD + 4 số
---  Ví dụ: TXN2503290001
 -- ============================================================
 CREATE TABLE dbo.Transactions (
     TransactionID       VARCHAR(17)     NOT NULL,
@@ -127,7 +124,7 @@ CREATE TABLE dbo.Transactions (
     TransactionDate     DATE            NOT NULL,
     Note                NVARCHAR(500)   NULL,
     IsRecurring         BIT             NOT NULL DEFAULT 0,
-    RecurInterval       VARCHAR(20)     NULL,          -- daily | weekly | monthly | yearly | NULL
+    RecurInterval       VARCHAR(20)     NULL,
     CreatedAt           DATETIME        NOT NULL DEFAULT GETDATE(),
     UpdatedAt           DATETIME        NOT NULL DEFAULT GETDATE(),
 
@@ -152,22 +149,24 @@ CREATE TABLE dbo.Transactions (
 GO
 
 -- ============================================================
---  7. BẢNG BUDGETS
+--  7. BẢNG BUDGETS (MỚI)
 --  PK format: BUD + YYMM + 4 số
---  Ví dụ: BUD25030001
---  Ghi chú:
---  - Mỗi user chỉ có 1 budget cho 1 category trong 1 tháng/năm
+--  Hỗ trợ budget theo tuần / tháng / năm
 -- ============================================================
 CREATE TABLE dbo.Budgets (
-    BudgetID        VARCHAR(13)     NOT NULL,
-    UserID          VARCHAR(15)     NOT NULL,
-    CategoryID      VARCHAR(15)     NOT NULL,
-    LimitAmount     DECIMAL(15,2)   NOT NULL,
-    SpentAmount     DECIMAL(15,2)   NOT NULL DEFAULT 0,
-    PeriodMonth     TINYINT         NOT NULL,   -- 1..12
-    PeriodYear      SMALLINT        NOT NULL,   -- ví dụ 2026
-    CreatedAt       DATETIME        NOT NULL DEFAULT GETDATE(),
-    UpdatedAt       DATETIME        NOT NULL DEFAULT GETDATE(),
+    BudgetID         VARCHAR(13)     NOT NULL,
+    UserID           VARCHAR(15)     NOT NULL,
+    CategoryID       VARCHAR(15)     NOT NULL,
+    LimitAmount      DECIMAL(15,2)   NOT NULL,
+    SpentAmount      DECIMAL(15,2)   NOT NULL DEFAULT 0,
+    PeriodType       VARCHAR(10)     NOT NULL,     -- week | month | year
+    PeriodYear       SMALLINT        NOT NULL,
+    PeriodMonth      TINYINT         NULL,
+    PeriodWeek       TINYINT         NULL,
+    StartDate        DATE            NOT NULL,
+    EndDate          DATE            NOT NULL,
+    CreatedAt        DATETIME        NOT NULL DEFAULT GETDATE(),
+    UpdatedAt        DATETIME        NOT NULL DEFAULT GETDATE(),
 
     CONSTRAINT PK_Budgets PRIMARY KEY (BudgetID),
 
@@ -180,10 +179,30 @@ CREATE TABLE dbo.Budgets (
 
     CONSTRAINT CK_Budgets_Limit CHECK (LimitAmount > 0),
     CONSTRAINT CK_Budgets_Spent CHECK (SpentAmount >= 0),
-    CONSTRAINT CK_Budgets_Month CHECK (PeriodMonth BETWEEN 1 AND 12),
+    CONSTRAINT CK_Budgets_PeriodType CHECK (PeriodType IN ('week', 'month', 'year')),
+    CONSTRAINT CK_Budgets_DateRange CHECK (StartDate <= EndDate),
+    CONSTRAINT CK_Budgets_Year CHECK (PeriodYear BETWEEN 2000 AND 9999),
+    CONSTRAINT CK_Budgets_Month CHECK (PeriodMonth IS NULL OR PeriodMonth BETWEEN 1 AND 12),
+    CONSTRAINT CK_Budgets_Week CHECK (PeriodWeek IS NULL OR PeriodWeek BETWEEN 1 AND 53),
 
-    CONSTRAINT UQ_Budgets_UserCatMonth UNIQUE (UserID, CategoryID, PeriodMonth, PeriodYear)
+    CONSTRAINT CK_Budgets_PeriodShape CHECK (
+        (PeriodType = 'week'  AND PeriodWeek IS NOT NULL AND PeriodMonth IS NULL) OR
+        (PeriodType = 'month' AND PeriodMonth IS NOT NULL AND PeriodWeek IS NULL) OR
+        (PeriodType = 'year'  AND PeriodMonth IS NULL AND PeriodWeek IS NULL)
+    )
 );
+GO
+
+-- unique key cho budget đa kỳ
+CREATE UNIQUE INDEX UX_Budgets_UserCatPeriod
+    ON dbo.Budgets (
+        UserID,
+        CategoryID,
+        PeriodType,
+        PeriodYear,
+        ISNULL(PeriodMonth, 0),
+        ISNULL(PeriodWeek, 0)
+    );
 GO
 
 -- ============================================================
@@ -202,7 +221,13 @@ CREATE INDEX IX_Transactions_User_Type_Date
     ON dbo.Transactions(UserID, TransactionType, TransactionDate DESC);
 
 CREATE INDEX IX_Budgets_User_Period
-    ON dbo.Budgets(UserID, PeriodYear DESC, PeriodMonth DESC);
+    ON dbo.Budgets(UserID, PeriodType, PeriodYear DESC, PeriodMonth DESC, PeriodWeek DESC);
+
+CREATE INDEX IX_Budgets_User_Category_Period
+    ON dbo.Budgets(UserID, CategoryID, PeriodType, PeriodYear DESC, PeriodMonth DESC, PeriodWeek DESC);
+
+CREATE INDEX IX_Budgets_User_Category_DateRange
+    ON dbo.Budgets(UserID, CategoryID, StartDate, EndDate);
 
 CREATE INDEX IX_Categories_User
     ON dbo.Categories(UserID);
@@ -210,7 +235,6 @@ GO
 
 -- ============================================================
 --  9. STORED PROCEDURE SINH USER ID
---  Format: U + YYMMDD + 4 số
 -- ============================================================
 CREATE OR ALTER PROCEDURE dbo.sp_GenerateUserID
     @NewID VARCHAR(15) OUTPUT
@@ -233,7 +257,6 @@ GO
 
 -- ============================================================
 --  10. STORED PROCEDURE SINH WALLET ID
---  Format: W + 4 số cuối UserID + 4 số
 -- ============================================================
 CREATE OR ALTER PROCEDURE dbo.sp_GenerateWalletID
     @UserID  VARCHAR(15),
@@ -257,7 +280,6 @@ GO
 
 -- ============================================================
 --  11. STORED PROCEDURE SINH CATEGORY ID
---  Format: CAT + YYMMDD + 3 số
 -- ============================================================
 CREATE OR ALTER PROCEDURE dbo.sp_GenerateCategoryID
     @NewID VARCHAR(15) OUTPUT
@@ -280,7 +302,6 @@ GO
 
 -- ============================================================
 --  12. STORED PROCEDURE SINH TRANSACTION ID
---  Format: TXN + YYMMDD + 4 số
 -- ============================================================
 CREATE OR ALTER PROCEDURE dbo.sp_GenerateTransactionID
     @NewID VARCHAR(17) OUTPUT
@@ -303,7 +324,6 @@ GO
 
 -- ============================================================
 --  13. STORED PROCEDURE SINH BUDGET ID
---  Format: BUD + YYMM + 4 số
 -- ============================================================
 CREATE OR ALTER PROCEDURE dbo.sp_GenerateBudgetID
     @NewID VARCHAR(13) OUTPUT
@@ -325,11 +345,152 @@ END;
 GO
 
 -- ============================================================
---  14. PROCEDURE THÊM GIAO DỊCH
+--  14. HÀM LẤY NGÀY ĐẦU TUẦN ISO (THỨ HAI)
+-- ============================================================
+CREATE OR ALTER FUNCTION dbo.fn_GetIsoWeekStartDate (
+    @Year INT,
+    @IsoWeek INT
+)
+RETURNS DATE
+AS
+BEGIN
+    DECLARE @Jan4 DATE = DATEFROMPARTS(@Year, 1, 4);
+    DECLARE @Weekday INT = (DATEDIFF(DAY, '19000101', @Jan4) % 7 + 7) % 7; -- Monday = 0
+    DECLARE @FirstIsoMonday DATE = DATEADD(DAY, -@Weekday, @Jan4);
+    RETURN DATEADD(WEEK, @IsoWeek - 1, @FirstIsoMonday);
+END;
+GO
+
+-- ============================================================
+--  15. PROC ĐỒNG BỘ SPENTAMOUNT CHO 1 CATEGORY TẠI 1 NGÀY
+--  Một giao dịch expense có thể ảnh hưởng đồng thời budget tuần/tháng/năm
+-- ============================================================
+CREATE OR ALTER PROCEDURE dbo.sp_SyncBudgetsByTransactionDate
+    @UserID          VARCHAR(15),
+    @CategoryID      VARCHAR(15),
+    @TransactionDate DATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    UPDATE b
+    SET
+        SpentAmount = x.TotalExpense,
+        UpdatedAt   = GETDATE()
+    FROM dbo.Budgets b
+    CROSS APPLY (
+        SELECT ISNULL(SUM(t.Amount), 0) AS TotalExpense
+        FROM dbo.Transactions t
+        WHERE t.UserID = b.UserID
+          AND t.CategoryID = b.CategoryID
+          AND t.TransactionType = 'expense'
+          AND t.TransactionDate BETWEEN b.StartDate AND b.EndDate
+    ) x
+    WHERE b.UserID = @UserID
+      AND b.CategoryID = @CategoryID
+      AND @TransactionDate BETWEEN b.StartDate AND b.EndDate;
+END;
+GO
+
+-- ============================================================
+--  16. PROC TÍNH LẠI SPENTAMOUNT TOÀN BỘ 1 BUDGET
+-- ============================================================
+CREATE OR ALTER PROCEDURE dbo.sp_RecalculateBudgetSpent
+    @BudgetID VARCHAR(13)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    UPDATE b
+    SET
+        SpentAmount = x.TotalExpense,
+        UpdatedAt   = GETDATE()
+    FROM dbo.Budgets b
+    CROSS APPLY (
+        SELECT ISNULL(SUM(t.Amount), 0) AS TotalExpense
+        FROM dbo.Transactions t
+        WHERE t.UserID = b.UserID
+          AND t.CategoryID = b.CategoryID
+          AND t.TransactionType = 'expense'
+          AND t.TransactionDate BETWEEN b.StartDate AND b.EndDate
+    ) x
+    WHERE b.BudgetID = @BudgetID;
+END;
+GO
+
+-- ============================================================
+--  17. PROC TẠO BUDGET MỚI THEO WEEK/MONTH/YEAR
+-- ============================================================
+CREATE OR ALTER PROCEDURE dbo.sp_CreateBudget
+    @UserID       VARCHAR(15),
+    @CategoryID   VARCHAR(15),
+    @LimitAmount  DECIMAL(15,2),
+    @PeriodType   VARCHAR(10),
+    @PeriodYear   SMALLINT,
+    @PeriodMonth  TINYINT = NULL,
+    @PeriodWeek   TINYINT = NULL,
+    @NewBudgetID  VARCHAR(13) OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @StartDate DATE;
+    DECLARE @EndDate   DATE;
+
+    IF @PeriodType NOT IN ('week', 'month', 'year')
+        THROW 50010, N'PeriodType phải là week, month hoặc year.', 1;
+
+    IF @LimitAmount <= 0
+        THROW 50011, N'LimitAmount phải lớn hơn 0.', 1;
+
+    IF @PeriodType = 'week'
+    BEGIN
+        IF @PeriodWeek IS NULL OR @PeriodWeek NOT BETWEEN 1 AND 53 OR @PeriodMonth IS NOT NULL
+            THROW 50012, N'Budget theo tuần yêu cầu PeriodWeek hợp lệ và PeriodMonth phải NULL.', 1;
+
+        SET @StartDate = dbo.fn_GetIsoWeekStartDate(@PeriodYear, @PeriodWeek);
+        SET @EndDate   = DATEADD(DAY, 6, @StartDate);
+    END
+    ELSE IF @PeriodType = 'month'
+    BEGIN
+        IF @PeriodMonth IS NULL OR @PeriodMonth NOT BETWEEN 1 AND 12 OR @PeriodWeek IS NOT NULL
+            THROW 50013, N'Budget theo tháng yêu cầu PeriodMonth hợp lệ và PeriodWeek phải NULL.', 1;
+
+        SET @StartDate = DATEFROMPARTS(@PeriodYear, @PeriodMonth, 1);
+        SET @EndDate   = EOMONTH(@StartDate);
+    END
+    ELSE
+    BEGIN
+        IF @PeriodMonth IS NOT NULL OR @PeriodWeek IS NOT NULL
+            THROW 50014, N'Budget theo năm không dùng PeriodMonth và PeriodWeek.', 1;
+
+        SET @StartDate = DATEFROMPARTS(@PeriodYear, 1, 1);
+        SET @EndDate   = DATEFROMPARTS(@PeriodYear, 12, 31);
+    END
+
+    EXEC dbo.sp_GenerateBudgetID @NewID = @NewBudgetID OUTPUT;
+
+    INSERT INTO dbo.Budgets (
+        BudgetID, UserID, CategoryID, LimitAmount, SpentAmount,
+        PeriodType, PeriodYear, PeriodMonth, PeriodWeek,
+        StartDate, EndDate
+    )
+    VALUES (
+        @NewBudgetID, @UserID, @CategoryID, @LimitAmount, 0,
+        @PeriodType, @PeriodYear, @PeriodMonth, @PeriodWeek,
+        @StartDate, @EndDate
+    );
+
+    EXEC dbo.sp_RecalculateBudgetSpent @BudgetID = @NewBudgetID;
+END;
+GO
+
+-- ============================================================
+--  18. PROCEDURE THÊM GIAO DỊCH
 --  - Sinh mã TransactionID
 --  - Thêm giao dịch
 --  - Cập nhật số dư ví
---  - Cập nhật SpentAmount nếu là giao dịch chi tiêu
+--  - Nếu là expense thì đồng bộ tất cả budget chứa ngày giao dịch
 -- ============================================================
 CREATE OR ALTER PROCEDURE dbo.sp_CreateTransaction
     @UserID          VARCHAR(15),
@@ -349,10 +510,8 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
-        -- Sinh mã giao dịch mới
         EXEC dbo.sp_GenerateTransactionID @NewID = @NewTransID OUTPUT;
 
-        -- Thêm bản ghi giao dịch
         INSERT INTO dbo.Transactions (
             TransactionID, UserID, WalletID, CategoryID,
             TransactionType, Amount, TransactionDate,
@@ -364,7 +523,6 @@ BEGIN
             @Note, @IsRecurring, @RecurInterval
         );
 
-        -- Cập nhật số dư ví
         IF @TransactionType = 'income'
         BEGIN
             UPDATE dbo.Wallets
@@ -380,19 +538,12 @@ BEGIN
             WHERE WalletID = @WalletID;
         END
 
-        -- Cập nhật SpentAmount cho budget nếu là giao dịch chi tiêu
         IF @TransactionType = 'expense'
         BEGIN
-            DECLARE @TxMonth TINYINT  = MONTH(@TransactionDate);
-            DECLARE @TxYear  SMALLINT = YEAR(@TransactionDate);
-
-            UPDATE dbo.Budgets
-            SET SpentAmount = SpentAmount + @Amount,
-                UpdatedAt   = GETDATE()
-            WHERE UserID      = @UserID
-              AND CategoryID  = @CategoryID
-              AND PeriodMonth = @TxMonth
-              AND PeriodYear  = @TxYear;
+            EXEC dbo.sp_SyncBudgetsByTransactionDate
+                @UserID = @UserID,
+                @CategoryID = @CategoryID,
+                @TransactionDate = @TransactionDate;
         END
 
         COMMIT TRANSACTION;
@@ -405,10 +556,9 @@ END;
 GO
 
 -- ============================================================
---  15. PROCEDURE XÓA GIAO DỊCH
+--  19. PROCEDURE XÓA GIAO DỊCH
 --  - Hoàn nguyên số dư ví
---  - Hoàn nguyên SpentAmount nếu là chi tiêu
---  - Xóa giao dịch
+--  - Nếu là expense thì đồng bộ lại budget tuần/tháng/năm bị ảnh hưởng
 -- ============================================================
 CREATE OR ALTER PROCEDURE dbo.sp_DeleteTransaction
     @TransactionID VARCHAR(17),
@@ -426,7 +576,6 @@ BEGIN
         DECLARE @Amount   DECIMAL(15,2);
         DECLARE @TxDate   DATE;
 
-        -- Lấy thông tin giao dịch cần xóa
         SELECT
             @WalletID = WalletID,
             @CatID    = CategoryID,
@@ -440,7 +589,6 @@ BEGIN
         IF @@ROWCOUNT = 0
             THROW 50001, N'Giao dịch không tồn tại hoặc không có quyền xóa.', 1;
 
-        -- Hoàn nguyên số dư ví
         IF @Type = 'income'
         BEGIN
             UPDATE dbo.Wallets
@@ -456,25 +604,17 @@ BEGIN
             WHERE WalletID = @WalletID;
         END
 
-        -- Hoàn nguyên SpentAmount trong budget nếu là chi tiêu
-        IF @Type = 'expense'
-        BEGIN
-            UPDATE dbo.Budgets
-            SET SpentAmount = CASE
-                                WHEN SpentAmount - @Amount < 0 THEN 0
-                                ELSE SpentAmount - @Amount
-                              END,
-                UpdatedAt = GETDATE()
-            WHERE UserID      = @UserID
-              AND CategoryID  = @CatID
-              AND PeriodMonth = MONTH(@TxDate)
-              AND PeriodYear  = YEAR(@TxDate);
-        END
-
-        -- Xóa giao dịch
         DELETE FROM dbo.Transactions
         WHERE TransactionID = @TransactionID
           AND UserID        = @UserID;
+
+        IF @Type = 'expense'
+        BEGIN
+            EXEC dbo.sp_SyncBudgetsByTransactionDate
+                @UserID = @UserID,
+                @CategoryID = @CatID,
+                @TransactionDate = @TxDate;
+        END
 
         COMMIT TRANSACTION;
     END TRY
@@ -486,8 +626,7 @@ END;
 GO
 
 -- ============================================================
---  16. PROCEDURE BÁO CÁO TỔNG THU/CHI THEO THÁNG
---  Dùng cho biểu đồ cột/đường
+--  20. PROCEDURE BÁO CÁO TỔNG THU/CHI THEO THÁNG
 -- ============================================================
 CREATE OR ALTER PROCEDURE dbo.sp_GetMonthlySummary
     @UserID VARCHAR(15),
@@ -509,8 +648,7 @@ END;
 GO
 
 -- ============================================================
---  17. PROCEDURE BÁO CÁO CHI TIÊU THEO DANH MỤC
---  Dùng cho biểu đồ tròn
+--  21. PROCEDURE BÁO CÁO CHI TIÊU THEO DANH MỤC
 -- ============================================================
 CREATE OR ALTER PROCEDURE dbo.sp_GetCategorySummary
     @UserID VARCHAR(15),
@@ -544,7 +682,7 @@ END;
 GO
 
 -- ============================================================
---  18. PROCEDURE LẤY DỮ LIỆU DASHBOARD TỔNG QUAN
+--  22. PROCEDURE LẤY DỮ LIỆU DASHBOARD TỔNG QUAN
 -- ============================================================
 CREATE OR ALTER PROCEDURE dbo.sp_GetDashboardOverview
     @UserID VARCHAR(15)
@@ -556,12 +694,10 @@ BEGIN
     DECLARE @ThisYear  SMALLINT = YEAR(GETDATE());
 
     SELECT
-        -- Tổng số dư tất cả ví
         (SELECT ISNULL(SUM(CurrentBalance), 0)
          FROM dbo.Wallets
          WHERE UserID = @UserID) AS TotalBalance,
 
-        -- Tổng thu tháng hiện tại
         (SELECT ISNULL(SUM(Amount), 0)
          FROM dbo.Transactions
          WHERE UserID = @UserID
@@ -569,7 +705,6 @@ BEGIN
            AND MONTH(TransactionDate) = @ThisMonth
            AND YEAR(TransactionDate)  = @ThisYear) AS MonthlyIncome,
 
-        -- Tổng chi tháng hiện tại
         (SELECT ISNULL(SUM(Amount), 0)
          FROM dbo.Transactions
          WHERE UserID = @UserID
@@ -577,7 +712,6 @@ BEGIN
            AND MONTH(TransactionDate) = @ThisMonth
            AND YEAR(TransactionDate)  = @ThisYear) AS MonthlyExpense,
 
-        -- Số giao dịch tháng hiện tại
         (SELECT COUNT(*)
          FROM dbo.Transactions
          WHERE UserID = @UserID
@@ -587,8 +721,48 @@ END;
 GO
 
 -- ============================================================
---  19. SEED DATA - DANH MỤC MẶC ĐỊNH HỆ THỐNG
---  UserID = NULL nghĩa là danh mục mặc định
+--  23. VIEW PHỤC VỤ UI CATEGORY + BUDGET
+--  Dễ dùng cho API overview sau này
+-- ============================================================
+CREATE OR ALTER VIEW dbo.vw_CategoryBudgetOverview
+AS
+SELECT
+    c.CategoryID,
+    c.UserID,
+    c.CategoryName,
+    c.Icon,
+    c.Color,
+    c.IsDefault,
+    b.BudgetID,
+    b.LimitAmount,
+    b.SpentAmount,
+    b.PeriodType,
+    b.PeriodYear,
+    b.PeriodMonth,
+    b.PeriodWeek,
+    b.StartDate,
+    b.EndDate,
+    CASE
+        WHEN b.BudgetID IS NULL THEN NULL
+        ELSE b.LimitAmount - b.SpentAmount
+    END AS RemainingAmount,
+    CASE
+        WHEN b.BudgetID IS NULL OR b.LimitAmount = 0 THEN NULL
+        ELSE CAST((b.SpentAmount * 100.0) / b.LimitAmount AS DECIMAL(5,2))
+    END AS PercentageUsed,
+    CASE
+        WHEN b.BudgetID IS NULL THEN 'none'
+        WHEN b.SpentAmount < b.LimitAmount THEN 'normal'
+        WHEN b.SpentAmount = b.LimitAmount THEN 'reached'
+        ELSE 'over'
+    END AS BudgetStatus
+FROM dbo.Categories c
+LEFT JOIN dbo.Budgets b
+    ON c.CategoryID = b.CategoryID;
+GO
+
+-- ============================================================
+--  24. SEED DATA - DANH MỤC MẶC ĐỊNH HỆ THỐNG
 -- ============================================================
 INSERT INTO dbo.Categories (CategoryID, UserID, CategoryName, Icon, Color, IsDefault)
 VALUES
@@ -605,9 +779,7 @@ VALUES
 GO
 
 -- ============================================================
---  20. SEED DATA - TÀI KHOẢN ADMIN MẪU
---  password: Admin@123
---  Ghi chú: PasswordHash là hash mẫu, thay bằng hash thực khi deploy
+--  25. SEED DATA - TÀI KHOẢN ADMIN MẪU
 -- ============================================================
 DECLARE @AdminID VARCHAR(15) = 'U2503290001';
 
@@ -630,8 +802,15 @@ INSERT INTO dbo.Wallets (WalletID, UserID, WalletName, InitialBalance, CurrentBa
 VALUES (@WalletID, 'U2503290001', N'Tiền mặt', 5000000, 5000000, 1);
 GO
 
+-- Ví dụ budget seed theo tháng/năm/tuần cho admin và category Ăn uống
+DECLARE @BudgetID1 VARCHAR(13), @BudgetID2 VARCHAR(13), @BudgetID3 VARCHAR(13);
+EXEC dbo.sp_CreateBudget @UserID='U2503290001', @CategoryID='CAT000000001', @LimitAmount=2000000, @PeriodType='month', @PeriodYear=2026, @PeriodMonth=4, @NewBudgetID=@BudgetID1 OUTPUT;
+EXEC dbo.sp_CreateBudget @UserID='U2503290001', @CategoryID='CAT000000001', @LimitAmount=600000,  @PeriodType='week',  @PeriodYear=2026, @PeriodWeek=15, @NewBudgetID=@BudgetID2 OUTPUT;
+EXEC dbo.sp_CreateBudget @UserID='U2503290001', @CategoryID='CAT000000001', @LimitAmount=24000000, @PeriodType='year',  @PeriodYear=2026, @NewBudgetID=@BudgetID3 OUTPUT;
+GO
+
 -- ============================================================
---  21. KIỂM TRA DỮ LIỆU KHỞI TẠO
+--  26. KIỂM TRA DỮ LIỆU KHỞI TẠO
 -- ============================================================
 SELECT 'Users' AS TableName, COUNT(*) AS Records FROM dbo.Users
 UNION ALL
@@ -645,11 +824,11 @@ SELECT 'Budgets', COUNT(*) FROM dbo.Budgets;
 GO
 
 -- ============================================================
---  22. THÔNG BÁO HOÀN TẤT
+--  27. THÔNG BÁO HOÀN TẤT
 -- ============================================================
-PRINT N'✅ ExpenseDB đã được tạo thành công!';
-PRINT N'   - 5 bảng với đầy đủ PK, FK, CONSTRAINT';
-PRINT N'   - 10 Stored Procedures (5 sinh ID + 2 nghiệp vụ + 3 báo cáo)';
-PRINT N'   - 10 danh mục mặc định';
-PRINT N'   - 1 user admin mẫu + 1 ví tiền mặc định';
+PRINT N'✅ ExpenseDB phiên bản budget tuần/tháng/năm đã được tạo thành công!';
+PRINT N'   - Budgets hỗ trợ PeriodType = week | month | year';
+PRINT N'   - Có StartDate / EndDate để sync chi tiêu theo khoảng thời gian';
+PRINT N'   - Transaction expense sẽ tự động đồng bộ budget tuần/tháng/năm liên quan';
+PRINT N'   - Có view vw_CategoryBudgetOverview để chuẩn bị cho API overview';
 GO

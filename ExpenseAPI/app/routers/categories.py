@@ -1,4 +1,4 @@
-﻿from fastapi import APIRouter, Body, Depends, HTTPException, status
+﻿from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -6,6 +6,7 @@ from app.core.dependencies import get_current_user
 from app.schemas.category_schema import (
     CategoryCreateRequest,
     CategoryDeleteRequest,
+    CategoryOverviewResponse,
     CategoryResponse,
     CategoryUpdateRequest,
 )
@@ -17,18 +18,29 @@ category_service = CategoryService()
 
 @router.get("", response_model=list[CategoryResponse])
 def get_categories(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    categories = category_service.get_categories(db, current_user.UserID)
-    return [
-        CategoryResponse(
-            category_id=c.CategoryID,
-            user_id=c.UserID,
-            category_name=c.CategoryName,
-            icon=c.Icon,
-            color=c.Color,
-            is_default=c.IsDefault,
+    return category_service.get_categories_response(db, current_user.UserID)
+
+
+@router.get("/overview", response_model=list[CategoryOverviewResponse])
+def get_categories_overview(
+    period_type: str = Query(..., pattern="^(week|month|year)$"),
+    period_year: int = Query(..., ge=2000, le=2100),
+    period_month: int | None = Query(default=None, ge=1, le=12),
+    period_week: int | None = Query(default=None, ge=1, le=53),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    try:
+        return category_service.get_categories_overview(
+            db=db,
+            user_id=current_user.UserID,
+            period_type=period_type,
+            period_year=period_year,
+            period_month=period_month,
+            period_week=period_week,
         )
-        for c in categories
-    ]
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
 @router.post("", response_model=CategoryResponse, status_code=status.HTTP_201_CREATED)
