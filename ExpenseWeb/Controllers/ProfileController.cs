@@ -4,19 +4,37 @@ namespace ExpenseWeb.Controllers
 {
     public class ProfileController : Controller
     {
+        private bool HasAccessToken()
+        {
+            var token = HttpContext.Session.GetString("AccessToken");
+            return !string.IsNullOrEmpty(token);
+        }
+
+        private void SetProfileViewData()
+        {
+            ViewBag.UserFullName = HttpContext.Session.GetString("UserFullName") ?? "Người dùng";
+        }
+
         public IActionResult Index()
         {
-
-            var token = HttpContext.Session.GetString("AccessToken");
-            if (string.IsNullOrEmpty(token))
+            if (!HasAccessToken())
             {
                 return RedirectToAction("Login", "Auth");
             }
 
-            ViewBag.UserFullName = HttpContext.Session.GetString("UserFullName");
+            SetProfileViewData();
             return View();
         }
 
-    }
+        public IActionResult Support()
+        {
+            if (!HasAccessToken())
+            {
+                return RedirectToAction("Login", "Auth");
+            }
 
+            SetProfileViewData();
+            return View();
+        }
+    }
 }

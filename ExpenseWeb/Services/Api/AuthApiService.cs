@@ -29,7 +29,7 @@ namespace ExpenseWeb.Services.Api
 
             if (!response.IsSuccessStatusCode)
             {
-                return (false, ExtractErrorMessage(responseBody), null);
+                return (false, responseBody, null);
             }
 
             var options = new JsonSerializerOptions
@@ -59,72 +59,6 @@ namespace ExpenseWeb.Services.Api
             }
 
             return (true, "");
-        }
-
-        public async Task<(bool Success, string ErrorMessage)> VerifyOtpAsync(string email, string otp)
-        {
-            var url = $"{_baseUrl}/auth/verify-otp";
-
-            var payload = new
-            {
-                email = email,
-                otp = otp
-            };
-
-            var json = JsonSerializer.Serialize(payload);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-            var response = await _httpClient.PostAsync(url, content);
-            var responseBody = await response.Content.ReadAsStringAsync();
-
-            if (!response.IsSuccessStatusCode)
-            {
-                return (false, ExtractErrorMessage(responseBody));
-            }
-
-            return (true, "");
-        }
-
-        public async Task<(bool Success, string ErrorMessage)> ResendOtpAsync(string email)
-        {
-            var url = $"{_baseUrl}/auth/resend-otp";
-
-            var payload = new
-            {
-                email = email
-            };
-
-            var json = JsonSerializer.Serialize(payload);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-            var response = await _httpClient.PostAsync(url, content);
-            var responseBody = await response.Content.ReadAsStringAsync();
-
-            if (!response.IsSuccessStatusCode)
-            {
-                return (false, ExtractErrorMessage(responseBody));
-            }
-
-            return (true, "");
-        }
-
-        private string ExtractErrorMessage(string responseBody)
-        {
-            try
-            {
-                var doc = JsonDocument.Parse(responseBody);
-
-                if (doc.RootElement.TryGetProperty("detail", out var detail))
-                {
-                    return detail.GetString() ?? "Unknown error";
-                }
-            }
-            catch
-            {
-                // ignore parse error
-            }
-
-            return responseBody;
         }
     }
 }

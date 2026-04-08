@@ -1,0 +1,453 @@
+﻿@{
+    ViewData["Title"] = "Hỗ trợ & Liên hệ admin";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@section Styles {
+    <style>
+        .support-dropzone {
+            border: 2px dashed rgba(105, 108, 255, 0.35);
+            border-radius: 1rem;
+            background: rgba(105, 108, 255, 0.04);
+            transition: all .2s ease;
+            cursor: pointer;
+        }
+
+            .support-dropzone:hover {
+                border-color: #696cff;
+                background: rgba(105, 108, 255, 0.08);
+            }
+
+        .support-dropzone-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: rgba(105, 108, 255, 0.12);
+            color: #696cff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+        }
+
+        .support-file-item {
+            border: 1px solid #eceef1;
+            border-radius: .75rem;
+            padding: .9rem 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            background: #fff;
+        }
+
+        .support-file-meta {
+            display: flex;
+            align-items: center;
+            gap: .75rem;
+            min-width: 0;
+        }
+
+        .support-file-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: .75rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+
+        .support-history-item {
+            border: 1px solid #eceef1;
+            border-radius: 1rem;
+            padding: 1rem;
+            height: 100%;
+            background: #fff;
+        }
+
+            .support-history-item + .support-history-item {
+                margin-top: 1rem;
+            }
+
+        .support-timeline {
+            position: relative;
+            padding-left: 1.25rem;
+        }
+
+            .support-timeline::before {
+                content: "";
+                position: absolute;
+                top: .35rem;
+                left: .32rem;
+                width: 2px;
+                height: calc(100% - .7rem);
+                background: #eceef1;
+            }
+
+        .support-timeline-item {
+            position: relative;
+            padding-left: 1.1rem;
+            padding-bottom: 1.25rem;
+        }
+
+            .support-timeline-item:last-child {
+                padding-bottom: 0;
+            }
+
+            .support-timeline-item::before {
+                content: "";
+                position: absolute;
+                top: .2rem;
+                left: -0.1rem;
+                width: .8rem;
+                height: .8rem;
+                border-radius: 50%;
+                background: #696cff;
+                box-shadow: 0 0 0 4px rgba(105,108,255,.15);
+            }
+
+        @@media (max-width: 767.98px) {
+            .support-file-item {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+        }
+    </style>
+}
+
+<div class="container-xxl flex-grow-1 container-p-y">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="nav-align-top mb-4">
+                <ul class="nav nav-pills flex-column flex-md-row mb-0 gap-md-0 gap-2">
+                    <li class="nav-item">
+                        <a class="nav-link" href="@Url.Action("Index", "Profile")">
+                            <i class="icon-base bx bx-user icon-sm me-1_5"></i>
+                            <span>Hồ sơ</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="@Url.Action("Support", "Profile")">
+                            <i class="icon-base bx bx-help-circle icon-sm me-1_5"></i>
+                            <span>Hỗ trợ</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="row g-4">
+                <div class="col-12 col-xl-8">
+                    <div class="card mb-4">
+                        <div class="card-header d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+                            <div>
+                                <h5 class="mb-1">
+                                    <i class="bx bx-support me-2 text-primary"></i>Gửi hỗ trợ đến admin
+                                </h5>
+                                <p class="mb-0 text-muted">
+                                    Gửi phản hồi, báo lỗi hoặc yêu cầu hỗ trợ kèm hình ảnh / video minh họa.
+                                </p>
+                            </div>
+                            <span class="badge bg-label-primary">Giao diện tĩnh</span>
+                        </div>
+
+                        <div class="card-body">
+                            <form onsubmit="return false">
+                                <div class="row g-4">
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="supportType">Loại hỗ trợ</label>
+                                        <select id="supportType" class="form-select">
+                                            <option selected>Báo lỗi hệ thống</option>
+                                            <option>Hỗ trợ giao dịch</option>
+                                            <option>Hỗ trợ tài khoản</option>
+                                            <option>Góp ý tính năng</option>
+                                            <option>Khác</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="supportPriority">Mức độ ưu tiên</label>
+                                        <select id="supportPriority" class="form-select">
+                                            <option>Thấp</option>
+                                            <option selected>Trung bình</option>
+                                            <option>Cao</option>
+                                            <option>Khẩn cấp</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="col-12">
+                                        <label class="form-label" for="supportTitle">Tiêu đề</label>
+                                        <input id="supportTitle"
+                                               type="text"
+                                               class="form-control"
+                                               placeholder="Ví dụ: Không thể lưu giao dịch chi tiêu trong ví MB Bank" />
+                                    </div>
+
+                                    <div class="col-12">
+                                        <label class="form-label" for="supportMessage">Nội dung hỗ trợ</label>
+                                        <textarea id="supportMessage"
+                                                  class="form-control"
+                                                  rows="6"
+                                                  placeholder="Mô tả chi tiết vấn đề bạn gặp phải, thời điểm xảy ra lỗi, các bước đã thao tác và mong muốn được hỗ trợ như thế nào..."></textarea>
+                                    </div>
+
+                                    <div class="col-12">
+                                        <label class="form-label d-block">Tệp đính kèm</label>
+
+                                        <label for="supportAttachments" class="support-dropzone p-4 p-md-5 text-center w-100">
+                                            <div class="support-dropzone-icon mx-auto mb-3">
+                                                <i class="bx bx-cloud-upload"></i>
+                                            </div>
+                                            <h6 class="mb-1">Tải lên hình ảnh hoặc video</h6>
+                                            <p class="text-muted mb-2">
+                                                Hỗ trợ file JPG, PNG, GIF, MP4, MOV
+                                            </p>
+                                            <p class="text-muted small mb-0">
+                                                Kéo thả file vào đây hoặc bấm để chọn file từ máy tính
+                                            </p>
+                                            <input id="supportAttachments"
+                                                   type="file"
+                                                   class="d-none"
+                                                   accept="image/*,video/*"
+                                                   multiple />
+                                        </label>
+                                    </div>
+
+                                    <div class="col-12">
+                                        <div class="border rounded-4 p-3">
+                                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                                                <h6 class="mb-0">Tệp mẫu đã chọn</h6>
+                                                <span class="badge bg-label-secondary">Tối đa 5 tệp</span>
+                                            </div>
+
+                                            <div class="d-flex flex-column gap-3">
+                                                <div class="support-file-item">
+                                                    <div class="support-file-meta">
+                                                        <div class="support-file-icon bg-label-primary text-primary">
+                                                            <i class="bx bx-image-alt"></i>
+                                                        </div>
+                                                        <div class="text-truncate">
+                                                            <div class="fw-medium text-truncate">screenshot-loi-giao-dich.png</div>
+                                                            <small class="text-muted">PNG • 420 KB</small>
+                                                        </div>
+                                                    </div>
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary">
+                                                        <i class="bx bx-x"></i>
+                                                    </button>
+                                                </div>
+
+                                                <div class="support-file-item">
+                                                    <div class="support-file-meta">
+                                                        <div class="support-file-icon bg-label-danger text-danger">
+                                                            <i class="bx bx-video"></i>
+                                                        </div>
+                                                        <div class="text-truncate">
+                                                            <div class="fw-medium text-truncate">mo-ta-loi-khong-luu-duoc.mp4</div>
+                                                            <small class="text-muted">MP4 • 3.8 MB</small>
+                                                        </div>
+                                                    </div>
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary">
+                                                        <i class="bx bx-x"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-12">
+                                        <div class="d-flex flex-wrap justify-content-end gap-2">
+                                            <button type="reset" class="btn btn-outline-secondary">
+                                                <i class="bx bx-reset me-1"></i> Làm mới
+                                            </button>
+                                            <button type="submit" class="btn btn-primary">
+                                                <i class="bx bx-send me-1"></i> Gửi hỗ trợ
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-1">
+                                <i class="bx bx-history me-2 text-info"></i>Lịch sử hỗ trợ gần đây
+                            </h5>
+                            <p class="mb-0 text-muted">
+                                Dữ liệu minh họa tĩnh để thể hiện giao diện danh sách yêu cầu hỗ trợ.
+                            </p>
+                        </div>
+
+                        <div class="card-body">
+                            <div class="support-history-item">
+                                <div class="d-flex flex-column flex-md-row justify-content-between gap-2 mb-2">
+                                    <div>
+                                        <h6 class="mb-1">Không thể cập nhật ảnh đại diện</h6>
+                                        <div class="d-flex flex-wrap gap-2">
+                                            <span class="badge bg-label-warning">Đang xử lý</span>
+                                            <span class="badge bg-label-primary">Tài khoản</span>
+                                            <span class="badge bg-label-secondary">#SUP-2026-0012</span>
+                                        </div>
+                                    </div>
+                                    <small class="text-muted">09:30 - 03/04/2026</small>
+                                </div>
+                                <p class="mb-0 text-muted">
+                                    Tôi đã thử tải ảnh JPG dưới 800KB nhưng hệ thống không cập nhật avatar sau khi bấm lưu thay đổi.
+                                </p>
+                            </div>
+
+                            <div class="support-history-item">
+                                <div class="d-flex flex-column flex-md-row justify-content-between gap-2 mb-2">
+                                    <div>
+                                        <h6 class="mb-1">Lỗi không lưu được giao dịch chi tiêu</h6>
+                                        <div class="d-flex flex-wrap gap-2">
+                                            <span class="badge bg-label-success">Đã phản hồi</span>
+                                            <span class="badge bg-label-danger">Báo lỗi hệ thống</span>
+                                            <span class="badge bg-label-secondary">#SUP-2026-0009</span>
+                                        </div>
+                                    </div>
+                                    <small class="text-muted">14:10 - 30/03/2026</small>
+                                </div>
+                                <p class="mb-0 text-muted">
+                                    Khi nhập số tiền và chọn danh mục, nút lưu không báo lỗi nhưng dữ liệu không xuất hiện trong danh sách giao dịch.
+                                </p>
+                            </div>
+
+                            <div class="support-history-item">
+                                <div class="d-flex flex-column flex-md-row justify-content-between gap-2 mb-2">
+                                    <div>
+                                        <h6 class="mb-1">Đề xuất thêm bộ lọc theo tháng</h6>
+                                        <div class="d-flex flex-wrap gap-2">
+                                            <span class="badge bg-label-secondary">Đã đóng</span>
+                                            <span class="badge bg-label-info">Góp ý tính năng</span>
+                                            <span class="badge bg-label-secondary">#SUP-2026-0004</span>
+                                        </div>
+                                    </div>
+                                    <small class="text-muted">08:20 - 24/03/2026</small>
+                                </div>
+                                <p class="mb-0 text-muted">
+                                    Mong muốn thêm bộ lọc tháng/năm ở trang giao dịch để kiểm tra lịch sử chi tiêu thuận tiện hơn.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 col-xl-4">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-1">
+                                <i class="bx bx-info-circle me-2 text-warning"></i>Hướng dẫn gửi hỗ trợ
+                            </h5>
+                            <p class="mb-0 text-muted">
+                                Một vài gợi ý để admin xử lý yêu cầu của bạn nhanh hơn.
+                            </p>
+                        </div>
+
+                        <div class="card-body">
+                            <div class="support-timeline">
+                                <div class="support-timeline-item">
+                                    <h6 class="mb-1">Ghi rõ vấn đề gặp phải</h6>
+                                    <p class="mb-0 text-muted small">
+                                        Nêu chính xác màn hình, chức năng hoặc thao tác đang bị lỗi.
+                                    </p>
+                                </div>
+
+                                <div class="support-timeline-item">
+                                    <h6 class="mb-1">Đính kèm ảnh hoặc video</h6>
+                                    <p class="mb-0 text-muted small">
+                                        Hình ảnh/video giúp admin dễ xác định nguyên nhân hơn.
+                                    </p>
+                                </div>
+
+                                <div class="support-timeline-item">
+                                    <h6 class="mb-1">Cung cấp thời điểm xảy ra</h6>
+                                    <p class="mb-0 text-muted small">
+                                        Ví dụ: 9h30 sáng, ngày 03/04/2026, sau khi bấm nút Lưu giao dịch.
+                                    </p>
+                                </div>
+
+                                <div class="support-timeline-item">
+                                    <h6 class="mb-1">Theo dõi phản hồi</h6>
+                                    <p class="mb-0 text-muted small">
+                                        Trạng thái xử lý sẽ được cập nhật trong danh sách hỗ trợ gần đây.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-1">
+                                <i class="bx bx-pulse me-2 text-success"></i>Trạng thái hỗ trợ
+                            </h5>
+                            <p class="mb-0 text-muted">
+                                Mẫu hiển thị trạng thái ticket trong giao diện.
+                            </p>
+                        </div>
+
+                        <div class="card-body d-flex flex-column gap-3">
+                            <div class="d-flex justify-content-between align-items-center border rounded-3 px-3 py-2">
+                                <span class="text-heading">Mới gửi</span>
+                                <span class="badge bg-label-primary">Chờ tiếp nhận</span>
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center border rounded-3 px-3 py-2">
+                                <span class="text-heading">Đang xử lý</span>
+                                <span class="badge bg-label-warning">In Progress</span>
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center border rounded-3 px-3 py-2">
+                                <span class="text-heading">Đã phản hồi</span>
+                                <span class="badge bg-label-success">Resolved</span>
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center border rounded-3 px-3 py-2">
+                                <span class="text-heading">Đã đóng</span>
+                                <span class="badge bg-label-secondary">Closed</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="d-flex align-items-start gap-3">
+                                <div class="avatar flex-shrink-0">
+                                    <span class="avatar-initial rounded bg-label-primary">
+                                        <i class="bx bx-envelope"></i>
+                                    </span>
+                                </div>
+                                <div>
+                                    <h6 class="mb-1">Kênh hỗ trợ nội bộ</h6>
+                                    <p class="mb-2 text-muted">
+                                        Đây là giao diện mẫu cho chức năng gửi hỗ trợ. Khi nối backend, dữ liệu sẽ được lưu thành ticket và gửi tới admin.
+                                    </p>
+                                    <a href="javascript:void(0)" class="btn btn-sm btn-outline-primary">
+                                        Xem quy định hỗ trợ
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const fileInput = document.getElementById("supportAttachments");
+
+            if (fileInput) {
+                fileInput.addEventListener("change", function () {
+                    console.log("Static UI only - selected files:", this.files);
+                });
+            }
+        });
+    </script>
+}
