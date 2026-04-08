@@ -1,4 +1,4 @@
-﻿from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session
 
 from app.models.user import User
 
@@ -15,3 +15,12 @@ class UserRepository:
         db.commit()
         db.refresh(user)
         return user
+
+    def update(self, db: Session, user: User) -> User:
+        db.commit()
+        db.refresh(user)
+        return user
+
+    def delete(self, db: Session, user: User) -> None:
+        db.delete(user)
+        db.commit()

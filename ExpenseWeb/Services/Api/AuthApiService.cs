@@ -1,4 +1,4 @@
-﻿using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using ExpenseWeb.Models.Dtos.Auth;
@@ -9,6 +9,10 @@ namespace ExpenseWeb.Services.Api
     {
         private readonly HttpClient _httpClient;
         private readonly string _baseUrl;
+        private readonly JsonSerializerOptions _jsonOptions = new()
+        {
+            PropertyNameCaseInsensitive = true
+        };
 
         public AuthApiService(HttpClient httpClient, IConfiguration configuration)
         {
@@ -16,45 +20,36 @@ namespace ExpenseWeb.Services.Api
             _baseUrl = configuration["ApiSettings:BaseUrl"] ?? "";
         }
 
-        // ================= LOGIN =================
+        private void SetBearerToken(string token)
+        {
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        }
+
+        private StringContent CreateJsonContent<T>(T payload)
+        {
+            var json = JsonSerializer.Serialize(payload);
+            return new StringContent(json, Encoding.UTF8, "application/json");
+        }
+
         public async Task<(bool Success, string ErrorMessage, LoginResponseDto? Data)> LoginAsync(LoginRequestDto request)
         {
-            var url = $"{_baseUrl}/auth/login";
-
-            var json = JsonSerializer.Serialize(request);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-            var response = await _httpClient.PostAsync(url, content);
-
+            var response = await _httpClient.PostAsync($"{_baseUrl}/auth/login", CreateJsonContent(request));
             var responseBody = await response.Content.ReadAsStringAsync();
-
             if (!response.IsSuccessStatusCode)
-            {
                 return (false, ExtractErrorMessage(responseBody), null);
-            }
 
-            var options = new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            };
-
-            var data = JsonSerializer.Deserialize<LoginResponseDto>(responseBody, options);
-
+            var data = JsonSerializer.Deserialize<LoginResponseDto>(responseBody, _jsonOptions);
             return (true, "", data);
         }
 
-        // ================= FORGOT PASSWORD =================
         public async Task<(bool Success, string ErrorMessage)> ForgotPasswordAsync(string email)
         {
             var response = await _httpClient.PostAsJsonAsync($"{_baseUrl}/auth/forgot-password", new { email });
-
             if (!response.IsSuccessStatusCode)
                 return (false, await response.Content.ReadAsStringAsync());
-
             return (true, "");
         }
 
-        // ================= RESET PASSWORD =================
         public async Task<(bool Success, string ErrorMessage)> ResetPasswordAsync(string token, string newPassword)
         {
             var response = await _httpClient.PostAsJsonAsync($"{_baseUrl}/auth/reset-password", new
@@ -65,97 +60,84 @@ namespace ExpenseWeb.Services.Api
 
             if (!response.IsSuccessStatusCode)
                 return (false, await response.Content.ReadAsStringAsync());
-
             return (true, "");
         }
 
-        // ================= REGISTER =================
         public async Task<(bool Success, string ErrorMessage)> RegisterAsync(RegisterRequestDto request)
         {
-            var url = $"{_baseUrl}/auth/register";
-
-            var json = JsonSerializer.Serialize(request);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-            var response = await _httpClient.PostAsync(url, content);
-
+            var response = await _httpClient.PostAsync($"{_baseUrl}/auth/register", CreateJsonContent(request));
             var responseBody = await response.Content.ReadAsStringAsync();
-
             if (!response.IsSuccessStatusCode)
-            {
-                return (false, responseBody);
-            }
-
+                return (false, ExtractErrorMessage(responseBody));
             return (true, "");
         }
 
-        // ================= VERIFY OTP =================
         public async Task<(bool Success, string ErrorMessage)> VerifyOtpAsync(string email, string otp)
         {
-            var url = $"{_baseUrl}/auth/verify-otp";
-
-            var payload = new
-            {
-                email = email,
-                otp = otp
-            };
-
-            var json = JsonSerializer.Serialize(payload);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-            var response = await _httpClient.PostAsync(url, content);
+            var response = await _httpClient.PostAsync($"{_baseUrl}/auth/verify-otp", CreateJsonContent(new { email, otp }));
             var responseBody = await response.Content.ReadAsStringAsync();
-
             if (!response.IsSuccessStatusCode)
-            {
                 return (false, ExtractErrorMessage(responseBody));
-            }
-
             return (true, "");
         }
 
-        // ================= RESEND OTP =================
         public async Task<(bool Success, string ErrorMessage)> ResendOtpAsync(string email)
         {
-            var url = $"{_baseUrl}/auth/resend-otp";
-
-            var payload = new
-            {
-                email = email
-            };
-
-            var json = JsonSerializer.Serialize(payload);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-            var response = await _httpClient.PostAsync(url, content);
+            var response = await _httpClient.PostAsync($"{_baseUrl}/auth/resend-otp", CreateJsonContent(new { email }));
             var responseBody = await response.Content.ReadAsStringAsync();
-
             if (!response.IsSuccessStatusCode)
-            {
                 return (false, ExtractErrorMessage(responseBody));
-            }
-
             return (true, "");
         }
 
-        // ================= ERROR MESSAGE =================
+        public async Task<(bool Success, string ErrorMessage, UserDto? Data)> GetMeAsync(string token)
+        {
+            SetBearerToken(token);
+            var response = await _httpClient.GetAsync($"{_baseUrl}/auth/me");
+            var responseBody = await response.Content.ReadAsStringAsync();
+            if (!response.IsSuccessStatusCode)
+                return (false, ExtractErrorMessage(responseBody), null);
+
+            var data = JsonSerializer.Deserialize<UserDto>(responseBody, _jsonOptions);
+            return (true, "", data);
+        }
+
+        public async Task<(bool Success, string ErrorMessage, UserDto? Data)> UpdateProfileAsync(string token, UpdateProfileRequestDto request)
+        {
+            SetBearerToken(token);
+            var response = await _httpClient.PutAsync($"{_baseUrl}/auth/me", CreateJsonContent(request));
+            var responseBody = await response.Content.ReadAsStringAsync();
+            if (!response.IsSuccessStatusCode)
+                return (false, ExtractErrorMessage(responseBody), null);
+
+            var data = JsonSerializer.Deserialize<UserDto>(responseBody, _jsonOptions);
+            return (true, "", data);
+        }
+
+        public async Task<(bool Success, string ErrorMessage)> DeleteMeAsync(string token)
+        {
+            SetBearerToken(token);
+            var response = await _httpClient.DeleteAsync($"{_baseUrl}/auth/me");
+            var responseBody = await response.Content.ReadAsStringAsync();
+            if (!response.IsSuccessStatusCode)
+                return (false, ExtractErrorMessage(responseBody));
+            return (true, "");
+        }
+
         private string ExtractErrorMessage(string responseBody)
         {
             try
             {
                 var doc = JsonDocument.Parse(responseBody);
-
                 if (doc.RootElement.TryGetProperty("detail", out var detail))
                 {
-                    return detail.GetString() ?? "Unknown error";
+                    return detail.ValueKind == JsonValueKind.String ? detail.GetString() ?? "Unknown error" : detail.ToString();
                 }
             }
             catch
             {
-                // ignore parse error
             }
-
-            return responseBody;
+            return string.IsNullOrWhiteSpace(responseBody) ? "Unknown error" : responseBody;
         }
     }
 }

@@ -205,6 +205,22 @@ CREATE UNIQUE INDEX UX_Budgets_UserCatPeriod
     );
 GO
 
+IF OBJECT_ID('dbo.UserOTPs', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.UserOTPs (
+        OtpID        INT IDENTITY(1,1) PRIMARY KEY,
+        Email        VARCHAR(150) NOT NULL,
+        OTPCode      VARCHAR(6) NOT NULL,
+        IsUsed       BIT NOT NULL DEFAULT 0,
+        ExpiresAt    DATETIME NOT NULL,
+        CreatedAt    DATETIME NOT NULL DEFAULT GETDATE()
+    );
+
+    CREATE INDEX IX_UserOTPs_Email_CreatedAt
+        ON dbo.UserOTPs(Email, CreatedAt DESC);
+END
+
+
 -- ============================================================
 --  8. INDEX HỖ TRỢ TRUY VẤN THƯỜNG GẶP
 -- ============================================================

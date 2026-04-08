@@ -1,17 +1,15 @@
-﻿@{
+@model ExpenseWeb.Models.ViewModels.Profile.ProfilePageViewModel
+@{
     ViewData["Title"] = "Hồ sơ cá nhân";
     Layout = "~/Views/Shared/_Layout.cshtml";
+    var avatarUrl = string.IsNullOrWhiteSpace(Model?.Avatar)
+        ? Url.Content("~/sneat/img/avatars/1.png")
+        : Model.Avatar;
 }
 
 <style>
-    .avatar-section {
-        border-right: 1px solid #eceef1;
-    }
-
-    .dark-mode .avatar-section {
-        border-right-color: #444;
-    }
-
+    .avatar-section { border-right: 1px solid #eceef1; }
+    .dark-mode .avatar-section { border-right-color: #444; }
     @@media (max-width: 768px) {
         .avatar-section {
             border-right: none;
@@ -29,14 +27,12 @@
                 <ul class="nav nav-pills flex-column flex-md-row mb-6 gap-md-0 gap-2">
                     <li class="nav-item">
                         <a class="nav-link active" href="@Url.Action("Index", "Profile")">
-                            <i class="icon-base bx bx-user icon-sm me-1_5"></i>
-                            <span>Hồ sơ</span>
+                            <i class="icon-base bx bx-user icon-sm me-1_5"></i><span>Hồ sơ</span>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="@Url.Action("Support", "Profile")">
-                            <i class="icon-base bx bx-help-circle icon-sm me-1_5"></i>
-                            <span>Hỗ trợ</span>
+                            <i class="icon-base bx bx-help-circle icon-sm me-1_5"></i><span>Hỗ trợ</span>
                         </a>
                     </li>
                 </ul>
@@ -46,102 +42,48 @@
                 <div class="card-body p-5">
                     <div class="row">
                         <div class="col-12 col-md-4 avatar-section d-flex flex-column align-items-center justify-content-center pe-md-4">
-                            <img src="~/sneat/img/avatars/1.png" alt="user-avatar"
-                                 class="d-block w-px-150 h-px-150 rounded-circle mb-4"
-                                 id="uploadedAvatar"
-                                 style="object-fit: cover; box-shadow: 0 0 0 4px #eef0f2;" />
+                            <img src="@avatarUrl" alt="user-avatar" class="d-block w-px-150 h-px-150 rounded-circle mb-4" id="uploadedAvatar" style="object-fit: cover; box-shadow: 0 0 0 4px #eef0f2;" />
 
-                            <div class="d-flex flex-column gap-2 w-100" style="max-width: 200px;">
-                                <label for="upload" class="btn btn-primary w-100" tabindex="0">
-                                    <i class="bx bx-upload me-2"></i> Tải ảnh mới
-                                    <input type="file" id="upload" class="account-file-input" hidden accept="image/png, image/jpeg" />
-                                </label>
-
-                                <button type="button" class="btn btn-outline-secondary account-image-reset w-100">
-                                    <i class="bx bx-reset me-2"></i> Xóa ảnh
+                            <div class="d-flex flex-column gap-2 w-100" style="max-width: 260px;">
+                                <input type="url" id="avatarUrl" class="form-control" value="@Model.Avatar" placeholder="Dán URL ảnh đại diện" />
+                                <button type="button" class="btn btn-outline-secondary account-image-reset w-100" id="btnResetAvatar">
+                                    <i class="bx bx-reset me-2"></i>Dùng ảnh mặc định
                                 </button>
                             </div>
 
-                            <p class="text-muted small mt-3 text-center mb-0">
-                                Định dạng: JPG, GIF, PNG<br />
-                                Kích thước tối đa 800KB
-                            </p>
+                            <p class="text-muted small mt-3 text-center mb-0">Hiện tại avatar được lưu dưới dạng URL chuỗi.</p>
                         </div>
 
                         <div class="col-12 col-md-8 ps-md-5 mt-4 mt-md-0">
-                            <h5 class="mb-4 text-heading">
-                                <i class="bx bx-detail me-2"></i>Thông tin cá nhân
-                            </h5>
+                            <h5 class="mb-4 text-heading"><i class="bx bx-detail me-2"></i>Thông tin cá nhân</h5>
 
-                            <form id="formAccountSettings" method="POST" onsubmit="return false">
+                            <form id="formProfileSettings" method="post" onsubmit="return false">
                                 <div class="row g-4">
                                     <div class="col-md-6">
-                                        <label for="lastName" class="form-label">Họ và Tên đệm</label>
-                                        <input class="form-control" type="text" name="lastName" id="lastName" value="Nguyễn Văn" />
+                                        <label for="lastName" class="form-label">Họ và tên đệm</label>
+                                        <input class="form-control" type="text" name="lastName" id="lastName" value="@Model.LastName" />
                                     </div>
-
                                     <div class="col-md-6">
                                         <label for="firstName" class="form-label">Tên</label>
-                                        <input class="form-control" type="text" id="firstName" name="firstName" value="A" autofocus />
+                                        <input class="form-control" type="text" id="firstName" name="firstName" value="@Model.FirstName" autofocus />
                                     </div>
-
                                     <div class="col-md-6">
                                         <label for="email" class="form-label">E-mail</label>
-                                        <input class="form-control" type="email" id="email" name="email" value="nguyenvana@example.com" />
+                                        <input class="form-control" type="email" id="email" name="email" value="@Model.Email" />
                                     </div>
-
                                     <div class="col-md-6">
                                         <label class="form-label" for="phoneNumber">Số điện thoại</label>
                                         <div class="input-group input-group-merge">
                                             <span class="input-group-text">VN (+84)</span>
-                                            <input type="text" id="phoneNumber" name="phoneNumber" class="form-control" value="987 654 321" />
+                                            <input type="text" id="phoneNumber" name="phoneNumber" class="form-control" value="@Model.PhoneNumber" />
                                         </div>
-                                    </div>
-
-                                    <div class="col-12">
-                                        <label for="address" class="form-label">Địa chỉ</label>
-                                        <input type="text"
-                                               class="form-control"
-                                               id="address"
-                                               name="address"
-                                               value="Quận Cầu Giấy, Hà Nội"
-                                               placeholder="Quận/Huyện, Tỉnh/Thành phố" />
-                                    </div>
-
-                                    <div class="col-md-4">
-                                        <label class="form-label" for="country">Quốc gia</label>
-                                        <select id="country" class="select2 form-select">
-                                            <option value="Vietnam" selected>Việt Nam</option>
-                                            <option value="USA">Hoa Kỳ</option>
-                                            <option value="Japan">Nhật Bản</option>
-                                            <option value="Australia">Úc</option>
-                                        </select>
-                                    </div>
-
-                                    <div class="col-md-4">
-                                        <label for="currency" class="form-label fw-bold text-primary">Tiền tệ mặc định</label>
-                                        <select id="currency" class="select2 form-select">
-                                            <option value="vnd" selected>VND (Đồng)</option>
-                                            <option value="usd">USD (Đô la)</option>
-                                            <option value="eur">EUR (Euro)</option>
-                                            <option value="jpy">JPY (Yên)</option>
-                                        </select>
-                                    </div>
-
-                                    <div class="col-md-4">
-                                        <label for="timeZones" class="form-label">Múi giờ</label>
-                                        <select id="timeZones" class="select2 form-select">
-                                            <option value="+7" selected>(GMT+07:00) Hà Nội</option>
-                                            <option value="+8">(GMT+08:00) Singapore</option>
-                                            <option value="-5">(GMT-05:00) Mỹ</option>
-                                        </select>
                                     </div>
                                 </div>
 
                                 <div class="mt-5 text-end">
-                                    <button type="reset" class="btn btn-outline-secondary me-2">Khôi phục</button>
-                                    <button type="submit" class="btn btn-primary">
-                                        <i class="bx bx-save me-1"></i> Lưu thay đổi
+                                    <button type="button" class="btn btn-outline-secondary me-2" id="btnResetProfile">Khôi phục</button>
+                                    <button type="submit" class="btn btn-primary" id="btnSaveProfile">
+                                        <i class="bx bx-save me-1"></i>Lưu thay đổi
                                     </button>
                                 </div>
                             </form>
@@ -154,28 +96,14 @@
                 <h5 class="card-header text-danger border-bottom border-danger bg-label-danger">
                     <i class="bx bx-error-circle me-2"></i>Khu vực nguy hiểm
                 </h5>
-
                 <div class="card-body pt-4">
                     <div class="alert alert-warning mb-4">
                         <h6 class="alert-heading fw-bold mb-1">Bạn có chắc chắn muốn xóa tài khoản?</h6>
-                        <p class="mb-0">
-                            Mọi dữ liệu giao dịch, thống kê và ngân sách của bạn sẽ bị xóa vĩnh viễn.
-                            Hành động này không thể hoàn tác.
-                        </p>
+                        <p class="mb-0">Mọi dữ liệu giao dịch, thống kê và ngân sách của bạn sẽ bị xóa vĩnh viễn. Hành động này không thể hoàn tác.</p>
                     </div>
-
-                    <form id="formAccountDeactivation" onsubmit="return false">
-                        <div class="form-check mb-4">
-                            <input class="form-check-input" type="checkbox" name="accountActivation" id="accountActivation" />
-                            <label class="form-check-label text-heading" for="accountActivation">
-                                Tôi xác nhận muốn xóa tài khoản và toàn bộ dữ liệu
-                            </label>
-                        </div>
-
-                        <button type="submit" class="btn btn-danger deactivate-account" disabled id="btnDeactivate">
-                            <i class="bx bx-trash me-1"></i> Xóa tài khoản
-                        </button>
-                    </form>
+                    <button type="button" class="btn btn-danger" id="btnDeleteAccount">
+                        <i class="bx bx-trash me-2"></i>Xóa tài khoản
+                    </button>
                 </div>
             </div>
         </div>
@@ -183,16 +111,5 @@
 </div>
 
 @section Scripts {
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            const checkbox = document.getElementById('accountActivation');
-            const btnDeactivate = document.getElementById('btnDeactivate');
-
-            if (checkbox && btnDeactivate) {
-                checkbox.addEventListener('change', function () {
-                    btnDeactivate.disabled = !this.checked;
-                });
-            }
-        });
-    </script>
+    <script src="~/sneat/js/pages/profile-page.js"></script>
 }
