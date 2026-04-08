@@ -1,4 +1,4 @@
-﻿from sqlalchemy import Column, DateTime, DECIMAL, ForeignKey, SmallInteger, String
+﻿from sqlalchemy import Column, Date, DateTime, DECIMAL, ForeignKey, SmallInteger, String
 from sqlalchemy.dialects.mssql import TINYINT
 from sqlalchemy.sql import func
 
@@ -11,9 +11,17 @@ class Budget(Base):
     BudgetID = Column(String(13), primary_key=True, index=True)
     UserID = Column(String(15), ForeignKey("Users.UserID"), nullable=False, index=True)
     CategoryID = Column(String(15), ForeignKey("Categories.CategoryID"), nullable=False, index=True)
+
     LimitAmount = Column(DECIMAL(15, 2), nullable=False)
     SpentAmount = Column(DECIMAL(15, 2), nullable=False, default=0)
-    PeriodMonth = Column(TINYINT, nullable=False)
-    PeriodYear = Column(SmallInteger, nullable=False)
+
+    PeriodType = Column(String(10), nullable=False, index=True)   # week | month | year
+    PeriodYear = Column(SmallInteger, nullable=False, index=True)
+    PeriodMonth = Column(TINYINT, nullable=True, index=True)
+    PeriodWeek = Column(TINYINT, nullable=True, index=True)
+
+    StartDate = Column(Date, nullable=False, index=True)
+    EndDate = Column(Date, nullable=False, index=True)
+
     CreatedAt = Column(DateTime, nullable=False, server_default=func.getdate())
     UpdatedAt = Column(DateTime, nullable=False, server_default=func.getdate(), onupdate=func.getdate())

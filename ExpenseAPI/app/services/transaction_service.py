@@ -26,13 +26,36 @@ class TransactionService:
             .first()
         )
 
-        if last_transaction:
-            last_seq = int(last_transaction.TransactionID[-4:])
-        else:
-            last_seq = 0
-
+        last_seq = int(last_transaction.TransactionID[-4:]) if last_transaction else 0
         new_seq = last_seq + 1
         return f"{prefix}{new_seq:04d}"
+
+    def _apply_budget_spent_delta(
+        self,
+        db: Session,
+        user_id: str,
+        category_id: str,
+        tx_date,
+        amount_delta: Decimal,
+    ) -> None:
+        budgets = (
+            db.query(Budget)
+            .filter(
+                Budget.UserID == user_id,
+                Budget.CategoryID == category_id,
+                Budget.StartDate <= tx_date,
+                Budget.EndDate >= tx_date,
+            )
+            .all()
+        )
+
+        for budget in budgets:
+            next_value = Decimal(budget.SpentAmount) + Decimal(amount_delta)
+            if next_value < 0:
+                next_value = Decimal("0")
+
+            budget.SpentAmount = next_value
+            budget.UpdatedAt = datetime.now()
 
     def get_transactions(self, db: Session, user_id: str):
         return self.transaction_repo.get_all_by_user(db, user_id)
@@ -77,21 +100,13 @@ class TransactionService:
             wallet.CurrentBalance = Decimal(wallet.CurrentBalance) + Decimal(data.amount)
         else:
             wallet.CurrentBalance = Decimal(wallet.CurrentBalance) - Decimal(data.amount)
-
-        if data.transaction_type == "expense":
-            budget = (
-                db.query(Budget)
-                .filter(
-                    Budget.UserID == user_id,
-                    Budget.CategoryID == data.category_id,
-                    Budget.PeriodMonth == data.transaction_date.month,
-                    Budget.PeriodYear == data.transaction_date.year,
-                )
-                .first()
+            self._apply_budget_spent_delta(
+                db=db,
+                user_id=user_id,
+                category_id=data.category_id,
+                tx_date=data.transaction_date,
+                amount_delta=Decimal(data.amount),
             )
-            if budget:
-                budget.SpentAmount = Decimal(budget.SpentAmount) + Decimal(data.amount)
-                budget.UpdatedAt = datetime.now()
 
         db.add(transaction)
         wallet.UpdatedAt = datetime.now()
@@ -104,29 +119,30 @@ class TransactionService:
         if not transaction:
             raise ValueError("Transaction not found")
 
-        old_wallet = db.query(Wallet).filter(Wallet.WalletID == transaction.WalletID, Wallet.UserID == user_id).first()
+        old_wallet = (
+            db.query(Wallet)
+            .filter(Wallet.WalletID == transaction.WalletID, Wallet.UserID == user_id)
+            .first()
+        )
         if not old_wallet:
             raise ValueError("Original wallet not found")
 
-        # Hoàn nguyên giao dịch cũ
-        if transaction.TransactionType == "income":
-            old_wallet.CurrentBalance = Decimal(old_wallet.CurrentBalance) - Decimal(transaction.Amount)
-        else:
-            old_wallet.CurrentBalance = Decimal(old_wallet.CurrentBalance) + Decimal(transaction.Amount)
+        old_type = transaction.TransactionType
+        old_amount = Decimal(transaction.Amount)
+        old_date = transaction.TransactionDate
+        old_category_id = transaction.CategoryID
 
-            old_budget = (
-                db.query(Budget)
-                .filter(
-                    Budget.UserID == user_id,
-                    Budget.CategoryID == transaction.CategoryID,
-                    Budget.PeriodMonth == transaction.TransactionDate.month,
-                    Budget.PeriodYear == transaction.TransactionDate.year,
-                )
-                .first()
+        if old_type == "income":
+            old_wallet.CurrentBalance = Decimal(old_wallet.CurrentBalance) - old_amount
+        else:
+            old_wallet.CurrentBalance = Decimal(old_wallet.CurrentBalance) + old_amount
+            self._apply_budget_spent_delta(
+                db=db,
+                user_id=user_id,
+                category_id=old_category_id,
+                tx_date=old_date,
+                amount_delta=-old_amount,
             )
-            if old_budget:
-                old_budget.SpentAmount = max(Decimal("0"), Decimal(old_budget.SpentAmount) - Decimal(transaction.Amount))
-                old_budget.UpdatedAt = datetime.now()
 
         new_wallet_id = data.wallet_id if data.wallet_id is not None else transaction.WalletID
         new_category_id = data.category_id if data.category_id is not None else transaction.CategoryID
@@ -134,7 +150,11 @@ class TransactionService:
         new_amount = Decimal(data.amount) if data.amount is not None else Decimal(transaction.Amount)
         new_date = data.transaction_date if data.transaction_date is not None else transaction.TransactionDate
 
-        new_wallet = db.query(Wallet).filter(Wallet.WalletID == new_wallet_id, Wallet.UserID == user_id).first()
+        new_wallet = (
+            db.query(Wallet)
+            .filter(Wallet.WalletID == new_wallet_id, Wallet.UserID == user_id)
+            .first()
+        )
         if not new_wallet:
             raise ValueError("Wallet not found")
 
@@ -156,20 +176,13 @@ class TransactionService:
             new_wallet.CurrentBalance = Decimal(new_wallet.CurrentBalance) + new_amount
         else:
             new_wallet.CurrentBalance = Decimal(new_wallet.CurrentBalance) - new_amount
-
-            new_budget = (
-                db.query(Budget)
-                .filter(
-                    Budget.UserID == user_id,
-                    Budget.CategoryID == new_category_id,
-                    Budget.PeriodMonth == new_date.month,
-                    Budget.PeriodYear == new_date.year,
-                )
-                .first()
+            self._apply_budget_spent_delta(
+                db=db,
+                user_id=user_id,
+                category_id=new_category_id,
+                tx_date=new_date,
+                amount_delta=new_amount,
             )
-            if new_budget:
-                new_budget.SpentAmount = Decimal(new_budget.SpentAmount) + new_amount
-                new_budget.UpdatedAt = datetime.now()
 
         transaction.WalletID = new_wallet_id
         transaction.CategoryID = new_category_id
@@ -197,7 +210,11 @@ class TransactionService:
         if not transaction:
             raise ValueError("Transaction not found")
 
-        wallet = db.query(Wallet).filter(Wallet.WalletID == transaction.WalletID, Wallet.UserID == user_id).first()
+        wallet = (
+            db.query(Wallet)
+            .filter(Wallet.WalletID == transaction.WalletID, Wallet.UserID == user_id)
+            .first()
+        )
         if not wallet:
             raise ValueError("Wallet not found")
 
@@ -205,20 +222,13 @@ class TransactionService:
             wallet.CurrentBalance = Decimal(wallet.CurrentBalance) - Decimal(transaction.Amount)
         else:
             wallet.CurrentBalance = Decimal(wallet.CurrentBalance) + Decimal(transaction.Amount)
-
-            budget = (
-                db.query(Budget)
-                .filter(
-                    Budget.UserID == user_id,
-                    Budget.CategoryID == transaction.CategoryID,
-                    Budget.PeriodMonth == transaction.TransactionDate.month,
-                    Budget.PeriodYear == transaction.TransactionDate.year,
-                )
-                .first()
+            self._apply_budget_spent_delta(
+                db=db,
+                user_id=user_id,
+                category_id=transaction.CategoryID,
+                tx_date=transaction.TransactionDate,
+                amount_delta=-Decimal(transaction.Amount),
             )
-            if budget:
-                budget.SpentAmount = max(Decimal("0"), Decimal(budget.SpentAmount) - Decimal(transaction.Amount))
-                budget.UpdatedAt = datetime.now()
 
         wallet.UpdatedAt = datetime.now()
         self.transaction_repo.delete(db, transaction)

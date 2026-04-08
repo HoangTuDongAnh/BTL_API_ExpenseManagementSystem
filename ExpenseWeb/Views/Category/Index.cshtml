@@ -1,22 +1,20 @@
-﻿@using System.IO
+﻿@model ExpenseWeb.Models.ViewModels.Category.CategoryPageViewModel
+@using System.IO
 @using System.Linq
+@using ExpenseWeb.Models.Dtos.Category
 @inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment WebHostEnvironment
 
 @{
     ViewBag.Title = "Danh mục & Hạn mức";
     Layout = "~/Views/Shared/_Layout.cshtml";
 
-    var lang = (Context.Request.Query["lang"].FirstOrDefault() ?? "vi").ToLower();
+    var lang = Model?.Lang ?? (Context.Request.Query["lang"].FirstOrDefault() ?? "vi").ToLower();
     string T(string vi, string en) => lang == "en" ? en : vi;
 
     var categoryIconFolderPhysical = System.IO.Path.Combine(WebHostEnvironment.WebRootPath, "sneat", "img", "icons", "categories");
-    var categoryIconFiles = Directory.Exists(categoryIconFolderPhysical)
-        ? Directory.GetFiles(categoryIconFolderPhysical)
-            .Where(f =>
-            {
-                var ext = System.IO.Path.GetExtension(f).ToLower();
-                return ext == ".png" || ext == ".svg" || ext == ".webp" || ext == ".jpg" || ext == ".jpeg";
-            })
+    var categoryIconFiles = System.IO.Directory.Exists(categoryIconFolderPhysical)
+        ? System.IO.Directory.GetFiles(categoryIconFolderPhysical)
+            .Where(f => new[] { ".png", ".svg", ".webp", ".jpg", ".jpeg" }.Contains(System.IO.Path.GetExtension(f).ToLower()))
             .Select(System.IO.Path.GetFileName)
             .OrderBy(x => x)
             .ToList()
@@ -28,9 +26,42 @@
         "#FF3E1D", "#8592A3", "#8C57FF", "#233446"
     };
 
-    string iconAt(int index) => categoryIconFiles.Count > index
-        ? $"/sneat/img/icons/categories/{categoryIconFiles[index]}"
+    string iconAt(int index) => categoryIconFiles.Count > 0
+        ? $"/sneat/img/icons/categories/{categoryIconFiles[index % categoryIconFiles.Count]}"
         : "";
+
+    string resolveIcon(CategoryOverviewResponseDto item, int index)
+    {
+        if (!string.IsNullOrWhiteSpace(item.icon) && item.icon.StartsWith("/"))
+        {
+            return item.icon;
+        }
+
+        return iconAt(index);
+    }
+
+    string budgetTypeLabel(string? periodType) => periodType?.ToLower() switch
+    {
+        "week" => T("Tuần", "Week"),
+        "month" => T("Tháng", "Month"),
+        "year" => T("Năm", "Year"),
+        _ => T("Tháng", "Month")
+    };
+
+    string currency(decimal value) => string.Format(System.Globalization.CultureInfo.GetCultureInfo("vi-VN"), "{0:N0}", value);
+
+    var categories = Model?.Categories ?? new List<CategoryOverviewResponseDto>();
+    var overBudgetItem = categories.FirstOrDefault(x => x.budget?.status == "over");
+    var goodItem = categories
+        .Where(x => x.budget != null && x.budget.status == "normal" && (x.budget.percentage_used ?? 0) > 0)
+        .OrderBy(x => x.budget!.percentage_used)
+        .FirstOrDefault();
+    var trendingItems = categories
+        .Where(x => x.budget != null && (x.budget.spent_amount ?? 0) > 0)
+        .OrderByDescending(x => x.budget!.spent_amount)
+        .Take(2)
+        .ToList();
+    var trendingNames = string.Join(lang == "en" ? " and " : " và ", trendingItems.Select(x => x.category_name));
 }
 
 @section Styles {
@@ -50,7 +81,6 @@
                 border-color: #696cff !important;
             }
 
-        /* Thẻ Vượt hạn mức */
         .category-card.over-budget {
             background-color: #fffaf9 !important;
             border-color: #ff3e1d !important;
@@ -83,7 +113,24 @@
     </style>
 }
 
+<input type="hidden" id="categoryPagePeriodType" value="@Model.CurrentPeriodType" />
+<input type="hidden" id="categoryPageYear" value="@Model.CurrentYear" />
+<input type="hidden" id="categoryPageMonth" value="@Model.CurrentMonth" />
+<input type="hidden" id="categoryPageWeek" value="@Model.CurrentWeek" />
+<input type="hidden" id="categoryCreateUrl" value="@Url.Action("Create", "Category")" />
+<input type="hidden" id="categoryUpdateBaseUrl" value="@Url.Action("Update", "Category", new { id = "__id__" })" />
+<input type="hidden" id="categoryDeleteBaseUrl" value="@Url.Action("Delete", "Category", new { id = "__id__" })" />
+<input type="hidden" id="categorySaveBudgetUrl" value="@Url.Action("SaveBudget", "Category")" />
+
 <div class="container-xxl flex-grow-1 container-p-y">
+    @if (TempData["CategoryPageError"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible" role="alert">
+            @TempData["CategoryPageError"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
     <div class="card mb-4">
         <div class="card-header d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
             <div>
@@ -99,143 +146,91 @@
 
         <div class="card-body">
             <div class="row g-4 category-grid">
-                <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-                    <button type="button" class="card category-card has-budget text-start w-100 h-100"
-                            data-bs-toggle="modal" data-bs-target="#categoryDetailModal"
-                            data-category-id="CAT000000001" data-category-name="Ăn uống" data-category-color="#FFAB00" data-category-icon="@iconAt(0)"
-                            data-has-budget="true" data-budget-amount="5000000" data-budget-spent="2500000" data-budget-type="Tháng">
-                        <i class="bx bx-wallet budget-badge" title="Đã đặt hạn mức"></i>
-                        <div class="card-body w-100">
-                            <div class="category-icon-wrap mb-2" style="background: rgba(255,171,0,.14);">
-                                @if (categoryIconFiles.Count > 0)
+                @if (categories.Any())
+                {
+                    @for (var i = 0; i < categories.Count; i++)
+                    {
+                        var item = categories[i];
+                        var budget = item.budget;
+                        var hasBudget = budget != null && !string.IsNullOrWhiteSpace(budget.budget_id);
+                        var iconUrl = resolveIcon(item, i);
+                        var color = string.IsNullOrWhiteSpace(item.color) ? presetColors[i % presetColors.Length] : item.color!;
+                        var spent = budget?.spent_amount ?? 0;
+                        var total = budget?.limit_amount ?? 0;
+                        var percentage = budget?.percentage_used ?? 0;
+                        var remaining = budget?.remaining_amount ?? 0;
+                        var status = budget?.status ?? "none";
+                        var progressWidth = Math.Min(Math.Max(percentage, 0), 100);
+                        var badgeIcon = status == "over" ? "bx-error-circle text-danger" : status == "reached" ? "bx-error text-warning" : "bx-wallet";
+                        var cardCss = hasBudget ? "has-budget" : string.Empty;
+                        if (status == "over") { cardCss += " over-budget"; }
+                        var budgetType = budgetTypeLabel(budget?.period_type);
+                        <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                            <button type="button" class="card category-card @cardCss text-start w-100 h-100"
+                                    data-bs-toggle="modal" data-bs-target="#categoryDetailModal"
+                                    data-category-id="@item.category_id"
+                                    data-category-name="@item.category_name"
+                                    data-category-color="@color"
+                                    data-category-icon="@iconUrl"
+                                    data-category-is-default="@(item.is_default.ToString().ToLower())"
+                                    data-category-can-edit="@(item.can_edit.ToString().ToLower())"
+                                    data-category-can-delete="@(item.can_delete.ToString().ToLower())"
+                                    data-has-budget="@(hasBudget.ToString().ToLower())"
+                                    data-budget-id="@(budget?.budget_id ?? string.Empty)"
+                                    data-budget-amount="@total"
+                                    data-budget-spent="@spent"
+                                    data-budget-status="@status"
+                                    data-budget-type="@budgetType"
+                                    data-budget-period-type="@(budget?.period_type ?? string.Empty)">
+                                @if (hasBudget)
                                 {
-                                    <img src="~/sneat/img/icons/categories/@categoryIconFiles[0]" class="category-icon-img" alt="food" />
+                                    <i class="bx @badgeIcon budget-badge" title="Budget"></i>
                                 }
-                            </div>
-                            <div class="category-name fw-bold">Ăn uống</div>
-                            <div class="mt-3">
-                                <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.7rem;">
-                                    <span class="text-muted">2.500k / 5.000k</span>
+                                <div class="card-body w-100">
+                                    <div class="category-icon-wrap mb-2" style="background: @(color + "22");">
+                                        @if (!string.IsNullOrWhiteSpace(iconUrl))
+                                        {
+                                            <img src="@iconUrl" class="category-icon-img" alt="@item.category_name" />
+                                        }
+                                    </div>
+                                    <div class="category-name fw-bold">@item.category_name</div>
+                                    <div class="mt-3">
+                                        @if (hasBudget)
+                                        {
+                                            <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.7rem;">
+                                                @if (status == "over")
+                                                {
+                                                    <span class="text-danger fw-bold">@T("Vượt", "Over") @currency(Math.Abs(remaining))</span>
+                                                }
+                                                else if (status == "reached")
+                                                {
+                                                    <span class="text-warning fw-bold">@T("Đã hết", "Reached")</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">@currency(spent) / @currency(total)</span>
+                                                }
+                                            </div>
+                                            <div class="progress" style="height: 5px;">
+                                                <div class="progress-bar @(status == "over" ? "bg-danger" : status == "reached" ? "bg-warning" : "bg-primary")" style="width: @progressWidth%"></div>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-label-secondary" style="font-size: 0.7rem;">@T("Chưa có hạn mức", "No budget")</span>
+                                        }
+                                    </div>
                                 </div>
-                                <div class="progress" style="height: 5px;">
-                                    <div class="progress-bar bg-primary" style="width: 50%"></div>
-                                </div>
-                            </div>
+                            </button>
                         </div>
-                    </button>
-                </div>
-
-                <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-                    <button type="button" class="card category-card text-start w-100 h-100"
-                            data-bs-toggle="modal" data-bs-target="#categoryDetailModal"
-                            data-category-id="CAT000000002" data-category-name="Đi lại" data-category-color="#696CFF" data-category-icon="@iconAt(1)"
-                            data-has-budget="false">
-                        <div class="card-body w-100">
-                            <div class="category-icon-wrap mb-2" style="background: rgba(105,108,255,.14);">
-                                @if (categoryIconFiles.Count > 1)
-                                {
-                                    <img src="~/sneat/img/icons/categories/@categoryIconFiles[1]" class="category-icon-img" alt="transport" />
-                                }
-                            </div>
-                            <div class="category-name fw-bold">Đi lại</div>
-                            <div class="mt-3">
-                                <span class="badge bg-label-secondary" style="font-size: 0.7rem;">Chưa có hạn mức</span>
-                            </div>
-                        </div>
-                    </button>
-                </div>
-
-                <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-                    <button type="button" class="card category-card text-start w-100 h-100"
-                            data-bs-toggle="modal" data-bs-target="#categoryDetailModal"
-                            data-category-id="CAT000000003" data-category-name="Mua sắm" data-category-color="#03C3EC" data-category-icon="@iconAt(2)"
-                            data-has-budget="false">
-                        <div class="card-body w-100">
-                            <div class="category-icon-wrap mb-2" style="background: rgba(3,195,236,.14);">
-                                @if (categoryIconFiles.Count > 2)
-                                {
-                                    <img src="~/sneat/img/icons/categories/@categoryIconFiles[2]" class="category-icon-img" alt="shopping" />
-                                }
-                            </div>
-                            <div class="category-name fw-bold">Mua sắm</div>
-                            <div class="mt-3">
-                                <span class="badge bg-label-secondary" style="font-size: 0.7rem;">Chưa có hạn mức</span>
-                            </div>
-                        </div>
-                    </button>
-                </div>
-
-                <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-                    <button type="button" class="card category-card has-budget over-budget text-start w-100 h-100"
-                            data-bs-toggle="modal" data-bs-target="#categoryDetailModal"
-                            data-category-id="CAT000000004" data-category-name="Giải trí" data-category-color="#8C57FF" data-category-icon="@iconAt(3)"
-                            data-has-budget="true" data-budget-amount="2000000" data-budget-spent="2500000" data-budget-type="Tháng">
-                        <i class="bx bx-error-circle budget-badge text-danger" title="Vượt hạn mức"></i>
-                        <div class="card-body w-100">
-                            <div class="category-icon-wrap mb-2" style="background: rgba(140,87,255,.14);">
-                                @if (categoryIconFiles.Count > 3)
-                                {
-                                    <img src="~/sneat/img/icons/categories/@categoryIconFiles[3]" class="category-icon-img" alt="entertainment" />
-                                }
-                            </div>
-                            <div class="category-name fw-bold">Giải trí</div>
-                            <div class="mt-3">
-                                <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.7rem;">
-                                    <span class="text-danger fw-bold">Vượt 500k</span>
-                                </div>
-                                <div class="progress" style="height: 5px;">
-                                    <div class="progress-bar bg-danger" style="width: 100%"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </button>
-                </div>
-
-                <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-                    <button type="button" class="card category-card text-start w-100 h-100"
-                            data-bs-toggle="modal" data-bs-target="#categoryDetailModal"
-                            data-category-id="CAT000000005" data-category-name="Sức khỏe" data-category-color="#71DD37" data-category-icon="@iconAt(4)"
-                            data-has-budget="false">
-                        <div class="card-body w-100">
-                            <div class="category-icon-wrap mb-2" style="background: rgba(113,221,55,.14);">
-                                @if (categoryIconFiles.Count > 4)
-                                {
-                                    <img src="~/sneat/img/icons/categories/@categoryIconFiles[4]" class="category-icon-img" alt="health" />
-                                }
-                            </div>
-                            <div class="category-name fw-bold">Sức khỏe</div>
-                            <div class="mt-3">
-                                <span class="badge bg-label-secondary" style="font-size: 0.7rem;">Chưa có hạn mức</span>
-                            </div>
-                        </div>
-                    </button>
-                </div>
-
-                <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-                    <button type="button" class="card category-card has-budget text-start w-100 h-100"
-                            data-bs-toggle="modal" data-bs-target="#categoryDetailModal"
-                            data-category-id="CAT000000006" data-category-name="Hóa đơn" data-category-color="#FF3E1D" data-category-icon="@iconAt(5)"
-                            data-has-budget="true" data-budget-amount="1500000" data-budget-spent="1500000" data-budget-type="Tháng">
-                        <i class="bx bx-error budget-badge text-warning" title="Hết ngân sách"></i>
-                        <div class="card-body w-100">
-                            <div class="category-icon-wrap mb-2" style="background: rgba(255,62,29,.14);">
-                                @if (categoryIconFiles.Count > 5)
-                                {
-                                    <img src="~/sneat/img/icons/categories/@categoryIconFiles[5]" class="category-icon-img" alt="bills" />
-                                }
-                            </div>
-                            <div class="category-name fw-bold">Hóa đơn</div>
-                            <div class="mt-3">
-                                <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.7rem;">
-                                    <span class="text-warning fw-bold">Đã hết</span>
-                                </div>
-                                <div class="progress" style="height: 5px;">
-                                    <div class="progress-bar bg-warning" style="width: 100%"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </button>
-                </div>
+                    }
+                }
+                else
+                {
+                    <div class="col-12">
+                        <div class="alert alert-info mb-0">@T("Chưa có dữ liệu danh mục để hiển thị.", "No categories found.")</div>
+                    </div>
+                }
             </div>
         </div>
     </div>
@@ -247,8 +242,20 @@
                 <div class="card-body d-flex align-items-start">
                     <i class="bx bx-error-circle fs-3 me-3 mt-1 text-danger"></i>
                     <div>
-                        <h6 class="mb-1 text-danger fw-bold">Cảnh báo vượt mức!</h6>
-                        <p class="mb-0 small text-danger">Danh mục <strong>Giải trí</strong> đã vượt hạn mức 500.000 đ. Hãy xem xét lại các khoản chi tiêu gần đây.</p>
+                        <h6 class="mb-1 text-danger fw-bold">@T("Cảnh báo vượt mức!", "Over budget warning!")</h6>
+                        <p class="mb-0 small text-danger">
+                            @if (overBudgetItem != null)
+                            {
+                                @T("Danh mục", "Category")
+                                <strong>@overBudgetItem.category_name</strong>
+
+                                @T("đang vượt hạn mức.", "is over budget.")
+                            }
+                            else
+                            {
+                                @T("Hiện chưa có danh mục nào vượt hạn mức.", "There is no over-budget category right now.")
+                            }
+                        </p>
                     </div>
                 </div>
             </div>
@@ -258,8 +265,18 @@
                 <div class="card-body d-flex align-items-start">
                     <i class="bx bx-check-shield fs-3 me-3 mt-1 text-success"></i>
                     <div>
-                        <h6 class="mb-1 text-success fw-bold">Quản lý tốt</h6>
-                        <p class="mb-0 small text-success">Bạn đang kiểm soát rất tốt hạng mục <strong>Ăn uống</strong>. Hãy tiếp tục duy trì nhé!</p>
+                        <h6 class="mb-1 text-success fw-bold">@T("Quản lý tốt", "Doing well")</h6>
+                        <p class="mb-0 small text-success">
+                            @if (goodItem != null)
+                            {
+                            @T("Bạn đang kiểm soát khá tốt hạng mục", "You are managing")
+                            <strong>@goodItem.category_name</strong>
+                            }
+                            else
+                            {
+                                @T("Hãy thiết lập thêm hạn mức để hệ thống gợi ý chính xác hơn.", "Set more budgets to receive better suggestions.")
+                            }
+                        </p>
                     </div>
                 </div>
             </div>
@@ -269,8 +286,18 @@
                 <div class="card-body d-flex align-items-start">
                     <i class="bx bx-pie-chart-alt-2 fs-3 me-3 mt-1 text-info"></i>
                     <div>
-                        <h6 class="mb-1 text-info fw-bold">Xu hướng chi tiêu</h6>
-                        <p class="mb-0 small text-info">Hạng mục <strong>Ăn uống</strong> và <strong>Giải trí</strong> đang chiếm phần lớn chi tiêu của bạn.</p>
+                        <h6 class="mb-1 text-info fw-bold">@T("Xu hướng chi tiêu", "Spending trend")</h6>
+                        <p class="mb-0 small text-info">
+                            @if (trendingItems.Any())
+                            {
+                                <strong>@trendingNames</strong>
+                                @T("đang chiếm tỷ trọng chi tiêu lớn hơn.", "take up a larger share of spending.")
+                            }
+                            else
+                            {
+                                @T("Chưa có đủ dữ liệu chi tiêu để phân tích xu hướng.", "Not enough spending data to analyze trends yet.")
+                            }
+                        </p>
                     </div>
                 </div>
             </div>
@@ -358,11 +385,17 @@
                                 <div class="category-name fw-bold fs-5" id="detailCategoryTitle">Danh mục</div>
                                 <div class="category-meta">
                                     <span class="badge bg-label-primary me-1" id="detailCategoryId">CAT000</span>
+                                    <span class="badge bg-label-secondary" id="detailCategoryTypeBadge"></span>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
+
+                <input type="hidden" id="detailCategoryCanEdit" value="true" />
+                <input type="hidden" id="detailCategoryCanDelete" value="true" />
+                <input type="hidden" id="detailBudgetId" value="" />
+                <input type="hidden" id="detailBudgetPeriodType" value="month" />
 
                 <div class="row g-4">
                     <div class="col-md-6">
@@ -474,9 +507,9 @@
                 <div class="mb-3">
                     <label class="form-label">@T("Loại Thời Gian", "Time Type")</label>
                     <select id="budgetModalTimeType" class="form-select">
-                        <option value="Tuần">@T("Theo tuần", "Weekly")</option>
-                        <option value="Tháng" selected>@T("Theo tháng", "Monthly")</option>
-                        <option value="Năm">@T("Theo năm", "Yearly")</option>
+                        <option value="week">@T("Theo tuần", "Weekly")</option>
+                        <option value="month" selected>@T("Theo tháng", "Monthly")</option>
+                        <option value="year">@T("Theo năm", "Yearly")</option>
                     </select>
                 </div>
                 <div class="mb-3">
@@ -485,9 +518,9 @@
                 </div>
                 <div class="mb-4">
                     <label class="form-label">@T("Số Tiền Đã Chi (VNĐ)", "Spent Amount (VND)")</label>
-                    <input type="number" id="budgetModalSpent" class="form-control" value="0" />
+                    <input type="number" id="budgetModalSpent" class="form-control bg-lighter" value="0" readonly />
                 </div>
-                <button type="button" class="btn btn-primary w-100" id="btnSaveBudget" data-bs-toggle="modal" data-bs-target="#categoryDetailModal">
+                <button type="button" class="btn btn-primary w-100" id="btnSaveBudget">
                     @T("Lưu Hạn Mức", "Save Budget")
                 </button>
             </div>
@@ -526,97 +559,4 @@
 
 @section Scripts {
     <script src="~/sneat/js/pages/category-page.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-
-            // LOGIC MODAL CHI TIẾT DANH MỤC
-            const detailModal = document.getElementById('categoryDetailModal');
-            if (detailModal) {
-                detailModal.addEventListener('show.bs.modal', function (event) {
-                    if (event.relatedTarget && event.relatedTarget.classList.contains('category-card')) {
-                        const button = event.relatedTarget;
-                        const catId = button.getAttribute('data-category-id');
-                        const catName = button.getAttribute('data-category-name');
-                        const catColor = button.getAttribute('data-category-color');
-                        const catIcon = button.getAttribute('data-category-icon');
-                        const hasBudget = button.getAttribute('data-has-budget') === 'true';
-
-                        document.getElementById('detailCategoryId').textContent = catId;
-                        document.getElementById('detailCategoryTitle').textContent = catName;
-                        document.getElementById('detailCategoryName').value = catName;
-                        document.getElementById('detailCategoryColor').value = catColor;
-                        document.getElementById('detailHeadIconWrap').style.background = catColor + '22';
-
-                        if(catIcon) {
-                            document.getElementById('detailHeadIcon').src = catIcon;
-                            document.getElementById('detailCategoryIcon').value = catIcon;
-                        }
-
-                        const noBudgetState = document.getElementById('noBudgetState');
-                        const hasBudgetState = document.getElementById('hasBudgetState');
-
-                        if (hasBudget) {
-                            noBudgetState.classList.add('d-none');
-                            hasBudgetState.classList.remove('d-none');
-
-                            const totalRaw = parseFloat(button.getAttribute('data-budget-amount')) || 0;
-                            const spentRaw = parseFloat(button.getAttribute('data-budget-spent')) || 0;
-                            const timeType = button.getAttribute('data-budget-type');
-
-                            let percentage = totalRaw > 0 ? (spentRaw / totalRaw) * 100 : 0;
-                            let remainRaw = totalRaw - spentRaw;
-                            let overSpentRaw = spentRaw - totalRaw;
-                            let progressWidth = percentage > 100 ? 100 : percentage;
-
-                            document.getElementById('detailBudgetTitle').textContent = catName;
-                            document.getElementById('detailBudgetType').textContent = timeType;
-                            document.getElementById('detailSpentAmount').textContent = spentRaw.toLocaleString('vi-VN') + ' đ';
-                            document.getElementById('detailTotalAmount').textContent = totalRaw.toLocaleString('vi-VN') + ' đ';
-                            document.getElementById('detailProgressText').textContent = percentage.toFixed(1) + '%';
-
-                            const progressBar = document.getElementById('detailProgressBar');
-                            const progressText = document.getElementById('detailProgressText');
-                            const statusText = document.getElementById('detailStatusText');
-
-                            progressBar.style.width = progressWidth + '%';
-
-                            if (spentRaw > totalRaw) {
-                                progressBar.className = 'progress-bar bg-danger progress-bar-striped progress-bar-animated';
-                                progressText.className = 'fw-bold small text-danger';
-                                statusText.className = 'small fw-bold text-danger';
-                                statusText.innerHTML = '<i class="bx bx-error me-1"></i>Vượt mức ' + overSpentRaw.toLocaleString('vi-VN') + ' đ';
-                            } else if (spentRaw === totalRaw) {
-                                progressBar.className = 'progress-bar bg-warning';
-                                progressText.className = 'fw-bold small text-warning';
-                                statusText.className = 'small fw-bold text-warning';
-                                statusText.textContent = 'Đã hết ngân sách';
-                            } else {
-                                progressBar.className = 'progress-bar bg-primary';
-                                progressText.className = 'fw-bold small text-primary';
-                                statusText.className = 'small fw-bold text-success';
-                                statusText.textContent = 'Còn ' + remainRaw.toLocaleString('vi-VN') + ' đ';
-                            }
-
-                            document.getElementById('budgetModalAmount').value = totalRaw;
-                            document.getElementById('budgetModalSpent').value = spentRaw;
-
-                            const timeSelect = document.getElementById('budgetModalTimeType');
-                            for (let i = 0; i < timeSelect.options.length; i++) {
-                                if (timeSelect.options[i].text === timeType || timeSelect.options[i].value.includes(timeType)) {
-                                    timeSelect.selectedIndex = i;
-                                    break;
-                                }
-                            }
-                        } else {
-                            noBudgetState.classList.remove('d-none');
-                            hasBudgetState.classList.add('d-none');
-                            document.getElementById('budgetModalAmount').value = '';
-                            document.getElementById('budgetModalSpent').value = '0';
-                        }
-                        document.getElementById('budgetModalCategoryName').value = catName;
-                    }
-                });
-            }
-        });
-    </script>
 }
