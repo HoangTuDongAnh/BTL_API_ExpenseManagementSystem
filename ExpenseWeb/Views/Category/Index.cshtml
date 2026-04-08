@@ -3,7 +3,7 @@
 @inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment WebHostEnvironment
 
 @{
-    ViewBag.Title = "Danh mục";
+    ViewBag.Title = "Danh mục & Hạn mức";
     Layout = "~/Views/Shared/_Layout.cshtml";
 
     var lang = (Context.Request.Query["lang"].FirstOrDefault() ?? "vi").ToLower();
@@ -24,14 +24,8 @@
 
     var presetColors = new[]
     {
-        "#FFAB00",
-        "#696CFF",
-        "#03C3EC",
-        "#71DD37",
-        "#FF3E1D",
-        "#8592A3",
-        "#8C57FF",
-        "#233446"
+        "#FFAB00", "#696CFF", "#03C3EC", "#71DD37",
+        "#FF3E1D", "#8592A3", "#8C57FF", "#233446"
     };
 
     string iconAt(int index) => categoryIconFiles.Count > index
@@ -41,333 +35,419 @@
 
 @section Styles {
     <link rel="stylesheet" href="~/sneat/css/pages/category-page.css" />
+    <style>
+        .category-card.has-budget {
+            background-color: #fff;
+            border: 1px solid #e1e4e8 !important;
+            position: relative;
+            box-shadow: 0 2px 6px 0 rgba(67, 89, 113, 0.05);
+            transition: all 0.3s ease-in-out;
+        }
+
+            .category-card.has-budget:hover {
+                transform: translateY(-3px);
+                box-shadow: 0 4px 12px 0 rgba(67, 89, 113, 0.15);
+                border-color: #696cff !important;
+            }
+
+        /* Thẻ Vượt hạn mức */
+        .category-card.over-budget {
+            background-color: #fffaf9 !important;
+            border-color: #ff3e1d !important;
+        }
+
+            .category-card.over-budget:hover {
+                box-shadow: 0 4px 12px 0 rgba(255, 62, 29, 0.2);
+            }
+
+        .budget-badge {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            font-size: 1.25rem;
+            color: #696cff;
+        }
+
+        .bg-lighter {
+            background-color: #f8f9fa;
+        }
+
+        .progress {
+            border-radius: 10px;
+            background-color: #e9ecef;
+        }
+
+        .progress-bar {
+            border-radius: 10px;
+        }
+    </style>
 }
 
 <div class="container-xxl flex-grow-1 container-p-y">
-    <div class="card">
+    <div class="card mb-4">
         <div class="card-header d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
             <div>
-                <h5 class="mb-1">@T("Danh sách danh mục", "Category List")</h5>
+                <h5 class="mb-1">@T("Danh sách danh mục & Hạn mức", "Category & Budget List")</h5>
                 <p class="card-subtitle mb-0">
-                    @T("Chọn một danh mục để xem, sửa hoặc xóa.", "Click a category to view, edit, or delete.")
+                    @T("Quản lý danh mục chi tiêu và thiết lập hạn mức.", "Manage categories and set budgets.")
                 </p>
             </div>
-
-            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
                 <i class="icon-base bx bx-plus me-1"></i> @T("Thêm danh mục", "Add Category")
             </button>
         </div>
 
         <div class="card-body">
             <div class="row g-4 category-grid">
-
                 <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-                    <button type="button"
-                            class="card category-card text-start"
-                            data-bs-toggle="modal"
-                            data-bs-target="#categoryDetailModal"
-                            data-category-id="CAT000000001"
-                            data-category-name="Ăn uống"
-                            data-category-color="#FFAB00"
-                            data-category-icon="@iconAt(0)">
-                        <div class="card-body">
-                            <div class="category-icon-wrap" style="background: rgba(255,171,0,.14);">
+                    <button type="button" class="card category-card has-budget text-start w-100 h-100"
+                            data-bs-toggle="modal" data-bs-target="#categoryDetailModal"
+                            data-category-id="CAT000000001" data-category-name="Ăn uống" data-category-color="#FFAB00" data-category-icon="@iconAt(0)"
+                            data-has-budget="true" data-budget-amount="5000000" data-budget-spent="2500000" data-budget-type="Tháng">
+                        <i class="bx bx-wallet budget-badge" title="Đã đặt hạn mức"></i>
+                        <div class="card-body w-100">
+                            <div class="category-icon-wrap mb-2" style="background: rgba(255,171,0,.14);">
                                 @if (categoryIconFiles.Count > 0)
                                 {
                                     <img src="~/sneat/img/icons/categories/@categoryIconFiles[0]" class="category-icon-img" alt="food" />
                                 }
                             </div>
-                            <div class="category-name">Ăn uống</div>
+                            <div class="category-name fw-bold">Ăn uống</div>
+                            <div class="mt-3">
+                                <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.7rem;">
+                                    <span class="text-muted">2.500k / 5.000k</span>
+                                </div>
+                                <div class="progress" style="height: 5px;">
+                                    <div class="progress-bar bg-primary" style="width: 50%"></div>
+                                </div>
+                            </div>
                         </div>
                     </button>
                 </div>
 
-                <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
-                    <button type="button"
-                            class="card category-card text-start"
-                            data-bs-toggle="modal"
-                            data-bs-target="#categoryDetailModal"
-                            data-category-id="CAT000000002"
-                            data-category-name="Đi lại"
-                            data-category-color="#696CFF"
-                            data-category-icon="@iconAt(1)">
-                        <div class="card-body">
-                            <div class="category-icon-wrap" style="background: rgba(105,108,255,.14);">
+                <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                    <button type="button" class="card category-card text-start w-100 h-100"
+                            data-bs-toggle="modal" data-bs-target="#categoryDetailModal"
+                            data-category-id="CAT000000002" data-category-name="Đi lại" data-category-color="#696CFF" data-category-icon="@iconAt(1)"
+                            data-has-budget="false">
+                        <div class="card-body w-100">
+                            <div class="category-icon-wrap mb-2" style="background: rgba(105,108,255,.14);">
                                 @if (categoryIconFiles.Count > 1)
                                 {
                                     <img src="~/sneat/img/icons/categories/@categoryIconFiles[1]" class="category-icon-img" alt="transport" />
                                 }
                             </div>
-                            <div class="category-name">Đi lại</div>
+                            <div class="category-name fw-bold">Đi lại</div>
+                            <div class="mt-3">
+                                <span class="badge bg-label-secondary" style="font-size: 0.7rem;">Chưa có hạn mức</span>
+                            </div>
                         </div>
                     </button>
                 </div>
 
-                <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
-                    <button type="button"
-                            class="card category-card text-start"
-                            data-bs-toggle="modal"
-                            data-bs-target="#categoryDetailModal"
-                            data-category-id="CAT000000003"
-                            data-category-name="Mua sắm"
-                            data-category-color="#03C3EC"
-                            data-category-icon="@iconAt(2)">
-                        <div class="card-body">
-                            <div class="category-icon-wrap" style="background: rgba(3,195,236,.14);">
+                <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                    <button type="button" class="card category-card text-start w-100 h-100"
+                            data-bs-toggle="modal" data-bs-target="#categoryDetailModal"
+                            data-category-id="CAT000000003" data-category-name="Mua sắm" data-category-color="#03C3EC" data-category-icon="@iconAt(2)"
+                            data-has-budget="false">
+                        <div class="card-body w-100">
+                            <div class="category-icon-wrap mb-2" style="background: rgba(3,195,236,.14);">
                                 @if (categoryIconFiles.Count > 2)
                                 {
                                     <img src="~/sneat/img/icons/categories/@categoryIconFiles[2]" class="category-icon-img" alt="shopping" />
                                 }
                             </div>
-                            <div class="category-name">Mua sắm</div>
+                            <div class="category-name fw-bold">Mua sắm</div>
+                            <div class="mt-3">
+                                <span class="badge bg-label-secondary" style="font-size: 0.7rem;">Chưa có hạn mức</span>
+                            </div>
                         </div>
                     </button>
                 </div>
 
-                <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
-                    <button type="button"
-                            class="card category-card text-start"
-                            data-bs-toggle="modal"
-                            data-bs-target="#categoryDetailModal"
-                            data-category-id="CAT000000004"
-                            data-category-name="Giải trí"
-                            data-category-color="#8C57FF"
-                            data-category-icon="@iconAt(3)">
-                        <div class="card-body">
-                            <div class="category-icon-wrap" style="background: rgba(140,87,255,.14);">
+                <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                    <button type="button" class="card category-card has-budget over-budget text-start w-100 h-100"
+                            data-bs-toggle="modal" data-bs-target="#categoryDetailModal"
+                            data-category-id="CAT000000004" data-category-name="Giải trí" data-category-color="#8C57FF" data-category-icon="@iconAt(3)"
+                            data-has-budget="true" data-budget-amount="2000000" data-budget-spent="2500000" data-budget-type="Tháng">
+                        <i class="bx bx-error-circle budget-badge text-danger" title="Vượt hạn mức"></i>
+                        <div class="card-body w-100">
+                            <div class="category-icon-wrap mb-2" style="background: rgba(140,87,255,.14);">
                                 @if (categoryIconFiles.Count > 3)
                                 {
                                     <img src="~/sneat/img/icons/categories/@categoryIconFiles[3]" class="category-icon-img" alt="entertainment" />
                                 }
                             </div>
-                            <div class="category-name">Giải trí</div>
+                            <div class="category-name fw-bold">Giải trí</div>
+                            <div class="mt-3">
+                                <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.7rem;">
+                                    <span class="text-danger fw-bold">Vượt 500k</span>
+                                </div>
+                                <div class="progress" style="height: 5px;">
+                                    <div class="progress-bar bg-danger" style="width: 100%"></div>
+                                </div>
+                            </div>
                         </div>
                     </button>
                 </div>
 
-                <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
-                    <button type="button"
-                            class="card category-card text-start"
-                            data-bs-toggle="modal"
-                            data-bs-target="#categoryDetailModal"
-                            data-category-id="CAT000000005"
-                            data-category-name="Sức khỏe"
-                            data-category-color="#71DD37"
-                            data-category-icon="@iconAt(4)">
-                        <div class="card-body">
-                            <div class="category-icon-wrap" style="background: rgba(113,221,55,.14);">
+                <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                    <button type="button" class="card category-card text-start w-100 h-100"
+                            data-bs-toggle="modal" data-bs-target="#categoryDetailModal"
+                            data-category-id="CAT000000005" data-category-name="Sức khỏe" data-category-color="#71DD37" data-category-icon="@iconAt(4)"
+                            data-has-budget="false">
+                        <div class="card-body w-100">
+                            <div class="category-icon-wrap mb-2" style="background: rgba(113,221,55,.14);">
                                 @if (categoryIconFiles.Count > 4)
                                 {
                                     <img src="~/sneat/img/icons/categories/@categoryIconFiles[4]" class="category-icon-img" alt="health" />
                                 }
                             </div>
-                            <div class="category-name">Sức khỏe</div>
+                            <div class="category-name fw-bold">Sức khỏe</div>
+                            <div class="mt-3">
+                                <span class="badge bg-label-secondary" style="font-size: 0.7rem;">Chưa có hạn mức</span>
+                            </div>
                         </div>
                     </button>
                 </div>
 
+                <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                    <button type="button" class="card category-card has-budget text-start w-100 h-100"
+                            data-bs-toggle="modal" data-bs-target="#categoryDetailModal"
+                            data-category-id="CAT000000006" data-category-name="Hóa đơn" data-category-color="#FF3E1D" data-category-icon="@iconAt(5)"
+                            data-has-budget="true" data-budget-amount="1500000" data-budget-spent="1500000" data-budget-type="Tháng">
+                        <i class="bx bx-error budget-badge text-warning" title="Hết ngân sách"></i>
+                        <div class="card-body w-100">
+                            <div class="category-icon-wrap mb-2" style="background: rgba(255,62,29,.14);">
+                                @if (categoryIconFiles.Count > 5)
+                                {
+                                    <img src="~/sneat/img/icons/categories/@categoryIconFiles[5]" class="category-icon-img" alt="bills" />
+                                }
+                            </div>
+                            <div class="category-name fw-bold">Hóa đơn</div>
+                            <div class="mt-3">
+                                <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.7rem;">
+                                    <span class="text-warning fw-bold">Đã hết</span>
+                                </div>
+                                <div class="progress" style="height: 5px;">
+                                    <div class="progress-bar bg-warning" style="width: 100%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h6 class="text-muted text-uppercase fw-bold mb-3 mt-4">@T("💡 Gợi ý thông minh", "💡 Smart Insights")</h6>
+    <div class="row mb-4 g-3">
+        <div class="col-md-4">
+            <div class="card bg-label-danger h-100 shadow-none border-0">
+                <div class="card-body d-flex align-items-start">
+                    <i class="bx bx-error-circle fs-3 me-3 mt-1 text-danger"></i>
+                    <div>
+                        <h6 class="mb-1 text-danger fw-bold">Cảnh báo vượt mức!</h6>
+                        <p class="mb-0 small text-danger">Danh mục <strong>Giải trí</strong> đã vượt hạn mức 500.000 đ. Hãy xem xét lại các khoản chi tiêu gần đây.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-label-success h-100 shadow-none border-0">
+                <div class="card-body d-flex align-items-start">
+                    <i class="bx bx-check-shield fs-3 me-3 mt-1 text-success"></i>
+                    <div>
+                        <h6 class="mb-1 text-success fw-bold">Quản lý tốt</h6>
+                        <p class="mb-0 small text-success">Bạn đang kiểm soát rất tốt hạng mục <strong>Ăn uống</strong>. Hãy tiếp tục duy trì nhé!</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-label-info h-100 shadow-none border-0">
+                <div class="card-body d-flex align-items-start">
+                    <i class="bx bx-pie-chart-alt-2 fs-3 me-3 mt-1 text-info"></i>
+                    <div>
+                        <h6 class="mb-1 text-info fw-bold">Xu hướng chi tiêu</h6>
+                        <p class="mb-0 small text-info">Hạng mục <strong>Ăn uống</strong> và <strong>Giải trí</strong> đang chiếm phần lớn chi tiêu của bạn.</p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Add Category Modal -->
 <div class="modal fade category-modal" id="addCategoryModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg category-modal-smaller">
         <div class="modal-content">
-            <div class="modal-header">
+            <div class="modal-header border-bottom pb-3">
                 <div>
                     <h4 class="modal-title mb-1">@T("Thêm danh mục", "Add Category")</h4>
-                    <p class="text-body-secondary mb-0">@T("Tạo nhanh một danh mục mới.", "Create a new category quickly.")</p>
+                    <p class="text-body-secondary mb-0 small">@T("Tạo nhanh một danh mục mới.", "Create a new category quickly.")</p>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
 
-            <div class="modal-body">
+            <div class="modal-body pt-4">
                 <div class="row g-4">
                     <div class="col-md-6">
                         <label class="form-label">@T("Tên danh mục", "Category name")</label>
-                        <input type="text" id="addCategoryName" class="form-control" value="Ăn uống" />
+                        <input type="text" id="addCategoryName" class="form-control" placeholder="Ví dụ: Lương, Mua sắm..." />
                     </div>
-
                     <div class="col-md-6">
                         <label class="form-label">@T("Màu sắc", "Color")</label>
-                        <div class="category-color-tools">
-                            <div class="category-color-presets">
+                        <div class="category-color-tools d-flex align-items-center gap-2">
+                            <div class="category-color-presets d-flex gap-1 flex-wrap">
                                 @foreach (var color in presetColors)
                                 {
-                                    <button type="button"
-                                            class="category-color-preset @(color == "#FFAB00" ? "active" : "")"
-                                            data-color="@color"
-                                            style="background:@color;">
-                                    </button>
+                                    <button type="button" class="category-color-preset @(color == "#FFAB00" ? "active" : "")" data-color="@color" style="background:@color; width: 24px; height: 24px; border-radius: 50%; border: none; cursor: pointer;"></button>
                                 }
                             </div>
-                            <div class="category-color-custom">
-                                <input type="color" id="addCategoryColor" class="form-control form-control-color" value="#FFAB00" />
-                                <span class="category-color-code" id="addCategoryColorCode">#FFAB00</span>
+                            <div class="category-color-custom d-flex align-items-center gap-2 ms-2">
+                                <input type="color" id="addCategoryColor" class="form-control form-control-color p-0 border-0" value="#FFAB00" style="width: 30px; height: 30px;" />
                             </div>
                         </div>
                     </div>
-
                     <div class="col-12">
                         <label class="form-label">@T("Biểu tượng", "Icon")</label>
-                        <div class="category-icon-picker">
+                        <div class="category-icon-picker d-flex flex-wrap gap-2">
                             @if (categoryIconFiles.Any())
                             {
                                 for (int i = 0; i < categoryIconFiles.Count; i++)
                                 {
                                     var fileName = categoryIconFiles[i];
-                                    <button type="button"
-                                            class="category-icon-option category-icon-option-add @(i == 0 ? "active" : "")"
-                                            data-icon="/sneat/img/icons/categories/@fileName">
-                                        <img src="~/sneat/img/icons/categories/@fileName" alt="@fileName" />
+                                    <button type="button" class="category-icon-option category-icon-option-add btn btn-outline-secondary p-2 @(i == 0 ? "active" : "")" data-icon="/sneat/img/icons/categories/@fileName">
+                                        <img src="~/sneat/img/icons/categories/@fileName" alt="@fileName" style="width: 24px; height: 24px;" />
                                     </button>
                                 }
-                            }
-                            else
-                            {
-                                <div class="text-muted small">@T("Chưa có icon trong thư mục categories.", "No category icons found in categories folder.")</div>
                             }
                         </div>
                         <input type="hidden" id="addCategoryIcon" value="@(categoryIconFiles.Any() ? $"/sneat/img/icons/categories/{categoryIconFiles.First()}" : "")" />
                     </div>
-
-                    <div class="col-12">
-                        <div class="category-preview card">
-                            <div class="card-body">
-                                <div class="category-preview-inline">
-                                    <div id="addPreviewIconWrap" class="category-icon-wrap" style="background: rgba(255,171,0,.14);">
-                                        @if (categoryIconFiles.Any())
-                                        {
-                                            <img id="addPreviewIcon" src="~/sneat/img/icons/categories/@categoryIconFiles.First()" class="category-icon-img" alt="icon" />
-                                        }
-                                        else
-                                        {
-                                            <img id="addPreviewIcon" src="" class="category-icon-img d-none" alt="icon" />
-                                        }
-                                    </div>
-                                    <div>
-                                        <div class="category-name" id="addPreviewName">Ăn uống</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
 
-            <div class="modal-footer">
+            <div class="modal-footer border-top pt-3">
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">@T("Hủy", "Cancel")</button>
-                <button type="button" class="btn btn-primary" id="btnSaveCategoryStatic">@T("Lưu danh mục", "Save Category")</button>
+                <button type="button" class="btn btn-primary" id="btnSaveCategoryStatic">@T("Tạo danh mục", "Create Category")</button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Detail Category Modal -->
 <div class="modal fade category-modal" id="categoryDetailModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg category-modal-smaller">
         <div class="modal-content">
-            <div class="modal-header">
+            <div class="modal-header border-bottom pb-3">
                 <div>
                     <h4 class="modal-title mb-1">@T("Chi tiết danh mục", "Category Details")</h4>
-                    <p class="text-body-secondary mb-0">@T("Xem và chỉnh sửa nhanh danh mục.", "Quickly view and edit category info.")</p>
+                    <p class="text-body-secondary mb-0 small">@T("Xem và chỉnh sửa nhanh danh mục.", "Quickly view and edit category info.")</p>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
 
-            <div class="modal-body">
-                <div class="category-detail-top card">
-                    <div class="card-body">
-                        <div class="category-preview-inline">
-                            <div id="detailHeadIconWrap" class="category-icon-wrap" style="background: rgba(255,171,0,.14);">
-                                <img id="detailHeadIcon" src="" class="category-icon-img" alt="icon" />
+            <div class="modal-body pt-4">
+                <div class="category-detail-top card mb-4 shadow-none border">
+                    <div class="card-body p-3">
+                        <div class="category-preview-inline d-flex align-items-center gap-3">
+                            <div id="detailHeadIconWrap" class="category-icon-wrap m-0" style="background: rgba(255,171,0,.14); width: 48px; height: 48px;">
+                                <img id="detailHeadIcon" src="" class="category-icon-img w-50" alt="icon" />
                             </div>
                             <div>
-                                <div class="category-name" id="detailCategoryTitle">Ăn uống</div>
+                                <div class="category-name fw-bold fs-5" id="detailCategoryTitle">Danh mục</div>
                                 <div class="category-meta">
-                                    <span class="badge bg-label-primary me-1" id="detailCategoryId">CAT000000001</span>
+                                    <span class="badge bg-label-primary me-1" id="detailCategoryId">CAT000</span>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="row g-4 mt-1">
+                <div class="row g-4">
                     <div class="col-md-6">
                         <label class="form-label">@T("Tên danh mục", "Category name")</label>
                         <input type="text" id="detailCategoryName" class="form-control" />
                     </div>
-
                     <div class="col-md-6">
                         <label class="form-label">@T("Màu sắc", "Color")</label>
-                        <div class="category-color-tools">
-                            <div class="category-color-presets">
+                        <div class="category-color-tools d-flex align-items-center gap-2">
+                            <div class="category-color-presets d-flex gap-1 flex-wrap">
                                 @foreach (var color in presetColors)
                                 {
-                                    <button type="button"
-                                            class="category-color-preset-detail @(color == "#FFAB00" ? "active" : "")"
-                                            data-color="@color"
-                                            style="background:@color;">
-                                    </button>
+                                    <button type="button" class="category-color-preset-detail @(color == "#FFAB00" ? "active" : "")" data-color="@color" style="background:@color; width: 24px; height: 24px; border-radius: 50%; border: none; cursor: pointer;"></button>
                                 }
                             </div>
-                            <div class="category-color-custom">
-                                <input type="color" id="detailCategoryColor" class="form-control form-control-color" value="#FFAB00" />
-                                <span class="category-color-code" id="detailCategoryColorCode">#FFAB00</span>
+                            <div class="category-color-custom d-flex align-items-center gap-2 ms-2">
+                                <input type="color" id="detailCategoryColor" class="form-control form-control-color p-0 border-0" value="#FFAB00" style="width: 30px; height: 30px;" />
                             </div>
                         </div>
                     </div>
-
                     <div class="col-12">
                         <label class="form-label">@T("Biểu tượng", "Icon")</label>
-                        <div class="category-icon-picker">
+                        <div class="category-icon-picker d-flex flex-wrap gap-2">
                             @if (categoryIconFiles.Any())
                             {
                                 for (int i = 0; i < categoryIconFiles.Count; i++)
                                 {
                                     var fileName = categoryIconFiles[i];
-                                    <button type="button"
-                                            class="category-icon-option category-icon-option-detail @(i == 0 ? "active" : "")"
-                                            data-icon="/sneat/img/icons/categories/@fileName">
-                                        <img src="~/sneat/img/icons/categories/@fileName" alt="@fileName" />
+                                    <button type="button" class="category-icon-option category-icon-option-detail btn btn-outline-secondary p-2 @(i == 0 ? "active" : "")" data-icon="/sneat/img/icons/categories/@fileName">
+                                        <img src="~/sneat/img/icons/categories/@fileName" alt="@fileName" style="width: 24px; height: 24px;" />
                                     </button>
                                 }
                             }
                         </div>
-                        <input type="hidden" id="detailCategoryIcon" value="@(categoryIconFiles.Any() ? $"/sneat/img/icons/categories/{categoryIconFiles.First()}" : "")" />
+                        <input type="hidden" id="detailCategoryIcon" value="" />
                     </div>
 
                     <div class="col-12">
-                        <div class="category-preview card">
-                            <div class="card-body">
-                                <div class="category-preview-inline">
-                                    <div id="detailPreviewIconWrap" class="category-icon-wrap" style="background: rgba(255,171,0,.14);">
-                                        <img id="detailPreviewIcon" src="" class="category-icon-img" alt="icon" />
+                        <label class="form-label d-flex align-items-center mb-2">
+                            <i class="bx bx-wallet text-warning me-1"></i>
+                            @T("Hạn mức chi tiêu", "Budget Limit")
+                        </label>
+
+                        <div id="budgetInfoContainer">
+                            <div id="noBudgetState" class="text-center py-4 border rounded bg-lighter d-none">
+                                <p class="text-muted small mb-3">@T("Danh mục này chưa được thiết lập hạn mức.", "No budget set for this category.")</p>
+                                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#setBudgetModal">
+                                    <i class="bx bx-plus me-1"></i> @T("Thêm hạn mức", "Add Budget")
+                                </button>
+                            </div>
+
+                            <div id="hasBudgetState" class="d-none">
+                                <div class="p-3 border rounded bg-white shadow-sm">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="fw-bold fs-6" id="detailBudgetTitle">Ăn uống</span>
+                                            <span class="badge bg-label-secondary" id="detailBudgetType">Tháng</span>
+                                        </div>
+                                        <span class="text-muted small fw-medium">
+                                            <span id="detailSpentAmount">0 đ</span> / <span id="detailTotalAmount">0 đ</span>
+                                        </span>
                                     </div>
-                                    <div>
-                                        <div class="category-name" id="detailPreviewName">Ăn uống</div>
+                                    <div class="progress mb-2" style="height: 8px;">
+                                        <div id="detailProgressBar" class="progress-bar" role="progressbar" style="width: 0%;"></div>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span id="detailProgressText" class="fw-bold small">0%</span>
+                                        <span id="detailStatusText" class="small fw-bold">---</span>
+                                    </div>
+                                    <div class="text-end border-top pt-2 mt-3">
+                                        <button type="button" class="btn btn-sm btn-label-secondary" data-bs-toggle="modal" data-bs-target="#setBudgetModal">
+                                            <i class="bx bx-edit me-1"></i> @T("Sửa hạn mức", "Edit Budget")
+                                        </button>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-
-                    <div class="col-12">
-                        <div class="alert alert-warning mb-0">
-                            <i class="icon-base bx bx-info-circle me-1"></i>
-                            @T("Đây là giao diện tĩnh. Nút lưu/xóa hiện chỉ hiển thị thông báo.", "This is a static UI. Save/Delete currently show toast only.")
-                        </div>
-                    </div>
                 </div>
             </div>
 
-            <div class="modal-footer justify-content-between">
+            <div class="modal-footer justify-content-between border-top pt-3">
                 <button type="button" class="btn btn-outline-danger" id="btnDeleteCategoryStatic">
                     <i class="icon-base bx bx-trash me-1"></i> @T("Xóa danh mục", "Delete Category")
                 </button>
-
                 <div class="d-flex gap-2">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">@T("Đóng", "Close")</button>
                     <button type="button" class="btn btn-primary" id="btnUpdateCategoryStatic">
@@ -379,39 +459,164 @@
     </div>
 </div>
 
-<!-- Toast -->
+<div class="modal fade" id="setBudgetModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-bottom pb-3">
+                <h5 class="modal-title">@T("Thiết Lập Hạn Mức Chi Tiêu", "Set Budget Limit")</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body pt-4">
+                <div class="mb-3">
+                    <label class="form-label">@T("Danh Mục", "Category")</label>
+                    <input type="text" id="budgetModalCategoryName" class="form-control bg-lighter" readonly />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">@T("Loại Thời Gian", "Time Type")</label>
+                    <select id="budgetModalTimeType" class="form-select">
+                        <option value="Tuần">@T("Theo tuần", "Weekly")</option>
+                        <option value="Tháng" selected>@T("Theo tháng", "Monthly")</option>
+                        <option value="Năm">@T("Theo năm", "Yearly")</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">@T("Ngân Sách Dự Kiến (VNĐ)", "Expected Budget (VND)")</label>
+                    <input type="number" id="budgetModalAmount" class="form-control" placeholder="Ví dụ: 5000000" />
+                </div>
+                <div class="mb-4">
+                    <label class="form-label">@T("Số Tiền Đã Chi (VNĐ)", "Spent Amount (VND)")</label>
+                    <input type="number" id="budgetModalSpent" class="form-control" value="0" />
+                </div>
+                <button type="button" class="btn btn-primary w-100" id="btnSaveBudget" data-bs-toggle="modal" data-bs-target="#categoryDetailModal">
+                    @T("Lưu Hạn Mức", "Save Budget")
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="toast-container position-fixed bottom-0 start-50 translate-middle-x p-4 category-toast-stack">
     <div id="categorySavedToast" class="toast bg-success text-white" role="alert">
         <div class="toast-header bg-success text-white">
             <i class="icon-base bx bx-check-circle me-2"></i>
             <strong class="me-auto">@T("Danh mục", "Category")</strong>
-            <small>@T("Vừa xong", "Now")</small>
             <button type="button" class="btn-close btn-close-white ms-2 mb-1" data-bs-dismiss="toast"></button>
         </div>
-        <div class="toast-body">@T("Lưu danh mục thành công.", "Category saved successfully.")</div>
+        <div class="toast-body">@T("Lưu thành công.", "Saved successfully.")</div>
     </div>
 
     <div id="categoryUpdatedToast" class="toast bg-primary text-white" role="alert">
         <div class="toast-header bg-primary text-white">
             <i class="icon-base bx bx-edit me-2"></i>
             <strong class="me-auto">@T("Danh mục", "Category")</strong>
-            <small>@T("Vừa xong", "Now")</small>
             <button type="button" class="btn-close btn-close-white ms-2 mb-1" data-bs-dismiss="toast"></button>
         </div>
-        <div class="toast-body">@T("Cập nhật danh mục thành công.", "Category updated successfully.")</div>
+        <div class="toast-body">@T("Cập nhật thành công.", "Updated successfully.")</div>
     </div>
 
     <div id="categoryDeletedToast" class="toast bg-danger text-white" role="alert">
         <div class="toast-header bg-danger text-white">
             <i class="icon-base bx bx-trash me-2"></i>
             <strong class="me-auto">@T("Danh mục", "Category")</strong>
-            <small>@T("Vừa xong", "Now")</small>
             <button type="button" class="btn-close btn-close-white ms-2 mb-1" data-bs-dismiss="toast"></button>
         </div>
-        <div class="toast-body">@T("Xóa danh mục thành công.", "Category deleted successfully.")</div>
+        <div class="toast-body">@T("Xóa thành công.", "Deleted successfully.")</div>
     </div>
 </div>
 
 @section Scripts {
     <script src="~/sneat/js/pages/category-page.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+
+            // LOGIC MODAL CHI TIẾT DANH MỤC
+            const detailModal = document.getElementById('categoryDetailModal');
+            if (detailModal) {
+                detailModal.addEventListener('show.bs.modal', function (event) {
+                    if (event.relatedTarget && event.relatedTarget.classList.contains('category-card')) {
+                        const button = event.relatedTarget;
+                        const catId = button.getAttribute('data-category-id');
+                        const catName = button.getAttribute('data-category-name');
+                        const catColor = button.getAttribute('data-category-color');
+                        const catIcon = button.getAttribute('data-category-icon');
+                        const hasBudget = button.getAttribute('data-has-budget') === 'true';
+
+                        document.getElementById('detailCategoryId').textContent = catId;
+                        document.getElementById('detailCategoryTitle').textContent = catName;
+                        document.getElementById('detailCategoryName').value = catName;
+                        document.getElementById('detailCategoryColor').value = catColor;
+                        document.getElementById('detailHeadIconWrap').style.background = catColor + '22';
+
+                        if(catIcon) {
+                            document.getElementById('detailHeadIcon').src = catIcon;
+                            document.getElementById('detailCategoryIcon').value = catIcon;
+                        }
+
+                        const noBudgetState = document.getElementById('noBudgetState');
+                        const hasBudgetState = document.getElementById('hasBudgetState');
+
+                        if (hasBudget) {
+                            noBudgetState.classList.add('d-none');
+                            hasBudgetState.classList.remove('d-none');
+
+                            const totalRaw = parseFloat(button.getAttribute('data-budget-amount')) || 0;
+                            const spentRaw = parseFloat(button.getAttribute('data-budget-spent')) || 0;
+                            const timeType = button.getAttribute('data-budget-type');
+
+                            let percentage = totalRaw > 0 ? (spentRaw / totalRaw) * 100 : 0;
+                            let remainRaw = totalRaw - spentRaw;
+                            let overSpentRaw = spentRaw - totalRaw;
+                            let progressWidth = percentage > 100 ? 100 : percentage;
+
+                            document.getElementById('detailBudgetTitle').textContent = catName;
+                            document.getElementById('detailBudgetType').textContent = timeType;
+                            document.getElementById('detailSpentAmount').textContent = spentRaw.toLocaleString('vi-VN') + ' đ';
+                            document.getElementById('detailTotalAmount').textContent = totalRaw.toLocaleString('vi-VN') + ' đ';
+                            document.getElementById('detailProgressText').textContent = percentage.toFixed(1) + '%';
+
+                            const progressBar = document.getElementById('detailProgressBar');
+                            const progressText = document.getElementById('detailProgressText');
+                            const statusText = document.getElementById('detailStatusText');
+
+                            progressBar.style.width = progressWidth + '%';
+
+                            if (spentRaw > totalRaw) {
+                                progressBar.className = 'progress-bar bg-danger progress-bar-striped progress-bar-animated';
+                                progressText.className = 'fw-bold small text-danger';
+                                statusText.className = 'small fw-bold text-danger';
+                                statusText.innerHTML = '<i class="bx bx-error me-1"></i>Vượt mức ' + overSpentRaw.toLocaleString('vi-VN') + ' đ';
+                            } else if (spentRaw === totalRaw) {
+                                progressBar.className = 'progress-bar bg-warning';
+                                progressText.className = 'fw-bold small text-warning';
+                                statusText.className = 'small fw-bold text-warning';
+                                statusText.textContent = 'Đã hết ngân sách';
+                            } else {
+                                progressBar.className = 'progress-bar bg-primary';
+                                progressText.className = 'fw-bold small text-primary';
+                                statusText.className = 'small fw-bold text-success';
+                                statusText.textContent = 'Còn ' + remainRaw.toLocaleString('vi-VN') + ' đ';
+                            }
+
+                            document.getElementById('budgetModalAmount').value = totalRaw;
+                            document.getElementById('budgetModalSpent').value = spentRaw;
+
+                            const timeSelect = document.getElementById('budgetModalTimeType');
+                            for (let i = 0; i < timeSelect.options.length; i++) {
+                                if (timeSelect.options[i].text === timeType || timeSelect.options[i].value.includes(timeType)) {
+                                    timeSelect.selectedIndex = i;
+                                    break;
+                                }
+                            }
+                        } else {
+                            noBudgetState.classList.remove('d-none');
+                            hasBudgetState.classList.add('d-none');
+                            document.getElementById('budgetModalAmount').value = '';
+                            document.getElementById('budgetModalSpent').value = '0';
+                        }
+                        document.getElementById('budgetModalCategoryName').value = catName;
+                    }
+                });
+            }
+        });
+    </script>
 }
