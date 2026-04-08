@@ -12,12 +12,17 @@ from app.schemas.auth_schema import (
 from app.schemas.otp_schema import OTPVerifyRequest, OTPResendRequest
 from app.services.auth_service import AuthService
 from app.services.otp_service import OTPService
-
-router = APIRouter(prefix="/auth", tags=["Auth"])
+from app.schemas.forgot_password_schema import (
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
+)
+from app.services.forgot_password_service import ForgotPasswordService
 
 auth_service = AuthService()
 otp_service = OTPService()
+forgot_service = ForgotPasswordService()
 
+router = APIRouter(prefix="/auth", tags=["Auth"])
 
 # ================= REGISTER =================
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
@@ -37,7 +42,6 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
-
 # ================= VERIFY OTP =================
 @router.post("/verify-otp")
 def verify_otp(data: OTPVerifyRequest, db: Session = Depends(get_db)):
@@ -47,7 +51,6 @@ def verify_otp(data: OTPVerifyRequest, db: Session = Depends(get_db)):
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
-
 # ================= RESEND OTP =================
 @router.post("/resend-otp")
 def resend_otp(data: OTPResendRequest, db: Session = Depends(get_db)):
@@ -56,7 +59,6 @@ def resend_otp(data: OTPResendRequest, db: Session = Depends(get_db)):
         return {"message": "OTP sent successfully"}
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
-
 
 # ================= LOGIN =================
 @router.post("/login", response_model=TokenResponse)
@@ -80,6 +82,17 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
+# ================= FORGOT PASSWORD =================
+@router.post("/forgot-password")
+def forgot_password(data: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    forgot_service.forgot_password(db, data.email)
+    return {"message": "If the email exists, a reset link has been sent"}
+
+# ================= RESET PASSWORD =================
+@router.post("/reset-password")
+def reset_password(data: ResetPasswordRequest, db: Session = Depends(get_db)):
+    forgot_service.reset_password(db, data.token, data.new_password)
+    return {"message": "Password reset successfully"}
 
 # ================= GET CURRENT USER =================
 @router.get("/me", response_model=UserResponse)

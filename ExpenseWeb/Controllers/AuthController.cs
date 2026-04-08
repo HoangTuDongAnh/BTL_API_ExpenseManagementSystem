@@ -57,6 +57,60 @@ namespace ExpenseWeb.Controllers
             return RedirectToAction("Index", "Dashboard");
         }
 
+        // ================= FORGOT PASSWORD =================
+        [HttpGet]
+        public IActionResult ForgotPassword()
+        {
+            return View();
+        }
+        [HttpPost]
+        public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
+        {
+            if (!ModelState.IsValid)
+                return View(model);
+
+            await _authApiService.ForgotPasswordAsync(model.Email);
+
+            return RedirectToAction("ForgotPasswordConfirmation");
+        }
+
+        [HttpGet]
+        public IActionResult ForgotPasswordConfirmation()
+        {
+            return View();
+        }
+
+        // ================= RESET PASSWORD =================
+        [HttpGet]
+        public IActionResult ResetPassword(string token)
+        {
+            if (string.IsNullOrEmpty(token))
+                return RedirectToAction("Login");
+
+            return View(new ResetPasswordViewModel
+            {
+                Token = token
+            });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model)
+        {
+            if (!ModelState.IsValid)
+                return View(model);
+
+            var result = await _authApiService.ResetPasswordAsync(model.Token, model.NewPassword);
+
+            if (!result.Success)
+            {
+                ModelState.AddModelError("", result.ErrorMessage);
+                return View(model);
+            }
+
+            TempData["SuccessMessage"] = "Password reset successfully!";
+            return RedirectToAction("Login");
+        }
+
         // ================= REGISTER =================
         [HttpGet]
         public IActionResult Register()

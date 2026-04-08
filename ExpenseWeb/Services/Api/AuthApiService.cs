@@ -16,6 +16,7 @@ namespace ExpenseWeb.Services.Api
             _baseUrl = configuration["ApiSettings:BaseUrl"] ?? "";
         }
 
+        // ================= LOGIN =================
         public async Task<(bool Success, string ErrorMessage, LoginResponseDto? Data)> LoginAsync(LoginRequestDto request)
         {
             var url = $"{_baseUrl}/auth/login";
@@ -42,6 +43,33 @@ namespace ExpenseWeb.Services.Api
             return (true, "", data);
         }
 
+        // ================= FORGOT PASSWORD =================
+        public async Task<(bool Success, string ErrorMessage)> ForgotPasswordAsync(string email)
+        {
+            var response = await _httpClient.PostAsJsonAsync($"{_baseUrl}/auth/forgot-password", new { email });
+
+            if (!response.IsSuccessStatusCode)
+                return (false, await response.Content.ReadAsStringAsync());
+
+            return (true, "");
+        }
+
+        // ================= RESET PASSWORD =================
+        public async Task<(bool Success, string ErrorMessage)> ResetPasswordAsync(string token, string newPassword)
+        {
+            var response = await _httpClient.PostAsJsonAsync($"{_baseUrl}/auth/reset-password", new
+            {
+                token,
+                new_password = newPassword
+            });
+
+            if (!response.IsSuccessStatusCode)
+                return (false, await response.Content.ReadAsStringAsync());
+
+            return (true, "");
+        }
+
+        // ================= REGISTER =================
         public async Task<(bool Success, string ErrorMessage)> RegisterAsync(RegisterRequestDto request)
         {
             var url = $"{_baseUrl}/auth/register";
@@ -61,6 +89,7 @@ namespace ExpenseWeb.Services.Api
             return (true, "");
         }
 
+        // ================= VERIFY OTP =================
         public async Task<(bool Success, string ErrorMessage)> VerifyOtpAsync(string email, string otp)
         {
             var url = $"{_baseUrl}/auth/verify-otp";
@@ -85,6 +114,7 @@ namespace ExpenseWeb.Services.Api
             return (true, "");
         }
 
+        // ================= RESEND OTP =================
         public async Task<(bool Success, string ErrorMessage)> ResendOtpAsync(string email)
         {
             var url = $"{_baseUrl}/auth/resend-otp";
@@ -108,6 +138,7 @@ namespace ExpenseWeb.Services.Api
             return (true, "");
         }
 
+        // ================= ERROR MESSAGE =================
         private string ExtractErrorMessage(string responseBody)
         {
             try

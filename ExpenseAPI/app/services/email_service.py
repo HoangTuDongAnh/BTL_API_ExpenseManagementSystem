@@ -40,3 +40,31 @@ This code will expire in 5 minutes.
         except Exception as e:
             print("❌ EMAIL ERROR:", str(e))
             raise
+
+    def send_reset_password_email(self, to_email: str, token: str):
+        subject = "Reset Password"
+
+        link = f"http://localhost:8000/reset-password?token={token}"
+
+        body = f"""
+    Click the link below to reset your password:
+
+    {link}
+
+    This link will expire in 15 minutes.
+    """
+
+        message = MIMEMultipart()
+        message["From"] = settings.EMAIL_USER
+        message["To"] = to_email
+        message["Subject"] = subject
+        message.attach(MIMEText(body, "plain"))
+
+        try:
+            server = smtplib.SMTP(settings.EMAIL_HOST, settings.EMAIL_PORT)
+            server.starttls()
+            server.login(settings.EMAIL_USER, settings.EMAIL_PASSWORD)
+            server.send_message(message)
+            server.quit()
+        except Exception as e:
+            print("❌ Reset email error:", e)
