@@ -32,6 +32,10 @@ builder.Services.AddHttpClient<TransactionApiService>(client =>
 {
     client.BaseAddress = new Uri(builder.Configuration["ApiSettings:BaseUrl"]!);
 });
+builder.Services.AddHttpClient<ReportApiService>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiSettings:BaseUrl"]!);
+});
 
 var app = builder.Build();
 

@@ -1,12 +1,14 @@
-﻿from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.schemas.report_schema import (
+    BudgetProgressItem,
     CategorySummaryItem,
     DashboardOverviewResponse,
     MonthlySummaryItem,
+    TopExpenseItem,
 )
 from app.services.report_service import ReportService
 
@@ -32,3 +34,24 @@ def get_category_summary(
 @router.get("/dashboard", response_model=DashboardOverviewResponse)
 def get_dashboard_overview(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     return report_service.get_dashboard_overview(db, current_user.UserID)
+
+
+@router.get("/top-expenses", response_model=list[TopExpenseItem])
+def get_top_expenses(
+    month: int,
+    year: int,
+    limit: int = Query(default=5, ge=1, le=50),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    return report_service.get_top_expenses(db, current_user.UserID, month, year, limit)
+
+
+@router.get("/budget-progress", response_model=list[BudgetProgressItem])
+def get_budget_progress(
+    month: int,
+    year: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    return report_service.get_budget_progress(db, current_user.UserID, month, year)
