@@ -1,4 +1,5 @@
-﻿using ExpenseWeb.Models.Dtos.Auth;
+﻿using System.Text.Json;
+using ExpenseWeb.Models.Dtos.Auth;
 using ExpenseWeb.Models.ViewModels.Auth;
 using ExpenseWeb.Services.Api;
 using Microsoft.AspNetCore.Mvc;
@@ -17,6 +18,7 @@ namespace ExpenseWeb.Controllers
         private string GetLang()
         {
             var lang = HttpContext.Request.Query["lang"].ToString().ToLower();
+
             if (string.IsNullOrWhiteSpace(lang))
             {
                 lang = Request.Form["lang"].ToString().ToLower();
@@ -25,9 +27,31 @@ namespace ExpenseWeb.Controllers
             return lang == "en" ? "en" : "vi";
         }
 
-        private string T(string vi, string en)
+        private List<string> GetModelErrors()
         {
-            return GetLang() == "en" ? en : vi;
+            return ModelState.Values
+                .SelectMany(v => v.Errors)
+                .Select(e => e.ErrorMessage)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct()
+                .ToList();
+        }
+
+        private void SetToastErrors(string key, IEnumerable<string> errors)
+        {
+            var cleanErrors = errors
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct()
+                .ToList();
+
+            if (cleanErrors.Count > 0)
+            {
+                ViewData[key] = JsonSerializer.Serialize(cleanErrors);
+            }
+            else
+            {
+                ViewData[key] = "[]";
+            }
         }
 
         // ================= LOGIN =================
@@ -42,6 +66,9 @@ namespace ExpenseWeb.Controllers
 
             ViewBag.RegisterModel = new RegisterViewModel();
             ViewBag.OpenRegister = false;
+            ViewData["LoginErrorsJson"] = "[]";
+            ViewData["RegisterErrorsJson"] = "[]";
+
             return View(new LoginViewModel());
         }
 
@@ -51,10 +78,13 @@ namespace ExpenseWeb.Controllers
         {
             lang = (lang ?? "vi").ToLower() == "en" ? "en" : "vi";
 
+            ViewBag.RegisterModel = new RegisterViewModel();
+            ViewBag.OpenRegister = false;
+            ViewData["RegisterErrorsJson"] = "[]";
+
             if (!ModelState.IsValid)
             {
-                ViewBag.RegisterModel = new RegisterViewModel();
-                ViewBag.OpenRegister = false;
+                SetToastErrors("LoginErrorsJson", GetModelErrors());
                 return View(model);
             }
 
@@ -68,15 +98,14 @@ namespace ExpenseWeb.Controllers
 
             if (!result.Success || result.Data == null)
             {
-                ModelState.AddModelError(
-                    string.Empty,
+                var errors = new List<string>
+                {
                     result.ErrorMessage ?? (lang == "en"
                         ? "Invalid email or password."
                         : "Email hoặc mật khẩu không đúng.")
-                );
+                };
 
-                ViewBag.RegisterModel = new RegisterViewModel();
-                ViewBag.OpenRegister = false;
+                SetToastErrors("LoginErrorsJson", errors);
                 return View(model);
             }
 
@@ -102,6 +131,10 @@ namespace ExpenseWeb.Controllers
         {
             lang = (lang ?? "vi").ToLower() == "en" ? "en" : "vi";
 
+            ViewBag.RegisterModel = model;
+            ViewBag.OpenRegister = true;
+            ViewData["LoginErrorsJson"] = "[]";
+
             if (!model.AgreeTerms)
             {
                 ModelState.AddModelError(
@@ -114,8 +147,7 @@ namespace ExpenseWeb.Controllers
 
             if (!ModelState.IsValid)
             {
-                ViewBag.RegisterModel = model;
-                ViewBag.OpenRegister = true;
+                SetToastErrors("RegisterErrorsJson", GetModelErrors());
                 return View("Login", new LoginViewModel());
             }
 
@@ -132,15 +164,14 @@ namespace ExpenseWeb.Controllers
 
             if (!result.Success)
             {
-                ModelState.AddModelError(
-                    string.Empty,
+                var errors = new List<string>
+                {
                     result.ErrorMessage ?? (lang == "en"
                         ? "Registration failed."
                         : "Đăng ký thất bại.")
-                );
+                };
 
-                ViewBag.RegisterModel = model;
-                ViewBag.OpenRegister = true;
+                SetToastErrors("RegisterErrorsJson", errors);
                 return View("Login", new LoginViewModel());
             }
 

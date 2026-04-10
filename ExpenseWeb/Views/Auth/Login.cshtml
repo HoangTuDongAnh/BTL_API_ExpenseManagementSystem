@@ -12,6 +12,8 @@
 
     var registerModel = ViewBag.RegisterModel as RegisterViewModel ?? new RegisterViewModel();
     var openRegister = ViewBag.OpenRegister as bool? ?? false;
+    var loginErrorsJson = ViewData["LoginErrorsJson"]?.ToString() ?? "[]";
+    var registerErrorsJson = ViewData["RegisterErrorsJson"]?.ToString() ?? "[]";
 
     string SwitchLangUrl(string targetLang)
     {
@@ -20,6 +22,8 @@
 }
 
 <div class="auth-page">
+    <div class="auth-toast-stack" id="authToastStack"></div>
+
     <div class="auth-slider-shell">
         <div class="auth-slider @(openRegister ? "right-panel-active" : "")" id="authSlider">
 
@@ -55,18 +59,18 @@
                 <a href="@SwitchLangUrl("en")" class="@(lang == "en" ? "active" : "")">EN</a>
             </div>
 
+            <!-- SIGN IN -->
             <section class="auth-form-side auth-sign-in">
                 <div class="auth-form-inner">
                     <div class="auth-form-wrap">
                         <div class="auth-eyebrow">@T("Đăng nhập tài khoản", "Account sign in")</div>
                         <h2>@T("Bắt đầu phiên làm việc", "Start your session")</h2>
-
-                        <div asp-validation-summary="ModelOnly" class="auth-alert auth-alert-danger"></div>
-
-                        @if (TempData["SuccessMessage"] != null)
-                        {
-                            <div class="auth-alert auth-alert-success">@TempData["SuccessMessage"]</div>
-                        }
+                        <p class="auth-form-subtitle">
+                            @T(
+                            "Nhập thông tin đăng nhập để truy cập hệ thống quản lý chi tiêu cá nhân.",
+                                                        "Enter your credentials to access your personal expense management system."
+                                                        )
+                        </p>
 
                         <form asp-action="Login"
                               asp-controller="Auth"
@@ -86,7 +90,6 @@
                                            autocomplete="email"
                                            autofocus />
                                 </div>
-                                <span asp-validation-for="Email" class="auth-validation"></span>
                             </div>
 
                             <div class="auth-field">
@@ -106,7 +109,6 @@
                                         <i class="bx bx-hide"></i>
                                     </button>
                                 </div>
-                                <span asp-validation-for="Password" class="auth-validation"></span>
                             </div>
 
                             <div class="auth-row">
@@ -132,20 +134,27 @@
                             @T("Bạn chưa có tài khoản?", "Don’t have an account yet?")
                             <a href="javascript:void(0)" data-auth-toggle="signup">@T("Đăng ký ngay", "Create one now")</a>
                         </div>
+
+                        <div class="auth-footer-note">
+                            <strong>ExpenseWeb</strong> —
+                            @T("Hệ thống quản lý chi tiêu cá nhân", "Personal Expense Management System")
+                        </div>
                     </div>
                 </div>
             </section>
 
+            <!-- SIGN UP -->
             <section class="auth-form-side auth-sign-up">
                 <div class="auth-form-inner">
                     <div class="auth-form-wrap">
                         <div class="auth-eyebrow">@T("Tạo tài khoản", "Create account")</div>
                         <h2>@T("Đăng ký thành viên mới", "Register a new account")</h2>
-
-                        @if (ViewData.ModelState.ErrorCount > 0 && openRegister)
-                        {
-                            <div asp-validation-summary="All" class="auth-alert auth-alert-danger"></div>
-                        }
+                        <p class="auth-form-subtitle">
+                            @T(
+                                                        "Điền thông tin bên dưới để bắt đầu sử dụng hệ thống quản lý chi tiêu cá nhân.",
+                                                        "Fill in the fields below to start using the personal expense management system."
+                                                        )
+                        </p>
 
                         <form asp-action="Register"
                               asp-controller="Auth"
@@ -182,25 +191,6 @@
                             </div>
 
                             <div class="auth-field">
-                                <label for="ConfirmPassword">@T("Nhập lại mật khẩu", "Confirm password")</label>
-                                <div class="auth-input-wrap">
-                                    <i class="bx bx-lock-alt auth-input-icon"></i>
-                                    <input name="ConfirmPassword"
-                                           id="ConfirmPassword"
-                                           type="password"
-                                           class="auth-input-password"
-                                           placeholder="••••••••••••"
-                                           autocomplete="new-password" />
-                                    <button type="button"
-                                            class="auth-password-toggle"
-                                            data-password-toggle="ConfirmPassword"
-                                            tabindex="-1">
-                                        <i class="bx bx-hide"></i>
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div class="auth-field">
                                 <label for="RegisterPassword">@T("Mật khẩu", "Password")</label>
                                 <div class="auth-input-wrap">
                                     <i class="bx bx-lock-alt auth-input-icon"></i>
@@ -213,6 +203,25 @@
                                     <button type="button"
                                             class="auth-password-toggle"
                                             data-password-toggle="RegisterPassword"
+                                            tabindex="-1">
+                                        <i class="bx bx-hide"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="auth-field">
+                                <label for="ConfirmPassword">@T("Nhập lại mật khẩu", "Confirm password")</label>
+                                <div class="auth-input-wrap">
+                                    <i class="bx bx-lock-alt auth-input-icon"></i>
+                                    <input name="ConfirmPassword"
+                                           id="ConfirmPassword"
+                                           type="password"
+                                           class="auth-input-password"
+                                           placeholder="••••••••••••"
+                                           autocomplete="new-password" />
+                                    <button type="button"
+                                            class="auth-password-toggle"
+                                            data-password-toggle="ConfirmPassword"
                                             tabindex="-1">
                                         <i class="bx bx-hide"></i>
                                     </button>
@@ -234,10 +243,21 @@
                                 @T("Đăng ký", "Sign up")
                             </button>
                         </form>
+
+                        <div class="auth-switch">
+                            @T("Bạn đã có tài khoản?", "Already have an account?")
+                            <a href="javascript:void(0)" data-auth-toggle="signin">@T("Đăng nhập", "Sign in")</a>
+                        </div>
+
+                        <div class="auth-footer-note">
+                            <strong>ExpenseWeb</strong> —
+                            @T("Quản lý ví, giao dịch và ngân sách của bạn", "Manage your wallets, transactions, and budgets")
+                        </div>
                     </div>
                 </div>
             </section>
 
+            <!-- OVERLAY -->
             <div class="auth-overlay-shell">
                 <div class="auth-overlay">
                     <div class="auth-overlay-panel auth-overlay-left">
@@ -266,7 +286,7 @@
                             <h1>@T("Bắt đầu quản lý chi tiêu dễ dàng", "Start managing your finances with ease")</h1>
                             <p>
                                 @T(
-                                "Tạo tài khoản để lưu trữ giao dịch, quản lý danh mục và theo dõi ngân sách cá nhân một cách trực quan.",
+                                                                "Tạo tài khoản để lưu trữ giao dịch, quản lý danh mục và theo dõi ngân sách cá nhân một cách trực quan.",
                                                                 "Create an account to save transactions, manage categories, and track your personal budgets in a simple, visual way."
                                                                 )
                             </p>
@@ -343,4 +363,56 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+
+    <script>
+        (function () {
+            const loginErrors = @Html.Raw(loginErrorsJson);
+            const registerErrors = @Html.Raw(registerErrorsJson);
+            const openRegister = @(openRegister ? "true" : "false");
+            const stack = document.getElementById("authToastStack");
+
+            function createToast(title, messages, type = "error") {
+                if (!stack || !messages || !messages.length) return;
+
+                const toast = document.createElement("div");
+                toast.className = `auth-toast ${type === "success" ? "auth-toast-success" : "auth-toast-error"}`;
+
+                const bodyList = messages.map(m => `<li>${m}</li>`).join("");
+
+                toast.innerHTML = `
+                    <div class="auth-toast-header">
+                        <span>${title}</span>
+                        <button type="button" class="auth-toast-close" aria-label="Close">×</button>
+                    </div>
+                    <div class="auth-toast-body">
+                        <ul>${bodyList}</ul>
+                    </div>
+                `;
+
+                const closeBtn = toast.querySelector(".auth-toast-close");
+                closeBtn?.addEventListener("click", () => toast.remove());
+
+                stack.appendChild(toast);
+
+                setTimeout(() => {
+                    toast.remove();
+                }, 5000);
+            }
+
+            if (Array.isArray(loginErrors) && loginErrors.length > 0 && !openRegister) {
+                createToast("@T("Lỗi đăng nhập", "Login error")", loginErrors, "error");
+            }
+
+            if (Array.isArray(registerErrors) && registerErrors.length > 0 && openRegister) {
+                createToast("@T("Lỗi đăng ký", "Register error")", registerErrors, "error");
+            }
+
+            @if (TempData["SuccessMessage"] != null)
+            {
+                    <text>
+                    createToast("@T("Thành công", "Success")", ["@TempData["SuccessMessage"]"], "success");
+                    </text>
+            }
+        })();
+    </script>
 }
