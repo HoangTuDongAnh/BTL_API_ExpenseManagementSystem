@@ -1,9 +1,13 @@
 ﻿@{
-    var title = ViewBag.Title ?? "ExpenseWeb";
+    var lang = (Context.Request.Query["lang"].FirstOrDefault() ?? "vi").ToLower();
+    if (lang != "en") lang = "vi";
+
+    ViewBag.Lang = lang;
+    var title = ViewBag.Title ?? (lang == "en" ? "ExpenseWeb" : "ExpenseWeb");
 }
 
 <!doctype html>
-<html lang="en"
+<html lang="@lang"
       class="layout-menu-fixed layout-compact"
       data-template="vertical-menu-template-free">
 <head>
@@ -13,7 +17,7 @@
 
     <title>@title</title>
 
-    <meta name="description" content="" />
+    <meta name="description" content="ExpenseWeb - Hệ thống quản lý chi tiêu cá nhân" />
 
     <link rel="icon" type="image/x-icon" href="~/sneat/img/favicon/favicon.ico" />
 

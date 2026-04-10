@@ -14,23 +14,47 @@ namespace ExpenseWeb.Controllers
             _authApiService = authApiService;
         }
 
+        private string GetLang()
+        {
+            var lang = HttpContext.Request.Query["lang"].ToString().ToLower();
+            if (string.IsNullOrWhiteSpace(lang))
+            {
+                lang = Request.Form["lang"].ToString().ToLower();
+            }
+
+            return lang == "en" ? "en" : "vi";
+        }
+
+        private string T(string vi, string en)
+        {
+            return GetLang() == "en" ? en : vi;
+        }
+
         // ================= LOGIN =================
+
         [HttpGet]
         public IActionResult Login()
         {
             if (!string.IsNullOrEmpty(HttpContext.Session.GetString("AccessToken")))
             {
-                return RedirectToAction("Index", "Dashboard");
+                return RedirectToAction("Index", "Dashboard", new { lang = GetLang() });
             }
 
-            return View();
+            ViewBag.RegisterModel = new RegisterViewModel();
+            ViewBag.OpenRegister = false;
+            return View(new LoginViewModel());
         }
 
         [HttpPost]
-        public async Task<IActionResult> Login(LoginViewModel model)
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Login(LoginViewModel model, string? lang = "vi")
         {
+            lang = (lang ?? "vi").ToLower() == "en" ? "en" : "vi";
+
             if (!ModelState.IsValid)
             {
+                ViewBag.RegisterModel = new RegisterViewModel();
+                ViewBag.OpenRegister = false;
                 return View(model);
             }
 
@@ -44,91 +68,55 @@ namespace ExpenseWeb.Controllers
 
             if (!result.Success || result.Data == null)
             {
-                ModelState.AddModelError(string.Empty, result.ErrorMessage ?? "Invalid email or password.");
+                ModelState.AddModelError(
+                    string.Empty,
+                    result.ErrorMessage ?? (lang == "en"
+                        ? "Invalid email or password."
+                        : "Email hoặc mật khẩu không đúng.")
+                );
+
+                ViewBag.RegisterModel = new RegisterViewModel();
+                ViewBag.OpenRegister = false;
                 return View(model);
             }
 
-            // Save session
             HttpContext.Session.SetString("AccessToken", result.Data.access_token ?? "");
             HttpContext.Session.SetString("UserEmail", result.Data.user?.email ?? "");
             HttpContext.Session.SetString("UserFullName", result.Data.user?.full_name ?? "");
             HttpContext.Session.SetString("UserRole", result.Data.user?.role ?? "");
 
-            return RedirectToAction("Index", "Dashboard");
-        }
-
-        // ================= FORGOT PASSWORD =================
-        [HttpGet]
-        public IActionResult ForgotPassword()
-        {
-            return View();
-        }
-        [HttpPost]
-        public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
-        {
-            if (!ModelState.IsValid)
-                return View(model);
-
-            await _authApiService.ForgotPasswordAsync(model.Email);
-
-            return RedirectToAction("ForgotPasswordConfirmation");
-        }
-
-        [HttpGet]
-        public IActionResult ForgotPasswordConfirmation()
-        {
-            return View();
-        }
-
-        // ================= RESET PASSWORD =================
-        [HttpGet]
-        public IActionResult ResetPassword(string token)
-        {
-            if (string.IsNullOrEmpty(token))
-                return RedirectToAction("Login");
-
-            return View(new ResetPasswordViewModel
-            {
-                Token = token
-            });
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model)
-        {
-            if (!ModelState.IsValid)
-                return View(model);
-
-            var result = await _authApiService.ResetPasswordAsync(model.Token, model.NewPassword);
-
-            if (!result.Success)
-            {
-                ModelState.AddModelError("", result.ErrorMessage);
-                return View(model);
-            }
-
-            TempData["SuccessMessage"] = "Password reset successfully!";
-            return RedirectToAction("Login");
+            return RedirectToAction("Index", "Dashboard", new { lang = lang });
         }
 
         // ================= REGISTER =================
+
         [HttpGet]
         public IActionResult Register()
         {
-            return View();
+            return RedirectToAction("Login", new { lang = GetLang(), openRegister = true });
         }
 
         [HttpPost]
-        public async Task<IActionResult> Register(RegisterViewModel model)
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Register(RegisterViewModel model, string? lang = "vi")
         {
+            lang = (lang ?? "vi").ToLower() == "en" ? "en" : "vi";
+
             if (!model.AgreeTerms)
             {
-                ModelState.AddModelError(nameof(model.AgreeTerms), "You must agree to the terms.");
+                ModelState.AddModelError(
+                    nameof(model.AgreeTerms),
+                    lang == "en"
+                        ? "You must agree to the terms."
+                        : "Bạn phải đồng ý với điều khoản sử dụng."
+                );
             }
 
             if (!ModelState.IsValid)
             {
-                return View(model);
+                ViewBag.RegisterModel = model;
+                ViewBag.OpenRegister = true;
+                return View("Login", new LoginViewModel());
             }
 
             var request = new RegisterRequestDto
@@ -136,7 +124,7 @@ namespace ExpenseWeb.Controllers
                 full_name = model.FullName,
                 email = model.Email,
                 password = model.Password,
-                phone_number = model.PhoneNumber,
+                phone_number = null,
                 avatar = null
             };
 
@@ -144,24 +132,36 @@ namespace ExpenseWeb.Controllers
 
             if (!result.Success)
             {
-                ModelState.AddModelError(string.Empty, "Registration failed.");
-                return View(model);
+                ModelState.AddModelError(
+                    string.Empty,
+                    result.ErrorMessage ?? (lang == "en"
+                        ? "Registration failed."
+                        : "Đăng ký thất bại.")
+                );
+
+                ViewBag.RegisterModel = model;
+                ViewBag.OpenRegister = true;
+                return View("Login", new LoginViewModel());
             }
 
-            // 🔥 Lưu tạm để auto login
-            HttpContext.Session.SetString("TempEmail", model.Email);
-            HttpContext.Session.SetString("TempPassword", model.Password);
+            HttpContext.Session.SetString("TempEmail", model.Email ?? "");
+            HttpContext.Session.SetString("TempPassword", model.Password ?? "");
 
-            return RedirectToAction("VerifyOtp", new { email = model.Email });
+            return RedirectToAction("VerifyOtp", new
+            {
+                email = model.Email,
+                lang = lang
+            });
         }
 
         // ================= VERIFY OTP =================
+
         [HttpGet]
         public IActionResult VerifyOtp(string email)
         {
-            if (string.IsNullOrEmpty(email))
+            if (string.IsNullOrWhiteSpace(email))
             {
-                return RedirectToAction("Login");
+                return RedirectToAction("Login", new { lang = GetLang() });
             }
 
             return View(new VerifyOtpViewModel
@@ -171,8 +171,11 @@ namespace ExpenseWeb.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> VerifyOtp(VerifyOtpViewModel model)
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> VerifyOtp(VerifyOtpViewModel model, string? lang = "vi")
         {
+            lang = (lang ?? "vi").ToLower() == "en" ? "en" : "vi";
+
             if (!ModelState.IsValid)
             {
                 return View(model);
@@ -182,11 +185,15 @@ namespace ExpenseWeb.Controllers
 
             if (!result.Success)
             {
-                ModelState.AddModelError(string.Empty, result.ErrorMessage ?? "Invalid OTP.");
+                ModelState.AddModelError(
+                    string.Empty,
+                    result.ErrorMessage ?? (lang == "en"
+                        ? "Invalid OTP."
+                        : "Mã OTP không hợp lệ.")
+                );
                 return View(model);
             }
 
-            // ================= AUTO LOGIN =================
             var email = HttpContext.Session.GetString("TempEmail");
             var password = HttpContext.Session.GetString("TempPassword");
 
@@ -205,47 +212,161 @@ namespace ExpenseWeb.Controllers
                     HttpContext.Session.SetString("UserFullName", loginResult.Data.user?.full_name ?? "");
                     HttpContext.Session.SetString("UserRole", loginResult.Data.user?.role ?? "");
 
-                    // ❌ Xóa dữ liệu tạm
                     HttpContext.Session.Remove("TempEmail");
                     HttpContext.Session.Remove("TempPassword");
 
-                    return RedirectToAction("Index", "Dashboard");
+                    return RedirectToAction("Index", "Dashboard", new { lang = lang });
                 }
             }
 
-            // fallback nếu auto login fail
-            TempData["SuccessMessage"] = "Verify successful. Please login.";
-            return RedirectToAction("Login");
+            TempData["SuccessMessage"] = lang == "en"
+                ? "Verification successful. Please sign in."
+                : "Xác thực thành công. Vui lòng đăng nhập.";
+
+            return RedirectToAction("Login", new { lang = lang });
         }
 
-        // ================= RESEND OTP =================
         [HttpPost]
-        public async Task<IActionResult> ResendOtp(string email)
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ResendOtp(string email, string? lang = "vi")
         {
+            lang = (lang ?? "vi").ToLower() == "en" ? "en" : "vi";
+
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                TempData["ErrorMessage"] = lang == "en"
+                    ? "Invalid email for resending OTP."
+                    : "Email không hợp lệ để gửi lại OTP.";
+
+                return RedirectToAction("Login", new { lang = lang });
+            }
+
             var result = await _authApiService.ResendOtpAsync(email);
 
             if (result.Success)
             {
-                TempData["SuccessMessage"] = "OTP resent successfully.";
+                TempData["SuccessMessage"] = lang == "en"
+                    ? "OTP resent successfully."
+                    : "Gửi lại OTP thành công.";
             }
             else
             {
-                TempData["ErrorMessage"] = result.ErrorMessage ?? "Failed to resend OTP.";
+                TempData["ErrorMessage"] = result.ErrorMessage ?? (lang == "en"
+                    ? "Failed to resend OTP."
+                    : "Gửi lại OTP thất bại.");
             }
 
-            return RedirectToAction("VerifyOtp", new { email = email });
+            return RedirectToAction("VerifyOtp", new
+            {
+                email = email,
+                lang = lang
+            });
+        }
+
+        // ================= FORGOT PASSWORD =================
+
+        [HttpGet]
+        public IActionResult ForgotPassword()
+        {
+            return View(new ForgotPasswordViewModel());
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model, string? lang = "vi")
+        {
+            lang = (lang ?? "vi").ToLower() == "en" ? "en" : "vi";
+
+            if (!ModelState.IsValid)
+            {
+                return View(model);
+            }
+
+            var result = await _authApiService.ForgotPasswordAsync(model.Email);
+
+            if (!result.Success)
+            {
+                TempData["ErrorMessage"] = result.ErrorMessage ?? (lang == "en"
+                    ? "Failed to send password reset request."
+                    : "Không thể gửi yêu cầu đặt lại mật khẩu.");
+                return View(model);
+            }
+
+            TempData["SuccessMessage"] = lang == "en"
+                ? "Password reset request sent successfully. Please check your email."
+                : "Yêu cầu đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra email của bạn.";
+
+            return RedirectToAction("ForgotPasswordConfirmation", new { lang = lang });
+        }
+
+        [HttpGet]
+        public IActionResult ForgotPasswordConfirmation()
+        {
+            return View();
+        }
+
+        // ================= RESET PASSWORD =================
+
+        [HttpGet]
+        public IActionResult ResetPassword(string token)
+        {
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                return RedirectToAction("Login", new { lang = GetLang() });
+            }
+
+            return View(new ResetPasswordViewModel
+            {
+                Token = token
+            });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model, string? lang = "vi")
+        {
+            lang = (lang ?? "vi").ToLower() == "en" ? "en" : "vi";
+
+            if (!ModelState.IsValid)
+            {
+                return View(model);
+            }
+
+            var result = await _authApiService.ResetPasswordAsync(model.Token, model.NewPassword);
+
+            if (!result.Success)
+            {
+                ModelState.AddModelError(
+                    string.Empty,
+                    result.ErrorMessage ?? (lang == "en"
+                        ? "Password reset failed."
+                        : "Đặt lại mật khẩu thất bại.")
+                );
+                return View(model);
+            }
+
+            TempData["SuccessMessage"] = lang == "en"
+                ? "Password reset successfully! Please sign in again."
+                : "Đặt lại mật khẩu thành công! Vui lòng đăng nhập lại.";
+
+            return RedirectToAction("Login", new { lang = lang });
         }
 
         // ================= LOGOUT =================
+
+        [HttpGet]
         public IActionResult Logout()
         {
             HttpContext.Session.Clear();
-            return RedirectToAction("Login");
+            return RedirectToAction("Login", new { lang = GetLang() });
         }
 
+        // ================= PROFILE SHORTCUT =================
+
+        [HttpGet]
         public IActionResult Profile()
         {
-            return RedirectToAction("Index", "Dashboard");
+            return RedirectToAction("Index", "Dashboard", new { lang = GetLang() });
         }
     }
 }

@@ -1,4 +1,28 @@
-﻿<nav class="layout-navbar container-xxl navbar-detached navbar navbar-expand-xl align-items-center bg-navbar-theme"
+﻿@{
+    var lang = (ViewBag.Lang as string ?? "vi").ToLower();
+    string T(string vi, string en) => lang == "en" ? en : vi;
+
+    var userFullName = Context.Session.GetString("UserFullName") ?? T("Người dùng", "User");
+    var userEmail = Context.Session.GetString("UserEmail") ?? "user@example.com";
+
+    var currentPath = Context.Request.Path.Value ?? "/";
+    var query = new Dictionary<string, string?>();
+
+    foreach (var item in Context.Request.Query)
+    {
+        query[item.Key] = item.Value.ToString();
+    }
+
+    string BuildLangUrl(string targetLang)
+    {
+        query["lang"] = targetLang;
+        var queryString = string.Join("&",
+            query.Select(kvp => $"{Uri.EscapeDataString(kvp.Key)}={Uri.EscapeDataString(kvp.Value ?? "")}"));
+        return string.IsNullOrWhiteSpace(queryString) ? currentPath : $"{currentPath}?{queryString}";
+    }
+}
+
+<nav class="layout-navbar container-xxl navbar-detached navbar navbar-expand-xl align-items-center bg-navbar-theme"
      id="layout-navbar">
 
     <div class="layout-menu-toggle navbar-nav align-items-xl-center me-4 me-xl-0 d-xl-none">
@@ -7,29 +31,26 @@
         </a>
     </div>
 
-    <div class="navbar-nav-right d-flex align-items-center justify-content-end" id="navbar-collapse">
+    <div class="navbar-nav-right d-flex align-items-center justify-content-end w-100" id="navbar-collapse">
         <div class="navbar-nav align-items-center me-auto">
-            <div class="nav-item d-flex align-items-center">
-                <span class="w-px-22 h-px-22">
-                    <i class="icon-base bx bx-search icon-md"></i>
-                </span>
-                <input type="text"
-                       class="form-control border-0 shadow-none ps-1 ps-sm-2 d-md-block d-none"
-                       placeholder="Search..."
-                       aria-label="Search..." />
+            <div class="nav-item d-flex flex-column">
+                <span class="fw-semibold">@T("Hệ thống quản lý chi tiêu cá nhân", "Personal Expense Management System")</span>
+                <small class="text-body-secondary">@T("Theo dõi ví, giao dịch và hạn mức chi tiêu", "Track wallets, transactions and budget limits")</small>
             </div>
         </div>
 
-        <ul class="navbar-nav flex-row align-items-center ms-md-auto">
-            <li class="nav-item lh-1 me-4">
-                <a class="github-button"
-                   href="https://github.com/themeselection/sneat-bootstrap-html-admin-template-free"
-                   data-icon="octicon-star"
-                   data-size="large"
-                   data-show-count="true"
-                   aria-label="Star Sneat on GitHub">
-                    Star
-                </a>
+        <ul class="navbar-nav flex-row align-items-center ms-auto">
+            <li class="nav-item me-3">
+                <div class="btn-group" role="group" aria-label="Language switch">
+                    <a href="@BuildLangUrl("vi")"
+                       class="btn btn-sm @(lang == "vi" ? "btn-primary" : "btn-outline-secondary")">
+                        VI
+                    </a>
+                    <a href="@BuildLangUrl("en")"
+                       class="btn btn-sm @(lang == "en" ? "btn-primary" : "btn-outline-secondary")">
+                        EN
+                    </a>
+                </div>
             </li>
 
             <li class="nav-item navbar-dropdown dropdown-user dropdown">
@@ -37,22 +58,22 @@
                    href="javascript:void(0);"
                    data-bs-toggle="dropdown">
                     <div class="avatar avatar-online">
-                        <img src="~/Sneat/img/avatars/1.png" alt="" class="w-px-40 h-auto rounded-circle" />
+                        <img src="~/sneat/img/avatars/1.png" alt="avatar" class="w-px-40 h-auto rounded-circle" />
                     </div>
                 </a>
 
                 <ul class="dropdown-menu dropdown-menu-end">
                     <li>
-                        <a class="dropdown-item" href="#">
+                        <a class="dropdown-item" href="@Url.Action("Index", "Profile", new { lang = lang })">
                             <div class="d-flex">
                                 <div class="flex-shrink-0 me-3">
                                     <div class="avatar avatar-online">
-                                        <img src="~/Sneat/img/avatars/1.png" alt="" class="w-px-40 h-auto rounded-circle" />
+                                        <img src="~/sneat/img/avatars/1.png" alt="avatar" class="w-px-40 h-auto rounded-circle" />
                                     </div>
                                 </div>
                                 <div class="flex-grow-1">
-                                    <h6 class="mb-0">John Doe</h6>
-                                    <small class="text-body-secondary">User</small>
+                                    <h6 class="mb-0">@userFullName</h6>
+                                    <small class="text-body-secondary">@userEmail</small>
                                 </div>
                             </div>
                         </a>
@@ -60,20 +81,10 @@
 
                     <li><div class="dropdown-divider my-1"></div></li>
 
-                    @* <li>
-                        <a class="dropdown-item" href="@Url.Action("Profile", "Auth")">
-                            <i class="icon-base bx bx-user icon-md me-3"></i><span>My Profile</span>
-                        </a>
-                    </li> *@
                     <li>
-                        <a class="dropdown-item" href="@Url.Action("Index", "Profile")">
-                            <i class="icon-base bx bx-user icon-md me-3"></i><span>My Profile</span>
-                        </a>
-                    </li>
-
-                    <li>
-                        <a class="dropdown-item" href="#">
-                            <i class="icon-base bx bx-cog icon-md me-3"></i><span>Settings</span>
+                        <a class="dropdown-item" href="@Url.Action("Index", "Profile", new { lang = lang })">
+                            <i class="icon-base bx bx-user icon-md me-3"></i>
+                            <span>@T("Hồ sơ cá nhân", "My Profile")</span>
                         </a>
                     </li>
 
@@ -81,7 +92,8 @@
 
                     <li>
                         <a class="dropdown-item" href="@Url.Action("Logout", "Auth")">
-                            <i class="icon-base bx bx-power-off icon-md me-3"></i><span>Log Out</span>
+                            <i class="icon-base bx bx-power-off icon-md me-3"></i>
+                            <span>@T("Đăng xuất", "Log Out")</span>
                         </a>
                     </li>
                 </ul>
