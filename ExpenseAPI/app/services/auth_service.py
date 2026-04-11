@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.core.security import create_access_token, hash_password, verify_password
 from app.models.user import User
+from app.models.category import Category
 from app.repositories.user_repo import UserRepository
 from app.schemas.auth_schema import LoginRequest, RegisterRequest, UpdateProfileRequest
 
@@ -31,6 +32,7 @@ class AuthService:
         if existing_user:
             raise ValueError("Email already exists")
 
+
         user = User(
             UserID=self._generate_user_id(db),
             FullName=data.full_name,
@@ -41,7 +43,18 @@ class AuthService:
             Role="user",
             Status="active",
         )
-        return self.user_repo.create(db, user)
+        created_user = self.user_repo.create(db, user)
+
+
+        default_category = Category(
+            CategoryName="Khác",
+            IsDefault=True,
+            UserID=created_user.UserID
+        )
+        db.add(default_category)
+        db.commit()
+
+        return created_user
 
     def login(self, db: Session, data: LoginRequest):
         user = self.user_repo.get_by_email(db, data.email)

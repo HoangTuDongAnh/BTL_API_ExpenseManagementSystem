@@ -29,9 +29,13 @@ namespace ExpenseWeb.Controllers
 
             var now = DateTime.Now;
             var resolvedPeriodType = string.IsNullOrWhiteSpace(periodType) ? "month" : periodType.Trim().ToLowerInvariant();
+
+            
             var resolvedYear = year ?? now.Year;
-            int? resolvedMonth = resolvedPeriodType == "month" ? (month ?? now.Month) : (int?)null;
-            int? resolvedWeek = resolvedPeriodType == "week" ? (week ?? ISOWeek.GetWeekOfYear(now)) : (int?)null;
+            
+            int? resolvedMonth = resolvedPeriodType == "month" ? (month ?? now.Month) : null;
+            int? resolvedWeek = resolvedPeriodType == "week" ? (week ?? System.Globalization.ISOWeek.GetWeekOfYear(now)) : null;
+
             var resolvedLang = string.IsNullOrWhiteSpace(lang) ? "vi" : lang.Trim().ToLowerInvariant();
 
             var viewModel = new CategoryPageViewModel
@@ -103,7 +107,7 @@ namespace ExpenseWeb.Controllers
         }
 
         [HttpDelete]
-        public async Task<IActionResult> Delete(string id)
+        public async Task<IActionResult> Delete(string id, [FromBody] CategoryDeleteRequestDto request)
         {
             var token = HttpContext.Session.GetString("AccessToken");
             if (string.IsNullOrEmpty(token))
@@ -113,28 +117,13 @@ namespace ExpenseWeb.Controllers
 
             try
             {
-                var categories = await _categoryApiService.GetCategoriesAsync(token);
-                var replacement = categories
-                    .Where(x => !string.Equals(x.category_id, id, StringComparison.OrdinalIgnoreCase))
-                    .OrderByDescending(x => string.Equals(x.category_name, "Khác", StringComparison.OrdinalIgnoreCase))
-                    .ThenBy(x => x.is_default ? 0 : 1)
-                    .ThenBy(x => x.category_name)
-                    .FirstOrDefault();
-
-                if (replacement == null)
-                {
-                    return BadRequest(new { success = false, message = "Không tìm thấy danh mục thay thế để xóa." });
-                }
-
-                await _categoryApiService.DeleteCategoryAsync(token, id, new CategoryDeleteRequestDto
-                {
-                    replacement_category_id = replacement.category_id
-                });
+               
+                await _categoryApiService.DeleteCategoryAsync(token, id, request);
 
                 return Json(new
                 {
                     success = true,
-                    message = $"Xóa danh mục thành công. Dữ liệu liên quan đã chuyển sang '{replacement.category_name}'."
+                    message = "Xóa danh mục thành công."
                 });
             }
             catch (Exception ex)
@@ -145,9 +134,25 @@ namespace ExpenseWeb.Controllers
 
         public class SaveBudgetWebRequest
         {
-            public string category_id { get; set; } = string.Empty;
-            public string period_type { get; set; } = "month";
-            public decimal? limit_amount { get; set; }
+            [System.Text.Json.Serialization.JsonPropertyName("category_id")]
+            public string category_id { get; set; }
+
+            [System.Text.Json.Serialization.JsonPropertyName("period_type")]
+            public string period_type { get; set; }
+
+            [System.Text.Json.Serialization.JsonPropertyName("period_year")]
+            public int period_year { get; set; }
+
+            [System.Text.Json.Serialization.JsonPropertyName("period_month")]
+            public int? period_month { get; set; }
+
+            [System.Text.Json.Serialization.JsonPropertyName("period_week")]
+            public int? period_week { get; set; }
+
+            [System.Text.Json.Serialization.JsonPropertyName("limit_amount")]
+            public decimal limit_amount { get; set; }
+
+            [System.Text.Json.Serialization.JsonPropertyName("budget_id")]
             public string? budget_id { get; set; }
         }
 
@@ -165,14 +170,13 @@ namespace ExpenseWeb.Controllers
                 return BadRequest(new { success = false, message = "Thiếu category_id." });
             }
 
-            if (!request.limit_amount.HasValue || request.limit_amount.Value <= 0)
+            if (request.limit_amount <= 0)
             {
                 return BadRequest(new { success = false, message = "Hạn mức phải lớn hơn 0." });
             }
 
             try
             {
-                var now = DateTime.Now;
                 var periodType = string.IsNullOrWhiteSpace(request.period_type)
                     ? "month"
                     : request.period_type.Trim().ToLowerInvariant();
@@ -182,9 +186,17 @@ namespace ExpenseWeb.Controllers
                     return BadRequest(new { success = false, message = "period_type không hợp lệ. Chỉ chấp nhận week, month, year." });
                 }
 
-                var year = now.Year;
-                int? month = periodType == "month" ? now.Month : (int?)null;
-                int? week = periodType == "week" ? ISOWeek.GetWeekOfYear(now) : (int?)null;
+
+                var now = DateTime.Now;
+
+                
+                var year = request.period_year > 0 ? request.period_year : now.Year;
+
+             
+                int? month = periodType == "month" ? (request.period_month ?? now.Month) : null;
+
+               
+                int? week = periodType == "week" ? (request.period_week ?? System.Globalization.ISOWeek.GetWeekOfYear(now)) : null;
 
                 BudgetResponseDto? existingBudget = null;
 
@@ -202,7 +214,11 @@ namespace ExpenseWeb.Controllers
                 {
                     await _categoryApiService.UpdateBudgetAsync(token, existingBudget.budget_id, new BudgetUpdateRequestDto
                     {
-                        limit_amount = request.limit_amount
+                        limit_amount = request.limit_amount,
+                        period_type = periodType, 
+                        period_year = year,       
+                        period_month = month,     
+                        period_week = week
                     });
                 }
                 else
@@ -210,7 +226,7 @@ namespace ExpenseWeb.Controllers
                     await _categoryApiService.CreateBudgetAsync(token, new BudgetCreateRequestDto
                     {
                         category_id = request.category_id,
-                        limit_amount = request.limit_amount.Value,
+                        limit_amount = request.limit_amount,
                         period_type = periodType,
                         period_year = year,
                         period_month = month,
@@ -221,15 +237,7 @@ namespace ExpenseWeb.Controllers
                 return Json(new
                 {
                     success = true,
-                    message = "Lưu hạn mức thành công.",
-                    redirectUrl = Url.Action("Index", new
-                    {
-                        periodType,
-                        year,
-                        month,
-                        week,
-                        lang = Request.Query["lang"].ToString()
-                    })
+                    message = "Lưu hạn mức thành công."
                 });
             }
             catch (Exception ex)
