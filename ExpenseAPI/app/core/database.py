@@ -2,10 +2,11 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-
+# 1. Đổi Driver thành ODBC Driver 17
+# 2. Thêm chữ 'r' trước chuỗi SERVER để fix lỗi \M
 connection_string = (
     "DRIVER={ODBC Driver 17 for SQL Server};"
-    r"SERVER=(localdb)\MSSQLLocalDB;"
+    "SERVER=.\\SQLEXPRESS;"
     "DATABASE=ExpenseDB;"
     "Trusted_Connection=yes;"
 )

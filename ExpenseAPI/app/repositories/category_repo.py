@@ -9,7 +9,7 @@ class CategoryRepository:
         return (
             db.query(Category)
             .filter(or_(Category.UserID == user_id, Category.UserID.is_(None)))
-            .order_by(Category.IsDefault.desc(), Category.CreatedAt.asc())
+            .order_by(Category.IsDefault.desc(), Category.CreatedAt.desc())
             .all()
         )
 
@@ -38,7 +38,7 @@ class CategoryRepository:
             db.query(Category)
             .filter(
                 Category.CategoryName == category_name,
-                or_(Category.UserID == user_id, Category.UserID.is_(None))
+                Category.UserID == user_id
             )
             .first()
         )

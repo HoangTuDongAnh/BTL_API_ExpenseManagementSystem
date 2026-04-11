@@ -18,8 +18,7 @@ class CategoryUpdateRequest(BaseModel):
 
 
 class CategoryDeleteRequest(BaseModel):
-    action: str  # "other" | "move"
-    target_category_id: Optional[str] = None
+    replacement_category_id: str = Field(..., min_length=1, max_length=15)
 
 
 class CategoryResponse(BaseModel):

@@ -1,25 +1,12 @@
-﻿using System.Text.Json.Serialization;
-
-namespace ExpenseWeb.Models.Dtos.Category
+﻿namespace ExpenseWeb.Models.Dtos.Category
 {
     public class BudgetCreateRequestDto
     {
-        [JsonPropertyName("category_id")]
-        public string category_id { get; set; }
-
-        [JsonPropertyName("limit_amount")]
+        public string category_id { get; set; } = string.Empty;
         public decimal limit_amount { get; set; }
-
-        [JsonPropertyName("period_type")]
-        public string period_type { get; set; }
-
-        [JsonPropertyName("period_year")]
+        public string period_type { get; set; } = "month";
         public int period_year { get; set; }
-
-        [JsonPropertyName("period_month")]
         public int? period_month { get; set; }
-
-        [JsonPropertyName("period_week")]
         public int? period_week { get; set; }
     }
 }

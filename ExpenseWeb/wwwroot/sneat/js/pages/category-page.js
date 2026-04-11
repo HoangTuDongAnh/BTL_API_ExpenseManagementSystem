@@ -360,10 +360,7 @@
 
             btnDelete.disabled = true;
             try {
-                await sendJson(buildDeleteUrl(categoryId), "DELETE", {
-                    action: "other", 
-                    target_category_id: null
-                });
+                await sendJson(buildDeleteUrl(categoryId), "DELETE");
                 if (detailModal) detailModal.hide();
                 if (toastDeleted) toastDeleted.show();
                 setTimeout(function () {
@@ -379,19 +376,12 @@
 
     const btnSaveBudget = document.getElementById("btnSaveBudget");
     if (btnSaveBudget) {
-        btnSaveBudget.addEventListener("click", async function (e) {
-            e.preventDefault(); 
-
-            
+        btnSaveBudget.addEventListener("click", async function () {
             const categoryId = (document.getElementById("detailCategoryId")?.textContent || "").trim();
             const budgetId = document.getElementById("detailBudgetId")?.value || "";
             const periodType = document.getElementById("budgetModalTimeType")?.value || "month";
             const amountInputValue = document.getElementById("budgetModalAmount")?.value || "";
             const amount = parseBudgetAmount(amountInputValue);
-
-            const periodYear = parseInt(document.getElementById("categoryPageYear")?.value) || new Date().getFullYear();
-            const periodMonth = parseInt(document.getElementById("categoryPageMonth")?.value) || null;
-            const periodWeek = parseInt(document.getElementById("categoryPageWeek")?.value) || null;
 
             if (!categoryId || !Number.isFinite(amount) || amount <= 0) {
                 alert("Vui lòng nhập hạn mức hợp lệ.");
@@ -399,86 +389,25 @@
             }
 
             btnSaveBudget.disabled = true;
-
             try {
-                await sendJson(saveBudgetUrl, "POST", {
+                const result = await sendJson(saveBudgetUrl, "POST", {
                     category_id: categoryId,
                     budget_id: budgetId,
                     period_type: periodType,
-                    period_year: periodYear,
-                    period_month: periodMonth,
-                    period_week: periodWeek,
                     limit_amount: amount
                 });
 
-                const spentInputValue = document.getElementById("budgetModalSpent")?.value || "0";
-                const spent = parseBudgetAmount(spentInputValue) || 0;
+                if (setBudgetModal) setBudgetModal.hide();
+                if (detailModal) detailModal.hide();
+                if (toastSaved) toastSaved.show();
 
-                const noBudgetState = document.getElementById("noBudgetState");
-                const hasBudgetState = document.getElementById("hasBudgetState");
-
-                if (noBudgetState && hasBudgetState) {
-                    noBudgetState.classList.add("d-none"); 
-                    hasBudgetState.classList.remove("d-none"); 
-                }
-                document.getElementById("detailBudgetTitle").textContent = document.getElementById("detailCategoryName").value;
-                
-                document.getElementById("detailTotalAmount").textContent = currency(amount);
-
-                let typeText = "Tháng";
-                if (periodType === "year") typeText = "Năm";
-                else if (periodType === "week") typeText = "Tuần";
-
-                const detailBudgetType = document.getElementById("detailBudgetType");
-                if (detailBudgetType) {
-                    detailBudgetType.textContent = typeText;
-                }
-
-                const triggerBtn = document.querySelector(`[data-category-id="${categoryId}"]`);
-                if (triggerBtn) {
-                    triggerBtn.setAttribute("data-budget-amount", amount);
-                    triggerBtn.setAttribute("data-budget-period-type", periodType);
-                    triggerBtn.setAttribute("data-budget-type", typeText);
-                }
-
-                
-                const percentage = amount > 0 ? (spent / amount) * 100 : 0;
-                const remain = amount - spent;
-
-                const progressBar = document.getElementById("detailProgressBar");
-                const progressText = document.getElementById("detailProgressText");
-                const statusText = document.getElementById("detailStatusText");
-
-                if (progressBar) progressBar.style.width = Math.min(percentage, 100) + "%";
-                if (progressText) progressText.textContent = percentage.toFixed(1) + "%";
-
-                if (statusText) {
-                    if (remain < 0) {
-                        progressBar.className = "progress-bar bg-danger progress-bar-striped progress-bar-animated";
-                        progressText.className = "fw-bold small text-danger";
-                        statusText.className = "small fw-bold text-danger";
-                        statusText.innerHTML = '<i class="bx bx-error me-1"></i>Vượt mức ' + currency(Math.abs(remain));
+                setTimeout(function () {
+                    if (result.redirectUrl) {
+                        window.location.href = result.redirectUrl;
                     } else {
-                        progressBar.className = "progress-bar bg-primary";
-                        progressText.className = "fw-bold small text-primary";
-                        statusText.className = "small fw-bold text-success";
-                        statusText.textContent = "Còn " + currency(remain);
+                        window.location.reload();
                     }
-                }
-
-                
-                if (typeof setBudgetModal !== 'undefined' && setBudgetModal) {
-                    setBudgetModal.hide(); 
-                }
-
-                //if (typeof detailModal !== 'undefined' && detailModal) {
-                //    detailModal.show(); 
-                //}
-
-                if (typeof toastSaved !== 'undefined' && toastSaved) {
-                    toastSaved.show(); 
-                }
-
+                }, 700);
             } catch (error) {
                 alert(error.message || "Lưu hạn mức thất bại.");
             } finally {
@@ -502,16 +431,4 @@
 
     updateAddPreview();
     updateDetailPreview();
-    const setBudgetModalElFix = document.getElementById("setBudgetModal");
-    if (setBudgetModalElFix) {
-        setBudgetModalElFix.addEventListener("hidden.bs.modal", function () {
-
-            const detailModalElCheck = document.getElementById("categoryDetailModal");
-            if (detailModalElCheck) {
-                const modalInstance = bootstrap.Modal.getInstance(detailModalElCheck) || new bootstrap.Modal(detailModalElCheck);
-                modalInstance.show();
-            }
-
-        });
-    }
 });
