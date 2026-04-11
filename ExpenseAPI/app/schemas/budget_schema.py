@@ -1,5 +1,6 @@
 ﻿from datetime import date
 from decimal import Decimal
+from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -15,7 +16,11 @@ class BudgetCreateRequest(BaseModel):
 
 
 class BudgetUpdateRequest(BaseModel):
-    limit_amount: Decimal | None = Field(default=None, gt=0)
+    limit_amount: float
+    period_type: str
+    period_year: int
+    period_month: Optional[int] = None
+    period_week: Optional[int] = None
 
 
 class BudgetResponse(BaseModel):

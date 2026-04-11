@@ -132,6 +132,11 @@ class BudgetService:
         if data.limit_amount is not None:
             budget.LimitAmount = data.limit_amount
 
+        budget.PeriodType = data.period_type
+        budget.PeriodYear = data.period_year
+        budget.PeriodMonth = data.period_month
+        budget.PeriodWeek = data.period_week
+
         budget.UpdatedAt = datetime.now()
         db.commit()
         db.refresh(budget)

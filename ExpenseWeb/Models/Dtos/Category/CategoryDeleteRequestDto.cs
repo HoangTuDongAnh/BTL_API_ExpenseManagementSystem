@@ -1,7 +1,13 @@
-﻿namespace ExpenseWeb.Models.Dtos.Category
+﻿using System.Text.Json.Serialization;
+
+namespace ExpenseWeb.Models.Dtos.Category
 {
     public class CategoryDeleteRequestDto
     {
-        public string replacement_category_id { get; set; } = string.Empty;
+        [JsonPropertyName("action")]
+        public string action { get; set; } = "other";
+
+        [JsonPropertyName("target_category_id")]
+        public string? target_category_id { get; set; }
     }
 }

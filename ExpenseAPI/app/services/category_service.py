@@ -1,5 +1,6 @@
 ﻿from datetime import datetime
 from decimal import Decimal
+from sqlalchemy import or_
 
 from sqlalchemy.orm import Session
 
@@ -71,19 +72,35 @@ class CategoryService:
         )
 
         categories = self.category_repo.get_all_by_user(db, user_id)
+        target_year = period["period_year"]
+        target_month = period["period_month"] or datetime.now().month
+        target_week = period["period_week"] or datetime.now().isocalendar()[1]
+
         budgets = (
             db.query(Budget)
             .filter(
                 Budget.UserID == user_id,
-                Budget.PeriodType == period["period_type"],
-                Budget.PeriodYear == period["period_year"],
-                Budget.PeriodMonth == period["period_month"],
-                Budget.PeriodWeek == period["period_week"],
+                or_(
+                    (Budget.PeriodType == "year") & (Budget.PeriodYear == target_year),
+                    (Budget.PeriodType == "month") & (Budget.PeriodYear == target_year) & (
+                                Budget.PeriodMonth == target_month),
+                    (Budget.PeriodType == "week") & (Budget.PeriodYear == target_year) & (
+                                Budget.PeriodWeek == target_week)
+                )
             )
             .all()
         )
 
-        budget_map = {b.CategoryID: b for b in budgets}
+        budget_map = {}
+        for b in budgets:
+            if b.CategoryID not in budget_map:
+                budget_map[b.CategoryID] = b
+            else:
+                existing_type = budget_map[b.CategoryID].PeriodType
+                if b.PeriodType == "week":
+                    budget_map[b.CategoryID] = b
+                elif b.PeriodType == "month" and existing_type == "year":
+                    budget_map[b.CategoryID] = b
         result: list[CategoryOverviewResponse] = []
 
         for c in categories:
@@ -161,10 +178,8 @@ class CategoryService:
 
         if data.icon is not None:
             category.Icon = data.icon
-
         if data.color is not None:
             category.Color = data.color
-
         category.UpdatedAt = datetime.now()
         db.commit()
         db.refresh(category)
@@ -172,60 +187,51 @@ class CategoryService:
 
     def delete_category(self, db: Session, category_id: str, user_id: str, data: CategoryDeleteRequest):
         category = self.category_repo.get_custom_by_id_and_user(db, category_id, user_id)
+        if data.action == "move" and data.target_category_id == category_id:
+            raise ValueError("Không thể chuyển vào chính nó")
         if not category:
-            raise ValueError("Category not found or cannot delete default category")
+            raise ValueError("Category not found")
+        if category.IsDefault:
+            raise ValueError("Không thể xóa danh mục mặc định")
+        try:
+            if data.action == "other":
+                other = self.category_repo.get_by_name_and_user(db, "Khác", user_id)
 
-        if data.replacement_category_id == category_id:
-            raise ValueError("Replacement category must be different")
+                if not other:
+                    raise ValueError("Không tìm thấy danh mục 'Khác'")
 
-        replacement_category = (
-            db.query(Category)
-            .filter(
-                Category.CategoryID == data.replacement_category_id,
-                ((Category.UserID == user_id) | (Category.UserID.is_(None)))
-            )
-            .first()
-        )
-        if not replacement_category:
-            raise ValueError("Replacement category not found")
+                db.query(Transaction).filter(
+                    Transaction.CategoryID == category_id,
+                    Transaction.UserID == user_id
+                ).update({
+                    "CategoryID": other.CategoryID,
+                    "UpdatedAt": datetime.now()
+                })
 
-        transactions = (
-            db.query(Transaction)
-            .filter(Transaction.CategoryID == category_id, Transaction.UserID == user_id)
-            .all()
-        )
-        for t in transactions:
-            t.CategoryID = replacement_category.CategoryID
-            t.UpdatedAt = datetime.now()
+            elif data.action == "move":
+                if not data.target_category_id:
+                    raise ValueError("Thiếu target_category_id")
 
-        budgets = (
-            db.query(Budget)
-            .filter(Budget.CategoryID == category_id, Budget.UserID == user_id)
-            .all()
-        )
+                db.query(Transaction).filter(
+                    Transaction.CategoryID == category_id,
+                    Transaction.UserID == user_id
+                ).update({
+                    "CategoryID": data.target_category_id,
+                    "UpdatedAt": datetime.now()
+                })
 
-        for old_budget in budgets:
-            existing_budget = (
-                db.query(Budget)
-                .filter(
-                    Budget.UserID == user_id,
-                    Budget.CategoryID == replacement_category.CategoryID,
-                    Budget.PeriodType == old_budget.PeriodType,
-                    Budget.PeriodYear == old_budget.PeriodYear,
-                    Budget.PeriodMonth == old_budget.PeriodMonth,
-                    Budget.PeriodWeek == old_budget.PeriodWeek,
-                )
-                .first()
-            )
-
-            if existing_budget:
-                existing_budget.LimitAmount = Decimal(existing_budget.LimitAmount) + Decimal(old_budget.LimitAmount)
-                existing_budget.SpentAmount = Decimal(existing_budget.SpentAmount) + Decimal(old_budget.SpentAmount)
-                existing_budget.UpdatedAt = datetime.now()
-                db.delete(old_budget)
             else:
-                old_budget.CategoryID = replacement_category.CategoryID
-                old_budget.UpdatedAt = datetime.now()
+                raise ValueError("action không hợp lệ")
 
-        db.delete(category)
-        db.commit()
+            db.query(Budget).filter(
+                Budget.CategoryID == category_id,
+                Budget.UserID == user_id
+            ).delete()
+
+            db.delete(category)
+
+            db.commit()
+
+        except:
+            db.rollback()
+            raise
