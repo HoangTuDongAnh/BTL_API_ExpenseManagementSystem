@@ -1,6 +1,6 @@
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 class RegisterRequest(BaseModel):
@@ -9,7 +9,14 @@ class RegisterRequest(BaseModel):
     password: str = Field(..., min_length=6, max_length=100)
     phone_number: Optional[str] = Field(default=None, max_length=15)
     avatar: Optional[str] = Field(default=None, max_length=255)
+    agree_terms: bool = Field(...)  # thêm dòng này
 
+    @field_validator("agree_terms")
+    @classmethod
+    def must_agree(cls, v):
+        if not v:
+            raise ValueError("Bạn phải đồng ý với điều khoản sử dụng")
+        return v
 
 class LoginRequest(BaseModel):
     email: EmailStr

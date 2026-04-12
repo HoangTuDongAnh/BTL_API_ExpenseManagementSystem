@@ -1,16 +1,16 @@
 ﻿from urllib.parse import quote_plus
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
-
+from app.core.config import settings
 
 connection_string = (
-    "DRIVER={ODBC Driver 17 for SQL Server};"
-    "SERVER=.\\SQLEXPRESS;"
-    "DATABASE=ExpenseDB;"
+    f"DRIVER={{ODBC Driver 17 for SQL Server}};"
+    f"SERVER={settings.DB_SERVER};"
+    f"DATABASE={settings.DB_NAME};"
+    "Encrypt=yes;"
+    "TrustServerCertificate=yes;"
     "Trusted_Connection=yes;"
 )
-
-print("DEBUG CONNECTION STRING:", connection_string)
 
 DATABASE_URL = f"mssql+pyodbc:///?odbc_connect={quote_plus(connection_string)}"
 

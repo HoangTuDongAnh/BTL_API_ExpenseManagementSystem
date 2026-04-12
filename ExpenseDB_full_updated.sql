@@ -209,15 +209,21 @@ CREATE TABLE dbo.Budgets (
 );
 GO
 
+ALTER TABLE dbo.Budgets
+ADD PeriodMonth_NoNull AS ISNULL(PeriodMonth, 0);
+
+ALTER TABLE dbo.Budgets
+ADD PeriodWeek_NoNull AS ISNULL(PeriodWeek, 0);
+
 CREATE UNIQUE INDEX UX_Budgets_UserCatPeriod
-    ON dbo.Budgets (
-        UserID,
-        CategoryID,
-        PeriodType,
-        PeriodYear,
-        ISNULL(PeriodMonth, 0),
-        ISNULL(PeriodWeek, 0)
-    );
+ON dbo.Budgets (
+    UserID,
+    CategoryID,
+    PeriodType,
+    PeriodYear,
+    PeriodMonth_NoNull,
+    PeriodWeek_NoNull
+);
 GO
 
 -- ============================================================

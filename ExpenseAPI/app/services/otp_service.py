@@ -41,3 +41,7 @@ class OTPService:
             raise ValueError("Invalid or expired OTP")
 
         self.otp_repo.mark_used(db, otp)
+        user = self.user_repo.get_by_email(db, email)
+        if user:
+            user.Status = "active"
+            self.user_repo.update(db, user)
