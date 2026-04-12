@@ -5,7 +5,7 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 
 connection_string = (
     "DRIVER={ODBC Driver 17 for SQL Server};"
-    r"SERVER=(localdb)\MSSQLLocalDB;" 
+    "SERVER=.\\SQLEXPRESS;"
     "DATABASE=ExpenseDB;"
     "Trusted_Connection=yes;"
 )
