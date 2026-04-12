@@ -22,7 +22,7 @@ namespace ExpenseWeb.Controllers
             _reportApiService = reportApiService;
         }
 
-        public async Task<IActionResult> Index(int? month, int? year)
+        public async Task<IActionResult> Index(int? month, int? year, DateTime? startDate, DateTime? endDate, string? groupBy)
         {
             var token = HttpContext.Session.GetString("AccessToken");
             if (string.IsNullOrEmpty(token))
@@ -34,13 +34,26 @@ namespace ExpenseWeb.Controllers
             var selectedMonth = month.GetValueOrDefault(now.Month);
             var selectedYear = year.GetValueOrDefault(now.Year);
 
+            var resolvedStartDate = startDate?.Date ?? new DateTime(selectedYear, selectedMonth, 1);
+            var resolvedEndDate = endDate?.Date ?? new DateTime(selectedYear, selectedMonth, DateTime.DaysInMonth(selectedYear, selectedMonth));
+            if (resolvedEndDate < resolvedStartDate)
+            {
+                (resolvedStartDate, resolvedEndDate) = (resolvedEndDate, resolvedStartDate);
+            }
+
+            var selectedGroupBy = NormalizeGroupBy(groupBy);
+
+            ViewBag.UserFullName = HttpContext.Session.GetString("UserFullName");
+            ViewBag.FilterStartDate = resolvedStartDate.ToString("yyyy-MM-dd");
+            ViewBag.FilterEndDate = resolvedEndDate.ToString("yyyy-MM-dd");
+            ViewBag.FilterPeriodText = $"{resolvedStartDate:dd-MM-yyyy}-{resolvedEndDate:dd-MM-yyyy}";
+            ViewBag.GroupBy = selectedGroupBy;
+
             var model = new DashboardIndexViewModel
             {
                 SelectedMonth = selectedMonth,
                 SelectedYear = selectedYear
             };
-
-            ViewBag.UserFullName = HttpContext.Session.GetString("UserFullName");
 
             try
             {
@@ -209,7 +222,13 @@ namespace ExpenseWeb.Controllers
             }
         }
 
-        private static string Csv(string input)
+        private static string NormalizeGroupBy(string? groupBy)
+        {
+            var value = (groupBy ?? "day").Trim().ToLowerInvariant();
+            return value is "day" or "week" or "month" or "year" ? value : "day";
+        }
+
+        private static string Csv(string? input)
         {
             if (string.IsNullOrEmpty(input))
                 return "\"\"";

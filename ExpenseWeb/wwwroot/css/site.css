@@ -1,4 +1,4 @@
-﻿html {
+html {
   font-size: 14px;
 }
 
@@ -9,9 +9,10 @@
 }
 
 :root {
-  --mimo-primary: #48A111;
+  --mimo-primary: #48a111;
+  --mimo-primary-dark: #2f7d0c;
   --mimo-primary-soft: rgba(72, 161, 17, 0.12);
-  --mimo-surface: rgba(255, 255, 255, 0.86);
+  --mimo-surface: rgba(255, 255, 255, 0.9);
   --mimo-border: rgba(72, 161, 17, 0.14);
   --mimo-shadow: 0 12px 30px rgba(67, 89, 113, 0.08);
 }
@@ -30,7 +31,8 @@ body {
 .btn:active:focus,
 .btn-link.nav-link:focus,
 .form-control:focus,
-.form-check-input:focus {
+.form-check-input:focus,
+.form-select:focus {
   box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem rgba(72, 161, 17, 0.25);
 }
 
@@ -78,7 +80,7 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #2f7d0c 0%, #48A111 58%, #8fd96a 100%);
+  background: linear-gradient(135deg, var(--mimo-primary-dark) 0%, var(--mimo-primary) 58%, #8fd96a 100%);
   color: #fff;
   font-weight: 800;
   box-shadow: 0 10px 24px rgba(47, 125, 12, 0.22);
@@ -97,7 +99,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.7rem 1rem !important;
+  padding: 0.72rem 1rem !important;
   border-radius: 999px;
   color: #667a67;
   font-weight: 600;
@@ -107,7 +109,7 @@ body {
 .mimo-nav-link:hover,
 .mimo-nav-link.active {
   background: var(--mimo-primary-soft);
-  color: var(--mimo-primary);
+  color: var(--mimo-primary-dark);
 }
 
 .mimo-topbar-actions {
@@ -116,8 +118,33 @@ body {
   gap: 0.85rem;
 }
 
-.mimo-lang-switch .btn {
-  min-width: 3rem;
+.mimo-lang-switch {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem;
+  border-radius: 999px;
+  background: rgba(72, 161, 17, 0.08);
+  border: 1px solid rgba(72, 161, 17, 0.12);
+}
+
+.mimo-lang-option {
+  min-width: 44px;
+  text-align: center;
+  padding: 0.42rem 0.8rem;
+  border-radius: 999px;
+  color: #6f816e;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.mimo-lang-option:hover {
+  color: var(--mimo-primary-dark);
+}
+
+.mimo-lang-option.active {
+  background: #fff;
+  color: var(--mimo-primary-dark);
+  box-shadow: 0 8px 16px rgba(72, 161, 17, 0.16);
 }
 
 .mimo-user-dropdown {
@@ -142,6 +169,16 @@ body {
 .btn-primary {
   background-color: var(--mimo-primary) !important;
   border-color: var(--mimo-primary) !important;
+}
+
+.btn-outline-primary {
+  color: var(--mimo-primary-dark) !important;
+  border-color: rgba(72, 161, 17, 0.28) !important;
+}
+
+.btn-outline-primary:hover {
+  background: rgba(72, 161, 17, 0.08) !important;
+  color: var(--mimo-primary-dark) !important;
 }
 
 .text-primary,
@@ -174,22 +211,6 @@ a,
   .mimo-topbar-actions {
     width: 100%;
     justify-content: space-between;
-    padding-top: 0.5rem;
+    padding-top: 0.75rem;
   }
-}
-
-
-.mimo-lang-switch .btn.btn-primary {
-  box-shadow: 0 8px 18px rgba(72, 161, 17, 0.18);
-}
-
-.mimo-lang-switch .btn.btn-outline-secondary {
-  border-color: rgba(72, 161, 17, 0.2);
-  color: #678064;
-}
-
-.mimo-lang-switch .btn.btn-outline-secondary:hover {
-  border-color: rgba(72, 161, 17, 0.34);
-  color: var(--mimo-primary);
-  background: rgba(72, 161, 17, 0.06);
 }

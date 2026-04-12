@@ -1,4 +1,4 @@
-﻿@{
+@{
     var lang = (ViewBag.Lang as string ?? "vi").ToLower();
     string T(string vi, string en) => lang == "en" ? en : vi;
 
@@ -10,8 +10,7 @@
     {
         new { Controller = "Dashboard", Action = "Index", LabelVi = "Tổng quan", LabelEn = "Dashboard", Icon = "bx-home-smile" },
         new { Controller = "Category", Action = "Index", LabelVi = "Danh mục", LabelEn = "Categories", Icon = "bx-category" },
-        new { Controller = "Transaction", Action = "Index", LabelVi = "Giao dịch", LabelEn = "Transactions", Icon = "bx-transfer" },
-        new { Controller = "Profile", Action = "Index", LabelVi = "Hồ sơ", LabelEn = "Profile", Icon = "bx-user" }
+        new { Controller = "Transaction", Action = "Index", LabelVi = "Giao dịch", LabelEn = "Transactions", Icon = "bx-transfer" }
     };
 
     var currentPath = Context.Request.Path.Value ?? "/";
@@ -55,9 +54,9 @@
             </ul>
 
             <div class="mimo-topbar-actions ms-lg-3">
-                <div class="btn-group mimo-lang-switch" role="group" aria-label="Language switch">
-                    <a href="@BuildLangUrl("vi")" class="btn btn-sm @(lang == "vi" ? "btn-primary" : "btn-outline-secondary")">VI</a>
-                    <a href="@BuildLangUrl("en")" class="btn btn-sm @(lang == "en" ? "btn-primary" : "btn-outline-secondary")">EN</a>
+                <div class="mimo-lang-switch" role="group" aria-label="Language switch">
+                    <a href="@BuildLangUrl("vi")" class="mimo-lang-option @(lang == "vi" ? "active" : "")">VI</a>
+                    <a href="@BuildLangUrl("en")" class="mimo-lang-option @(lang == "en" ? "active" : "")">EN</a>
                 </div>
 
                 <div class="dropdown">

@@ -49,3 +49,25 @@ class BudgetProgressItem(BaseModel):
     remaining_amount: Decimal
     percentage_used: Decimal
     status: str
+
+
+class CashflowSeriesItem(BaseModel):
+    key: str
+    label: str
+    income: Decimal
+    expense: Decimal
+    net: Decimal
+    running_balance: Decimal
+
+
+class CashflowAnalyticsResponse(BaseModel):
+    start_date: date
+    end_date: date
+    granularity: str
+    total_income: Decimal
+    total_expense: Decimal
+    net_change: Decimal
+    transaction_count: int
+    average_expense: Decimal
+    busiest_label: str | None = None
+    series: list[CashflowSeriesItem]

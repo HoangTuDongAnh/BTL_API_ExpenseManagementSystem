@@ -85,5 +85,18 @@ namespace ExpenseWeb.Services.Api
 
             return JsonSerializer.Deserialize<List<BudgetProgressItemDto>>(body, _jsonOptions) ?? new();
         }
+
+        public async Task<ReportAnalyticsDto> GetReportAnalyticsAsync(string token, DateTime dateFrom, DateTime dateTo, string groupBy)
+        {
+            SetBearerToken(token);
+            var response = await _httpClient.GetAsync($"/reports/analytics?date_from={dateFrom:yyyy-MM-dd}&date_to={dateTo:yyyy-MM-dd}&group_by={groupBy}");
+            var body = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+                throw new InvalidOperationException(body);
+
+            return JsonSerializer.Deserialize<ReportAnalyticsDto>(body, _jsonOptions)
+                   ?? throw new InvalidOperationException("Report analytics response is empty.");
+        }
     }
 }

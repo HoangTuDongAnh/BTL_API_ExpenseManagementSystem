@@ -14,7 +14,18 @@ namespace ExpenseWeb.Models.ViewModels.Dashboard
 
         public int SelectedMonth { get; set; }
         public int SelectedYear { get; set; }
+        public string Granularity { get; set; } = "day";
+        public DateTime StartDate { get; set; }
+        public DateTime EndDate { get; set; }
 
+        public decimal RangeIncome { get; set; }
+        public decimal RangeExpense { get; set; }
+        public decimal RangeNetChange { get; set; }
+        public int RangeTransactionCount { get; set; }
+        public decimal RangeAverageExpense { get; set; }
+        public string BusiestLabel { get; set; } = string.Empty;
+
+        public List<DashboardCashflowSeriesItemViewModel> CashflowSeries { get; set; } = new();
         public List<DashboardReportPointViewModel> MonthlyTrend { get; set; } = new();
         public List<DashboardCategoryBreakdownViewModel> CategoryBreakdown { get; set; } = new();
         public List<DashboardTopExpenseItemViewModel> TopExpenses { get; set; } = new();
