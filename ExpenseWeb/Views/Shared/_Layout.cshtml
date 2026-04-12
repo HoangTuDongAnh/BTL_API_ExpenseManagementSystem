@@ -1,65 +1,49 @@
-﻿@{
+@{
     var lang = (Context.Request.Query["lang"].FirstOrDefault() ?? "vi").ToLower();
     if (lang != "en") lang = "vi";
 
     ViewBag.Lang = lang;
-    var title = ViewBag.Title ?? (lang == "en" ? "ExpenseWeb" : "ExpenseWeb");
+    var title = ViewBag.Title ?? "Mimo";
 }
-
 <!doctype html>
-<html lang="@lang"
-      class="layout-menu-fixed layout-compact"
-      data-template="vertical-menu-template-free">
+<html lang="@lang">
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0" />
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0" />
     <title>@title</title>
-
-    <meta name="description" content="ExpenseWeb - Hệ thống quản lý chi tiêu cá nhân" />
-
-    <link rel="icon" type="image/x-icon" href="~/sneat/img/favicon/favicon.ico" />
+    <meta name="description" content="Mimo - Hệ thống quản lý chi tiêu cá nhân" />
+    <link rel="icon" type="image/svg+xml" href="~/favicon.svg" />
+    <link rel="icon" type="image/x-icon" href="~/favicon.ico" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&display=swap"
-          rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&display=swap" rel="stylesheet" />
 
     <link rel="stylesheet" href="~/sneat/vendor/fonts/iconify-icons.css" />
     <link rel="stylesheet" href="~/sneat/vendor/css/core.css" />
     <link rel="stylesheet" href="~/sneat/css/demo.css" />
     <link rel="stylesheet" href="~/sneat/vendor/libs/perfect-scrollbar/perfect-scrollbar.css" />
     <link rel="stylesheet" href="~/sneat/vendor/libs/apex-charts/apex-charts.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 
     @RenderSection("Styles", required: false)
 
     <script src="~/sneat/vendor/js/helpers.js"></script>
     <script src="~/sneat/js/config.js"></script>
 </head>
-
-<body>
+<body class="mimo-layout-body">
     <div class="layout-wrapper layout-content-navbar">
-        <div class="layout-container">
+        <div class="layout-page mimo-layout-page">
+            <partial name="_Navbar" />
 
-            <partial name="_Sidebar" />
-
-            <div class="layout-page">
-
-                <partial name="_Navbar" />
-
-                <div class="content-wrapper">
-
+            <div class="content-wrapper">
+                <main class="container-xxl flex-grow-1 container-p-y mimo-main-shell">
                     @RenderBody()
+                </main>
 
-                    <partial name="_Footer" />
-
-                    <div class="content-backdrop fade"></div>
-                </div>
+                <div class="content-backdrop fade"></div>
             </div>
         </div>
-
-        <div class="layout-overlay layout-menu-toggle"></div>
     </div>
 
     <script src="~/sneat/vendor/libs/jquery/jquery.js"></script>
@@ -69,6 +53,7 @@
     <script src="~/sneat/vendor/js/menu.js"></script>
     <script src="~/sneat/vendor/libs/apex-charts/apexcharts.js"></script>
     <script src="~/sneat/js/main.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
 
     @RenderSection("Scripts", required: false)
 </body>
