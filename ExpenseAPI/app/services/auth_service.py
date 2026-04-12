@@ -6,11 +6,13 @@ from app.core.security import create_access_token, hash_password, verify_passwor
 from app.models.user import User
 from app.repositories.user_repo import UserRepository
 from app.schemas.auth_schema import LoginRequest, RegisterRequest, UpdateProfileRequest
+from app.services.otp_service import OTPService
 
 
 class AuthService:
     def __init__(self):
         self.user_repo = UserRepository()
+        self.otp_service = OTPService()
 
     def _generate_user_id(self, db: Session) -> str:
         date_part = datetime.now().strftime("%y%m%d")
@@ -39,9 +41,13 @@ class AuthService:
             PhoneNumber=data.phone_number,
             Avatar=data.avatar,
             Role="user",
-            Status="active",
+            Status="inactive",
         )
-        return self.user_repo.create(db, user)
+        self.user_repo.create(db, user)
+
+        OTPService().create_otp(db, data.email)
+
+        return user
 
     def login(self, db: Session, data: LoginRequest):
         user = self.user_repo.get_by_email(db, data.email)

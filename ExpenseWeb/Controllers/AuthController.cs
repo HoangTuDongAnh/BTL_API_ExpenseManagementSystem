@@ -145,7 +145,8 @@ namespace ExpenseWeb.Controllers
                 email = model.Email,
                 password = model.Password,
                 phone_number = null,
-                avatar = null
+                avatar = null,
+                agree_terms = model.AgreeTerms
             });
 
             if (!result.Success)
@@ -254,18 +255,17 @@ namespace ExpenseWeb.Controllers
         }
 
         [HttpGet]
-        public IActionResult ForgotPasswordConfirmation()
+        public IActionResult ForgotPasswordConfirmation(string? lang = "vi")
         {
             return View();
         }
 
         [HttpGet]
-        public IActionResult ResetPassword(string token)
+        public IActionResult ResetPassword(string token, string? lang = "vi")
         {
             if (string.IsNullOrWhiteSpace(token))
-            {
-                return RedirectToAction("Login", new { lang = GetLang() });
-            }
+                return RedirectToAction("Login", new { lang });
+
             return View(new ResetPasswordViewModel { Token = token });
         }
 

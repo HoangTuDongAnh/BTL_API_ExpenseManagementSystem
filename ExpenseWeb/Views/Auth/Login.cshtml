@@ -230,8 +230,8 @@
 
                             <div class="auth-field">
                                 <label class="auth-check">
-                                    <input type="hidden" name="AgreeTerms" value="false" />
-                                    <input name="AgreeTerms" type="checkbox" value="true" @(registerModel.AgreeTerms ? "checked" : "") />
+                                    <input type="checkbox" name="AgreeTerms" value="true"
+                                    @(registerModel.AgreeTerms ? "checked" : "") />
                                     <span>@T("Tôi đồng ý với điều khoản và điều kiện sử dụng", "I agree to the terms and conditions")</span>
                                 </label>
                             </div>

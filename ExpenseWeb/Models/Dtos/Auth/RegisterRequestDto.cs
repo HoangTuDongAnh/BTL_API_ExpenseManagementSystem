@@ -7,5 +7,6 @@
         public string password { get; set; }
         public string? phone_number { get; set; }
         public string? avatar { get; set; }
+        public bool agree_terms { get; set; }
     }
 }
