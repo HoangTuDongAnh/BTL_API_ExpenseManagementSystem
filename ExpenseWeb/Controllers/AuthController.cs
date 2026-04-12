@@ -45,12 +45,25 @@ namespace ExpenseWeb.Controllers
             ViewData[key] = cleanErrors.Count > 0 ? JsonSerializer.Serialize(cleanErrors) : "[]";
         }
 
+        private IActionResult RedirectAfterLogin(string? lang = null)
+        {
+            lang = (lang ?? GetLang()).ToLower() == "en" ? "en" : "vi";
+            var role = HttpContext.Session.GetString("UserRole")?.Trim().ToLower();
+
+            if (role == "admin")
+            {
+                return RedirectToAction("Index", "Admin", new { lang });
+            }
+
+            return RedirectToAction("Index", "Dashboard", new { lang });
+        }
+
         [HttpGet]
         public IActionResult Login()
         {
             if (!string.IsNullOrEmpty(HttpContext.Session.GetString("AccessToken")))
             {
-                return RedirectToAction("Index", "Dashboard", new { lang = GetLang() });
+                return RedirectAfterLogin(GetLang());
             }
 
             ViewBag.RegisterModel = new RegisterViewModel();
@@ -91,12 +104,13 @@ namespace ExpenseWeb.Controllers
                 return View(model);
             }
 
+            HttpContext.Session.Clear();
             HttpContext.Session.SetString("AccessToken", result.Data.access_token ?? "");
             HttpContext.Session.SetString("UserEmail", result.Data.user?.email ?? "");
             HttpContext.Session.SetString("UserFullName", result.Data.user?.full_name ?? "");
             HttpContext.Session.SetString("UserRole", result.Data.user?.role ?? "");
 
-            return RedirectToAction("Index", "Dashboard", new { lang });
+            return RedirectAfterLogin(lang);
         }
 
         [HttpGet]
@@ -180,13 +194,14 @@ namespace ExpenseWeb.Controllers
                 var loginResult = await _authApiService.LoginAsync(new LoginRequestDto { email = email, password = password });
                 if (loginResult.Success && loginResult.Data != null)
                 {
+                    HttpContext.Session.Clear();
                     HttpContext.Session.SetString("AccessToken", loginResult.Data.access_token ?? "");
                     HttpContext.Session.SetString("UserEmail", loginResult.Data.user?.email ?? "");
                     HttpContext.Session.SetString("UserFullName", loginResult.Data.user?.full_name ?? "");
                     HttpContext.Session.SetString("UserRole", loginResult.Data.user?.role ?? "");
                     HttpContext.Session.Remove("TempEmail");
                     HttpContext.Session.Remove("TempPassword");
-                    return RedirectToAction("Index", "Dashboard", new { lang });
+                    return RedirectAfterLogin(lang);
                 }
             }
 

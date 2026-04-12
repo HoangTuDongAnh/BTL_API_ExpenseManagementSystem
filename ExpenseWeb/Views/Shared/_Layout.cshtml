@@ -4,6 +4,7 @@
 
     ViewBag.Lang = lang;
     var title = ViewBag.Title ?? "Mimo";
+    var role = Context.Session.GetString("UserRole")?.Trim().ToLower() ?? "user";
 }
 <!doctype html>
 <html lang="@lang">
@@ -34,7 +35,14 @@
 <body class="mimo-layout-body">
     <div class="layout-wrapper layout-content-navbar">
         <div class="layout-page mimo-layout-page">
-            <partial name="_Navbar" />
+            @if (role == "admin")
+            {
+                <partial name="_NavbarAdmin" />
+            }
+            else
+            {
+                <partial name="_NavbarUser" />
+            }
 
             <div class="content-wrapper">
                 <main class="container-xxl flex-grow-1 container-p-y mimo-main-shell">

@@ -6,9 +6,11 @@ using ExpenseWeb.Models.Dtos.Wallet;
 using ExpenseWeb.Models.ViewModels.Dashboard;
 using ExpenseWeb.Services.Api;
 using Microsoft.AspNetCore.Mvc;
+using ExpenseWeb.Filters;
 
 namespace ExpenseWeb.Controllers
 {
+    [RequireRole("user")]
     public class DashboardController : Controller
     {
         private readonly WalletApiService _walletApiService;

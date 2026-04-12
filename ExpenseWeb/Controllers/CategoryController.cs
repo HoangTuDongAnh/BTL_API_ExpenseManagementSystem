@@ -1,12 +1,14 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Text.Json;
 using ExpenseWeb.Models.Dtos.Category;
 using ExpenseWeb.Models.ViewModels.Category;
 using ExpenseWeb.Services.Api;
 using Microsoft.AspNetCore.Mvc;
+using ExpenseWeb.Filters;
 
 namespace ExpenseWeb.Controllers
 {
+    [RequireRole("user")]
     public class CategoryController : Controller
     {
         private readonly CategoryApiService _categoryApiService;

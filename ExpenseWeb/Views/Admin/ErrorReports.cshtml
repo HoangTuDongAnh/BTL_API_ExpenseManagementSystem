@@ -1,0 +1,216 @@
+@model ExpenseWeb.Models.ViewModels.Admin.AdminErrorReportsPageViewModel
+@{
+    ViewData["Title"] = "User Support Requests";
+}
+
+<div class="container-xxl flex-grow-1 container-p-y">
+    <h4 class="fw-bold py-3 mb-4">
+        <span class="text-muted fw-light">Support Center /</span> Error Reports
+    </h4>
+
+    @if (TempData["AdminSupportSuccess"] is string success && !string.IsNullOrWhiteSpace(success))
+    {
+        <div class="alert alert-success alert-dismissible" role="alert">
+            @success
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["AdminSupportError"] is string error && !string.IsNullOrWhiteSpace(error))
+    {
+        <div class="alert alert-danger alert-dismissible" role="alert">
+            @error
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" asp-action="ErrorReports" asp-controller="Admin" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Trạng thái</label>
+                    <select name="status" class="form-select">
+                        <option value="">Tất cả</option>
+                        <option value="pending" selected="@(Model.CurrentStatus == "pending")">Chờ tiếp nhận</option>
+                        <option value="viewed" selected="@(Model.CurrentStatus == "viewed")">Đang xử lý</option>
+                        <option value="replied" selected="@(Model.CurrentStatus == "replied")">Đã phản hồi</option>
+                        <option value="closed" selected="@(Model.CurrentStatus == "closed")">Đã đóng</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Loại hỗ trợ</label>
+                    <select name="supportType" class="form-select">
+                        <option value="">Tất cả</option>
+                        <option value="bug" selected="@(Model.CurrentSupportType == "bug")">Báo lỗi hệ thống</option>
+                        <option value="transaction" selected="@(Model.CurrentSupportType == "transaction")">Hỗ trợ giao dịch</option>
+                        <option value="account" selected="@(Model.CurrentSupportType == "account")">Hỗ trợ tài khoản</option>
+                        <option value="feature" selected="@(Model.CurrentSupportType == "feature")">Góp ý tính năng</option>
+                        <option value="other" selected="@(Model.CurrentSupportType == "other")">Khác</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Ưu tiên</label>
+                    <select name="priority" class="form-select">
+                        <option value="">Tất cả</option>
+                        <option value="low" selected="@(Model.CurrentPriority == "low")">Thấp</option>
+                        <option value="medium" selected="@(Model.CurrentPriority == "medium")">Trung bình</option>
+                        <option value="high" selected="@(Model.CurrentPriority == "high")">Cao</option>
+                        <option value="urgent" selected="@(Model.CurrentPriority == "urgent")">Khẩn cấp</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Từ khóa</label>
+                    <input type="text" name="keyword" value="@Model.Keyword" class="form-control" placeholder="Tìm theo tiêu đề hoặc user" />
+                </div>
+                <div class="col-12 d-flex justify-content-end">
+                    <button type="submit" class="btn btn-primary">Lọc danh sách</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <div class="card">
+                <h5 class="card-header">Danh sách yêu cầu hỗ trợ</h5>
+                <div class="table-responsive text-nowrap">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Ticket & Title</th>
+                                <th>User</th>
+                                <th>Category & Priority</th>
+                                <th>Reported At</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="table-border-bottom-0">
+                            @if (Model.Items.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-4">Chưa có dữ liệu hỗ trợ.</td>
+                                </tr>
+                            }
+                            else
+                            {
+                                foreach (var item in Model.Items)
+                                {
+                                    <tr>
+                                        <td>
+                                            <span class="text-primary fw-medium">@item.SupportRequestId</span><br />
+                                            <span class="fw-bold">@item.Subject</span>
+                                        </td>
+                                        <td>
+                                            <div class="fw-medium">@item.UserFullName</div>
+                                            <small class="text-muted">@item.UserEmail</small>
+                                        </td>
+                                        <td>
+                                            <span class="badge @item.SupportTypeBadgeClass mb-1">@item.SupportTypeLabel</span><br />
+                                            <span class="badge @item.PriorityBadgeClass">Ưu tiên: @item.PriorityLabel</span>
+                                        </td>
+                                        <td>@item.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td>
+                                        <td><span class="badge @item.StatusBadgeClass">@item.StatusLabel</span></td>
+                                        <td>
+                                            <a class="btn btn-sm btn-outline-primary"
+                                               asp-action="ErrorReports"
+                                               asp-controller="Admin"
+                                               asp-route-status="@Model.CurrentStatus"
+                                               asp-route-supportType="@Model.CurrentSupportType"
+                                               asp-route-priority="@Model.CurrentPriority"
+                                               asp-route-keyword="@Model.Keyword"
+                                               asp-route-selectedId="@item.SupportRequestId">
+                                                Chi tiết
+                                            </a>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">Chi tiết yêu cầu</h5>
+                </div>
+                <div class="card-body">
+                    @if (Model.SelectedItem == null)
+                    {
+                        <div class="text-muted">Chọn một yêu cầu ở danh sách bên trái để xem chi tiết.</div>
+                    }
+                    else
+                    {
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between gap-2">
+                                <div>
+                                    <h5 class="mb-1">@Model.SelectedItem.Subject</h5>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <span class="badge bg-label-secondary">@Model.SelectedItem.SupportRequestId</span>
+                                        <span class="badge bg-label-info">@Model.SelectedItem.SupportTypeLabel</span>
+                                        <span class="badge bg-label-warning">@Model.SelectedItem.PriorityLabel</span>
+                                    </div>
+                                </div>
+                                <span class="badge bg-label-primary">@Model.SelectedItem.StatusLabel</span>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="fw-semibold">Người gửi</div>
+                            <div>@Model.SelectedItem.UserFullName</div>
+                            <small class="text-muted">@Model.SelectedItem.UserEmail</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="fw-semibold">Nội dung</div>
+                            <p class="mb-0 text-muted">@Model.SelectedItem.Message</p>
+                        </div>
+
+                        <div class="mb-4">
+                            <div class="fw-semibold mb-2">Tệp đính kèm</div>
+                            @if (Model.SelectedItem.Attachments.Count == 0)
+                            {
+                                <div class="text-muted small">Chưa có tệp đính kèm.</div>
+                            }
+                            else
+                            {
+                                <ul class="list-group list-group-flush">
+                                    @foreach (var attachment in Model.SelectedItem.Attachments)
+                                    {
+                                        <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <div class="fw-medium">@attachment.FileName</div>
+                                                <small class="text-muted">@attachment.DisplaySize</small>
+                                            </div>
+                                            <a class="btn btn-sm btn-outline-secondary" href="@attachment.FileUrl" target="_blank">Mở</a>
+                                        </li>
+                                    }
+                                </ul>
+                            }
+                        </div>
+
+                        <form method="post" asp-action="ReplySupport" asp-controller="Admin">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="supportRequestId" value="@Model.SelectedItem.SupportRequestId" />
+                            <div class="mb-3">
+                                <label class="form-label">Trạng thái mới</label>
+                                <select class="form-select" name="status">
+                                    <option value="viewed">Đang xử lý</option>
+                                    <option value="replied" selected>Đã phản hồi</option>
+                                    <option value="closed">Đã đóng</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Phản hồi admin</label>
+                                <textarea class="form-control" name="adminReply" rows="5" placeholder="Nhập phản hồi gửi lại cho người dùng...">@Model.SelectedItem.AdminReply</textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">Lưu phản hồi</button>
+                        </form>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

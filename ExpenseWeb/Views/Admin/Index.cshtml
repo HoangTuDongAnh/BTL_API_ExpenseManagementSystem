@@ -1,0 +1,194 @@
+@{
+    ViewData["Title"] = "Admin Dashboard";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/sneat/vendor/libs/apex-charts/apex-charts.css" />
+}
+
+<div class="container-xxl flex-grow-1 container-p-y">
+    <div class="row">
+        <div class="col-lg-4 col-md-12 col-6 mb-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="card-title d-flex align-items-start justify-content-between mb-4">
+                        <div class="avatar flex-shrink-0">
+                            <span class="avatar-initial rounded-2 bg-label-primary">
+                                <i class="bx bx-user icon-lg"></i>
+                            </span>
+                        </div>
+                    </div>
+                    <p class="mb-1">Total Users</p>
+                    <h4 class="card-title mb-3">1,248</h4>
+                    <small class="text-success fw-medium"><i class="bx bx-up-arrow-alt"></i> +12.5%</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 col-md-12 col-6 mb-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="card-title d-flex align-items-start justify-content-between mb-4">
+                        <div class="avatar flex-shrink-0">
+                            <span class="avatar-initial rounded-2 bg-label-success">
+                                <i class="bx bx-check-shield icon-lg"></i>
+                            </span>
+                        </div>
+                    </div>
+                    <p class="mb-1">Active Today</p>
+                    <h4 class="card-title mb-3">156</h4>
+                    <small class="text-success fw-medium"><i class="bx bx-up-arrow-alt"></i> +5.2%</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 col-md-12 col-6 mb-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="card-title d-flex align-items-start justify-content-between mb-4">
+                        <div class="avatar flex-shrink-0">
+                            <span class="avatar-initial rounded-2 bg-label-danger">
+                                <i class="bx bx-message-square-error icon-lg"></i>
+                            </span>
+                        </div>
+                    </div>
+                    <p class="mb-1">New Reports</p>
+                    <h4 class="card-title mb-3">12</h4>
+                    <small class="text-danger fw-medium"><i class="bx bx-up-arrow-alt"></i> +2 New</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-12 col-lg-8 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <h5 class="card-title m-0">New Users Trend (Weekly)</h5>
+                </div>
+                <div class="card-body">
+                    <div id="userTrendChart"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="card-title m-0">User Status Ratio</h5>
+                </div>
+                <div class="card-body">
+                    <div id="userStatusChart"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mt-2">
+        <h5 class="card-header">User Management</h5>
+        <div class="table-responsive text-nowrap">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="table-border-bottom-0">
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <ul class="list-unstyled m-0 avatar-group d-flex align-items-center me-3">
+                                    <li class="avatar avatar-xs">
+                                        <img src="~/sneat/img/avatars/1.png" alt="Avatar" class="rounded-circle" />
+                                    </li>
+                                </ul>
+                                <span class="fw-medium">Nguyễn Văn A</span>
+                            </div>
+                        </td>
+                        <td>vana@example.com</td>
+                        <td><span class="badge bg-label-info">User</span></td>
+                        <td><span class="badge bg-label-primary me-1">Active</span></td>
+                        <td>
+                            <button type="button" 
+                                    class="btn btn-sm btn-outline-primary" 
+                                    data-bs-toggle="offcanvas" 
+                                    data-bs-target="#offcanvasUserDetails" 
+                                    aria-controls="offcanvasUserDetails">
+                                <i class="bx bx-show me-1"></i> Details
+                            </button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<partial name="_UserOffcanvas" />
+
+@section Scripts {
+    <script src="~/sneat/vendor/libs/apex-charts/apexcharts.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // 1. Cấu hình Line Chart (Biểu đồ đường)
+            const lineChartEl = document.querySelector('#userTrendChart');
+            const lineChartOptions = {
+                series: [{
+                    name: "New Users",
+                    data: [10, 41, 35, 51, 49, 62, 69] // Dữ liệu mẫu
+                }],
+                chart: {
+                    height: 350,
+                    type: 'line',
+                    toolbar: { show: false }
+                },
+                colors: ['#696cff'], // Màu primary của Sneat
+                dataLabels: { enabled: false },
+                stroke: { curve: 'smooth', width: 3 },
+                grid: { borderColor: '#f1f1f1' },
+                xaxis: {
+                    categories: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                }
+            };
+            const lineChart = new ApexCharts(lineChartEl, lineChartOptions);
+            lineChart.render();
+
+            // 2. Cấu hình Pie Chart (Biểu đồ tròn)
+            const pieChartEl = document.querySelector('#userStatusChart');
+            const pieChartOptions = {
+                series: [85, 15], // Ví dụ: 85% Active, 15% Inactive
+                labels: ['Active', 'Inactive'],
+                chart: {
+                    type: 'donut',
+                    height: 350
+                },
+                colors: ['#71dd37', '#8592a3'], // Màu Success và Secondary của Sneat
+                legend: {
+                    position: 'bottom'
+                },
+                plotOptions: {
+                    pie: {
+                        donut: {
+                            size: '70%',
+                            labels: {
+                                show: true,
+                                total: {
+                                    show: true,
+                                    label: 'Status',
+                                    formatter: function (w) { return '100%' }
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+            const pieChart = new ApexCharts(pieChartEl, pieChartOptions);
+            pieChart.render();
+        });
+    </script>
+}

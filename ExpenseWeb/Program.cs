@@ -1,4 +1,4 @@
-﻿using ExpenseWeb.Services.Api;
+using ExpenseWeb.Services.Api;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,7 +32,13 @@ builder.Services.AddHttpClient<TransactionApiService>(client =>
 {
     client.BaseAddress = new Uri(builder.Configuration["ApiSettings:BaseUrl"]!);
 });
+
 builder.Services.AddHttpClient<ReportApiService>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiSettings:BaseUrl"]!);
+});
+
+builder.Services.AddHttpClient<SupportApiService>(client =>
 {
     client.BaseAddress = new Uri(builder.Configuration["ApiSettings:BaseUrl"]!);
 });

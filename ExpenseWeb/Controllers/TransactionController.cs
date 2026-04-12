@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Text.Json;
 using ExpenseWeb.Models.Dtos.Category;
 using ExpenseWeb.Models.Dtos.Transaction;
@@ -6,9 +6,11 @@ using ExpenseWeb.Models.Dtos.Wallet;
 using ExpenseWeb.Models.ViewModels.Transaction;
 using ExpenseWeb.Services.Api;
 using Microsoft.AspNetCore.Mvc;
+using ExpenseWeb.Filters;
 
 namespace ExpenseWeb.Controllers
 {
+    [RequireRole("user")]
     public class TransactionController : Controller
     {
         private readonly TransactionApiService _transactionApiService;
