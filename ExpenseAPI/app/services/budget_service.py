@@ -2,9 +2,11 @@
 from decimal import Decimal
 
 from sqlalchemy.orm import Session
+from sqlalchemy.sql import func
 
 from app.models.budget import Budget
 from app.models.category import Category
+from app.models.transaction import Transaction
 from app.repositories.budget_repo import BudgetRepository
 from app.schemas.budget_schema import BudgetCreateRequest, BudgetResponse, BudgetUpdateRequest
 from app.utils.budget_period import calculate_budget_metrics, normalize_period
@@ -101,12 +103,25 @@ class BudgetService:
         if existing_budget:
             raise ValueError("Budget already exists for this category and selected period")
 
+        spent_query = (
+            db.query(func.sum(Transaction.Amount))
+            .filter(
+                Transaction.UserID == user_id,
+                Transaction.CategoryID == data.category_id,
+                Transaction.TransactionType == "expense",
+                Transaction.TransactionDate >= period["start_date"],
+                Transaction.TransactionDate <= period["end_date"]
+            )
+            .scalar()
+        )
+        retroactive_spent = Decimal(spent_query) if spent_query else Decimal(0)
+
         budget = Budget(
             BudgetID=self._generate_budget_id(db),
             UserID=user_id,
             CategoryID=data.category_id,
             LimitAmount=data.limit_amount,
-            SpentAmount=0,
+            SpentAmount=retroactive_spent,
             PeriodType=period["period_type"],
             PeriodYear=period["period_year"],
             PeriodMonth=period["period_month"],
@@ -131,6 +146,33 @@ class BudgetService:
 
         if data.limit_amount is not None:
             budget.LimitAmount = data.limit_amount
+
+        if data.period_type is not None:
+            period = normalize_period(
+                period_type=data.period_type,
+                period_year=data.period_year or budget.PeriodYear,
+                period_month=data.period_month,
+                period_week=data.period_week,
+            )
+            budget.PeriodType = period["period_type"]
+            budget.PeriodYear = period["period_year"]
+            budget.PeriodMonth = period["period_month"]
+            budget.PeriodWeek = period["period_week"]
+            budget.StartDate = period["start_date"]
+            budget.EndDate = period["end_date"]
+
+            spent_query = (
+                db.query(func.sum(Transaction.Amount))
+                .filter(
+                    Transaction.UserID == user_id,
+                    Transaction.CategoryID == budget.CategoryID,
+                    Transaction.TransactionType == "expense",
+                    Transaction.TransactionDate >= budget.StartDate,
+                    Transaction.TransactionDate <= budget.EndDate
+                )
+                .scalar()
+            )
+            budget.SpentAmount = Decimal(spent_query) if spent_query else Decimal(0)
 
         budget.UpdatedAt = datetime.now()
         db.commit()

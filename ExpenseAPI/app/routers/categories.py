@@ -17,8 +17,13 @@ category_service = CategoryService()
 
 
 @router.get("", response_model=list[CategoryResponse])
-def get_categories(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    return category_service.get_categories_response(db, current_user.UserID)
+def get_categories(
+    include_deleted: bool = Query(False, description="Bao gồm cả danh mục đã xóa mềm"),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    # Luôn lấy theo user_id hiện tại và lọc theo flag include_deleted
+    return category_service.get_categories_response(db, current_user.UserID, include_deleted)
 
 
 @router.get("/overview", response_model=list[CategoryOverviewResponse])

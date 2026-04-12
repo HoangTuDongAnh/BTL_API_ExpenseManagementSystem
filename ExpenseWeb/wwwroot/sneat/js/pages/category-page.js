@@ -260,7 +260,9 @@
                 hasBudgetState.classList.add("d-none");
                 document.getElementById("budgetModalAmount").value = "";
                 document.getElementById("budgetModalSpent").value = "0";
-                document.getElementById("budgetModalTimeType").value = "month";
+
+                const currentDashboardPeriod = document.getElementById("categoryPagePeriodType")?.value || "month";
+                document.getElementById("budgetModalTimeType").value = currentDashboardPeriod;
             }
 
             updateDetailPreview();
@@ -390,7 +392,7 @@
 
             btnSaveBudget.disabled = true;
             try {
-                const result = await sendJson(saveBudgetUrl, "POST", {
+                await sendJson(saveBudgetUrl, "POST", {
                     category_id: categoryId,
                     budget_id: budgetId,
                     period_type: periodType,
@@ -402,11 +404,7 @@
                 if (toastSaved) toastSaved.show();
 
                 setTimeout(function () {
-                    if (result.redirectUrl) {
-                        window.location.href = result.redirectUrl;
-                    } else {
-                        window.location.reload();
-                    }
+                    window.location.reload();
                 }, 700);
             } catch (error) {
                 alert(error.message || "Lưu hạn mức thất bại.");

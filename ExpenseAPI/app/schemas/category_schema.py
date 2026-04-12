@@ -58,3 +58,4 @@ class CategoryOverviewResponse(BaseModel):
     can_edit: bool
     can_delete: bool
     budget: CategoryBudgetSummary
+    transaction_count: int = 0
