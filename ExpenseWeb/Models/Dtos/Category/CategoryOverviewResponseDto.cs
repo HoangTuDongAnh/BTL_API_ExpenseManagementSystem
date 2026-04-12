@@ -11,5 +11,6 @@
         public bool can_edit { get; set; }
         public bool can_delete { get; set; }
         public CategoryBudgetSummaryDto budget { get; set; } = new();
+        public int transaction_count { get; set; } 
     }
 }

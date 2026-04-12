@@ -5,13 +5,15 @@ from app.models.category import Category
 
 
 class CategoryRepository:
-    def get_all_by_user(self, db: Session, user_id: str) -> list[Category]:
-        return (
-            db.query(Category)
-            .filter(or_(Category.UserID == user_id, Category.UserID.is_(None)))
-            .order_by(Category.IsDefault.desc(), Category.CreatedAt.desc())
-            .all()
+    def get_all_by_user(self, db: Session, user_id: str, include_deleted: bool = False) -> list[Category]:
+        query = db.query(Category).filter(
+            or_(Category.UserID == user_id, Category.UserID.is_(None))
         )
+
+        if not include_deleted:
+            query = query.filter(Category.IsDeleted == False)
+
+        return query.order_by(Category.IsDefault.desc(), Category.CreatedAt.asc()).all()
 
     def get_by_id_and_user(self, db: Session, category_id: str, user_id: str) -> Category | None:
         return (
@@ -38,7 +40,8 @@ class CategoryRepository:
             db.query(Category)
             .filter(
                 Category.CategoryName == category_name,
-                Category.UserID == user_id
+                Category.UserID == user_id,
+                Category.IsDeleted == False
             )
             .first()
         )

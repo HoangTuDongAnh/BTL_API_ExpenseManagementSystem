@@ -2,6 +2,7 @@
 from decimal import Decimal
 
 from sqlalchemy.orm import Session
+from sqlalchemy.sql import func
 
 from app.models.budget import Budget
 from app.models.category import Category
@@ -37,11 +38,12 @@ class CategoryService:
         new_seq = last_seq + 1
         return f"{prefix}{new_seq:03d}"
 
-    def get_categories(self, db: Session, user_id: str):
-        return self.category_repo.get_all_by_user(db, user_id)
+    def get_categories(self, db: Session, user_id: str, include_deleted: bool = False):
+        return self.category_repo.get_all_by_user(db, user_id, include_deleted)
 
-    def get_categories_response(self, db: Session, user_id: str) -> list[CategoryResponse]:
-        categories = self.get_categories(db, user_id)
+    def get_categories_response(self, db: Session, user_id: str, include_deleted: bool = False) -> list[
+        CategoryResponse]:
+        categories = self.get_categories(db, user_id, include_deleted)
         return [
             CategoryResponse(
                 category_id=c.CategoryID,
@@ -55,13 +57,13 @@ class CategoryService:
         ]
 
     def get_categories_overview(
-        self,
-        db: Session,
-        user_id: str,
-        period_type: str,
-        period_year: int,
-        period_month: int | None = None,
-        period_week: int | None = None,
+            self,
+            db: Session,
+            user_id: str,
+            period_type: str,
+            period_year: int,
+            period_month: int | None = None,
+            period_week: int | None = None,
     ) -> list[CategoryOverviewResponse]:
         period = normalize_period(
             period_type=period_type,
@@ -70,20 +72,36 @@ class CategoryService:
             period_week=period_week,
         )
 
-        categories = self.category_repo.get_all_by_user(db, user_id)
+        categories = self.category_repo.get_all_by_user(db, user_id, include_deleted=False)
+
+        tx_counts = (
+            db.query(Transaction.CategoryID, func.count(Transaction.TransactionID).label("count"))
+            .filter(Transaction.UserID == user_id)
+            .group_by(Transaction.CategoryID)
+            .all()
+        )
+        tx_count_map = {cid: count for cid, count in tx_counts}
+
         budgets = (
             db.query(Budget)
             .filter(
                 Budget.UserID == user_id,
-                Budget.PeriodType == period["period_type"],
-                Budget.PeriodYear == period["period_year"],
-                Budget.PeriodMonth == period["period_month"],
-                Budget.PeriodWeek == period["period_week"],
+                Budget.StartDate <= period["end_date"],
+                Budget.EndDate >= period["start_date"]
             )
             .all()
         )
 
-        budget_map = {b.CategoryID: b for b in budgets}
+        priority = {"week": 1, "month": 2, "year": 3}
+        budget_map = {}
+        for b in budgets:
+            cid = b.CategoryID
+            if cid not in budget_map:
+                budget_map[cid] = b
+            else:
+                if priority.get(b.PeriodType, 99) < priority.get(budget_map[cid].PeriodType, 99):
+                    budget_map[cid] = b
+
         result: list[CategoryOverviewResponse] = []
 
         for c in categories:
@@ -127,6 +145,7 @@ class CategoryService:
                     can_edit=(c.UserID == user_id),
                     can_delete=(c.UserID == user_id),
                     budget=budget_summary,
+                    transaction_count=tx_count_map.get(c.CategoryID, 0)
                 )
             )
 
@@ -144,6 +163,7 @@ class CategoryService:
             Icon=data.icon,
             Color=data.color,
             IsDefault=False,
+            IsDeleted=False
         )
 
         return self.category_repo.create(db, category)
@@ -173,59 +193,61 @@ class CategoryService:
     def delete_category(self, db: Session, category_id: str, user_id: str, data: CategoryDeleteRequest):
         category = self.category_repo.get_custom_by_id_and_user(db, category_id, user_id)
         if not category:
-            raise ValueError("Category not found or cannot delete default category")
+            raise ValueError("Category not found hoặc không thể xóa danh mục mặc định.")
 
-        if data.replacement_category_id == category_id:
-            raise ValueError("Replacement category must be different")
-
-        replacement_category = (
+        other_category = (
             db.query(Category)
             .filter(
-                Category.CategoryID == data.replacement_category_id,
-                ((Category.UserID == user_id) | (Category.UserID.is_(None)))
+                Category.CategoryName == "Khác",
+                Category.IsDeleted == False,
+                (Category.UserID == user_id) | (Category.UserID.is_(None))
             )
+            .order_by(Category.IsDefault.desc())
             .first()
         )
-        if not replacement_category:
-            raise ValueError("Replacement category not found")
 
-        transactions = (
-            db.query(Transaction)
-            .filter(Transaction.CategoryID == category_id, Transaction.UserID == user_id)
-            .all()
-        )
-        for t in transactions:
-            t.CategoryID = replacement_category.CategoryID
-            t.UpdatedAt = datetime.now()
+        if not other_category:
+            raise ValueError("Cần có danh mục 'Khác' để chuyển dữ liệu sang.")
 
-        budgets = (
-            db.query(Budget)
-            .filter(Budget.CategoryID == category_id, Budget.UserID == user_id)
-            .all()
-        )
+        transactions = db.query(Transaction).filter(
+            Transaction.CategoryID == category_id,
+            Transaction.UserID == user_id
+        ).all()
 
-        for old_budget in budgets:
-            existing_budget = (
-                db.query(Budget)
+        for tx in transactions:
+            tx.CategoryID = other_category.CategoryID
+            tx.UpdatedAt = datetime.now()
+
+        db.flush()
+
+        db.query(Budget).filter(
+            Budget.CategoryID == category_id,
+            Budget.UserID == user_id
+        ).delete()
+
+        category.IsDeleted = True
+        category.UpdatedAt = datetime.now()
+
+        db.flush()
+
+        other_budgets = db.query(Budget).filter(
+            Budget.CategoryID == other_category.CategoryID,
+            Budget.UserID == user_id
+        ).all()
+
+        for b in other_budgets:
+            spent_query = (
+                db.query(func.sum(Transaction.Amount))
                 .filter(
-                    Budget.UserID == user_id,
-                    Budget.CategoryID == replacement_category.CategoryID,
-                    Budget.PeriodType == old_budget.PeriodType,
-                    Budget.PeriodYear == old_budget.PeriodYear,
-                    Budget.PeriodMonth == old_budget.PeriodMonth,
-                    Budget.PeriodWeek == old_budget.PeriodWeek,
+                    Transaction.UserID == user_id,
+                    Transaction.CategoryID == other_category.CategoryID,
+                    Transaction.TransactionType == "expense",
+                    Transaction.TransactionDate >= b.StartDate,
+                    Transaction.TransactionDate <= b.EndDate
                 )
-                .first()
+                .scalar()
             )
+            b.SpentAmount = Decimal(spent_query) if spent_query else Decimal(0)
+            b.UpdatedAt = datetime.now()
 
-            if existing_budget:
-                existing_budget.LimitAmount = Decimal(existing_budget.LimitAmount) + Decimal(old_budget.LimitAmount)
-                existing_budget.SpentAmount = Decimal(existing_budget.SpentAmount) + Decimal(old_budget.SpentAmount)
-                existing_budget.UpdatedAt = datetime.now()
-                db.delete(old_budget)
-            else:
-                old_budget.CategoryID = replacement_category.CategoryID
-                old_budget.UpdatedAt = datetime.now()
-
-        db.delete(category)
         db.commit()

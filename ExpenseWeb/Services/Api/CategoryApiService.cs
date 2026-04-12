@@ -59,11 +59,12 @@ namespace ExpenseWeb.Services.Api
             return JsonSerializer.Deserialize<List<CategoryOverviewResponseDto>>(body, _jsonOptions) ?? new List<CategoryOverviewResponseDto>();
         }
 
-        public async Task<List<CategoryResponseDto>> GetCategoriesAsync(string token)
+        public async Task<List<CategoryResponseDto>> GetCategoriesAsync(string token, bool includeDeleted = false)
         {
             SetBearer(token);
 
-            var response = await _httpClient.GetAsync($"{_baseUrl}/categories");
+            var url = includeDeleted ? $"{_baseUrl}/categories?include_deleted=true" : $"{_baseUrl}/categories";
+            var response = await _httpClient.GetAsync(url);
             var body = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)

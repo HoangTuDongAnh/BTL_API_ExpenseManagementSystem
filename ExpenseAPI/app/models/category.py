@@ -13,5 +13,8 @@ class Category(Base):
     Icon = Column(String(50), nullable=True)
     Color = Column(String(10), nullable=True)
     IsDefault = Column(Boolean, nullable=False, default=False)
+
+    IsDeleted = Column(Boolean, nullable=False, default=False)
+
     CreatedAt = Column(DateTime, nullable=False, server_default=func.getdate())
     UpdatedAt = Column(DateTime, nullable=False, server_default=func.getdate(), onupdate=func.getdate())

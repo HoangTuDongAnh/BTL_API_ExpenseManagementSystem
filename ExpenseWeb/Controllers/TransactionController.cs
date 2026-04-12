@@ -141,14 +141,20 @@ namespace ExpenseWeb.Controllers
 
             try
             {
+                // Lấy song song dữ liệu từ API
                 var transactionsTask = _transactionApiService.GetTransactionsAsync(token);
-                var categoriesTask = _categoryApiService.GetCategoriesAsync(token);
+
+                // Lấy danh mục ĐANG HOẠT ĐỘNG (False) để đổ vào Form thêm mới
+                var categoriesTask = _categoryApiService.GetCategoriesAsync(token, false);
+
                 var walletsTask = _walletApiService.GetWalletsAsync(token);
 
                 await Task.WhenAll(transactionsTask, categoriesTask, walletsTask);
 
                 viewModel.Categories = categoriesTask.Result;
                 viewModel.Wallets = walletsTask.Result;
+
+                // Build danh sách hiển thị
                 viewModel.Transactions = BuildTransactionItems(
                     transactionsTask.Result,
                     viewModel.Categories,
@@ -172,6 +178,7 @@ namespace ExpenseWeb.Controllers
                 {
                     var category = categories.FirstOrDefault(x => x.category_id == t.category_id);
                     var wallet = wallets.FirstOrDefault(x => x.wallet_id == t.wallet_id);
+
                     var currency = wallet?.currency ?? "VND";
                     var culture = CultureInfo.GetCultureInfo("vi-VN");
                     var signedAmount = t.transaction_type == "income" ? t.amount : -t.amount;
@@ -180,11 +187,15 @@ namespace ExpenseWeb.Controllers
                     {
                         TransactionId = t.transaction_id,
                         WalletId = t.wallet_id,
-                        WalletName = wallet?.wallet_name ?? t.wallet_id,
+                        WalletName = wallet?.wallet_name ?? "N/A",
                         CategoryId = t.category_id,
-                        CategoryName = category?.category_name ?? t.category_id,
-                        CategoryIcon = string.IsNullOrWhiteSpace(category?.icon) ? "bx bx-category" : category.icon,
-                        CategoryColor = string.IsNullOrWhiteSpace(category?.color) ? "#8592A3" : category.color,
+
+                        // Nếu không tìm thấy category (do logic chuyển sang Khác chưa kịp map hoặc lỗi đồng bộ)
+                        // thì hiển thị mặc định là "Khác"
+                        CategoryName = category?.category_name ?? "Khác",
+                        CategoryIcon = category?.icon ?? "bx bx-category",
+                        CategoryColor = category?.color ?? "#8592A3",
+
                         TransactionType = t.transaction_type,
                         AmountValue = t.amount,
                         AmountText = $"{signedAmount.ToString("+#,##0;-#,##0;0", culture)} {currency}",

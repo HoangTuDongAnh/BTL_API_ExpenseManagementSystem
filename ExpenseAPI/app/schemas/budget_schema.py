@@ -16,6 +16,10 @@ class BudgetCreateRequest(BaseModel):
 
 class BudgetUpdateRequest(BaseModel):
     limit_amount: Decimal | None = Field(default=None, gt=0)
+    period_type: str | None = Field(default=None, pattern="^(week|month|year)$")
+    period_year: int | None = Field(default=None, ge=2000, le=2100)
+    period_month: int | None = Field(default=None, ge=1, le=12)
+    period_week: int | None = Field(default=None, ge=1, le=53)
 
 
 class BudgetResponse(BaseModel):

@@ -115,28 +115,15 @@ namespace ExpenseWeb.Controllers
 
             try
             {
-                var categories = await _categoryApiService.GetCategoriesAsync(token);
-                var replacement = categories
-                    .Where(x => !string.Equals(x.category_id, id, StringComparison.OrdinalIgnoreCase))
-                    .OrderByDescending(x => string.Equals(x.category_name, "Khác", StringComparison.OrdinalIgnoreCase))
-                    .ThenBy(x => x.is_default ? 0 : 1)
-                    .ThenBy(x => x.category_name)
-                    .FirstOrDefault();
-
-                if (replacement == null)
-                {
-                    return BadRequest(new { success = false, message = "Không tìm thấy danh mục thay thế để xóa." });
-                }
-
                 await _categoryApiService.DeleteCategoryAsync(token, id, new CategoryDeleteRequestDto
                 {
-                    replacement_category_id = replacement.category_id
+                    replacement_category_id = id
                 });
 
                 return Json(new
                 {
                     success = true,
-                    message = $"Xóa danh mục thành công. Dữ liệu liên quan đã chuyển sang '{replacement.category_name}'."
+                    message = "Xóa danh mục và toàn bộ hạn mức, giao dịch liên quan thành công."
                 });
             }
             catch (Exception ex)
@@ -157,90 +144,62 @@ namespace ExpenseWeb.Controllers
         public async Task<IActionResult> SaveBudget([FromBody] SaveBudgetWebRequest request)
         {
             var token = HttpContext.Session.GetString("AccessToken");
-            if (string.IsNullOrEmpty(token))
-            {
-                return Unauthorized(new { success = false, message = "Phiên đăng nhập đã hết hạn." });
-            }
-
-            if (string.IsNullOrWhiteSpace(request.category_id))
-            {
-                return BadRequest(new { success = false, message = "Thiếu category_id." });
-            }
-
-            if (!request.limit_amount.HasValue || request.limit_amount.Value <= 0)
-            {
-                return BadRequest(new { success = false, message = "Hạn mức phải lớn hơn 0." });
-            }
+            if (string.IsNullOrEmpty(token)) return Unauthorized(new { success = false, message = "Hết hạn phiên." });
 
             try
             {
                 var now = DateTime.Now;
-                var periodType = string.IsNullOrWhiteSpace(request.period_type)
-                    ? "month"
-                    : request.period_type.Trim().ToLowerInvariant();
-
-                if (periodType != "week" && periodType != "month" && periodType != "year")
-                {
-                    return BadRequest(new { success = false, message = "period_type không hợp lệ. Chỉ chấp nhận week, month, year." });
-                }
-
+                var periodType = request.period_type?.Trim().ToLower() ?? "month";
                 var year = now.Year;
                 int? month = periodType == "month" ? now.Month : (int?)null;
                 int? week = periodType == "week" ? ISOWeek.GetWeekOfYear(now) : (int?)null;
 
-                BudgetResponseDto? existingBudget = null;
-
                 if (!string.IsNullOrWhiteSpace(request.budget_id))
                 {
-                    existingBudget = new BudgetResponseDto { budget_id = request.budget_id! };
-                }
-                else
-                {
-                    var budgets = await _categoryApiService.GetBudgetsAsync(token, periodType, year, month, week, request.category_id);
-                    existingBudget = budgets.FirstOrDefault();
-                }
-
-                if (existingBudget != null && !string.IsNullOrWhiteSpace(existingBudget.budget_id))
-                {
-                    await _categoryApiService.UpdateBudgetAsync(token, existingBudget.budget_id, new BudgetUpdateRequestDto
+                    await _categoryApiService.UpdateBudgetAsync(token, request.budget_id, new BudgetUpdateRequestDto
                     {
-                        limit_amount = request.limit_amount
-                    });
-                }
-                else
-                {
-                    await _categoryApiService.CreateBudgetAsync(token, new BudgetCreateRequestDto
-                    {
-                        category_id = request.category_id,
-                        limit_amount = request.limit_amount.Value,
+                        limit_amount = request.limit_amount,
                         period_type = periodType,
                         period_year = year,
                         period_month = month,
                         period_week = week
                     });
                 }
-
-                return Json(new
+                else
                 {
-                    success = true,
-                    message = "Lưu hạn mức thành công.",
-                    redirectUrl = Url.Action("Index", new
+                    var budgets = await _categoryApiService.GetBudgetsAsync(token, periodType, year, month, week, request.category_id);
+                    var existing = budgets.FirstOrDefault();
+
+                    if (existing != null)
                     {
-                        periodType,
-                        year,
-                        month,
-                        week,
-                        lang = Request.Query["lang"].ToString()
-                    })
-                });
+                        await _categoryApiService.UpdateBudgetAsync(token, existing.budget_id, new BudgetUpdateRequestDto
+                        {
+                            limit_amount = request.limit_amount,
+                            period_type = periodType,
+                            period_year = year,
+                            period_month = month,
+                            period_week = week
+                        });
+                    }
+                    else
+                    {
+                        await _categoryApiService.CreateBudgetAsync(token, new BudgetCreateRequestDto
+                        {
+                            category_id = request.category_id,
+                            limit_amount = request.limit_amount ?? 0,
+                            period_type = periodType,
+                            period_year = year,
+                            period_month = month,
+                            period_week = week
+                        });
+                    }
+                }
+
+                return Json(new { success = true, message = "Lưu hạn mức thành công.", shouldReload = true });
             }
             catch (Exception ex)
             {
-                return BadRequest(new
-                {
-                    success = false,
-                    message = ExtractApiMessage(ex.Message, "Lưu hạn mức thất bại.")
-                });
+                return BadRequest(new { success = false, message = ex.Message });
             }
         }
 
