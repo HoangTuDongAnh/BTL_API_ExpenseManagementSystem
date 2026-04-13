@@ -1,7 +1,7 @@
-﻿namespace ExpenseWeb.Models.Dtos.Category
+namespace ExpenseWeb.Models.Dtos.Category
 {
     public class CategoryDeleteRequestDto
     {
-        public string replacement_category_id { get; set; } = string.Empty;
+        public string? replacement_category_id { get; set; }
     }
 }

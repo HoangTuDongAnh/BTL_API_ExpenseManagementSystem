@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text.Json;
 using ExpenseWeb.Models.Dtos.Category;
 using ExpenseWeb.Models.ViewModels.Category;
@@ -115,10 +115,7 @@ namespace ExpenseWeb.Controllers
 
             try
             {
-                await _categoryApiService.DeleteCategoryAsync(token, id, new CategoryDeleteRequestDto
-                {
-                    replacement_category_id = id
-                });
+                await _categoryApiService.DeleteCategoryAsync(token, id, new CategoryDeleteRequestDto());
 
                 return Json(new
                 {
@@ -136,6 +133,9 @@ namespace ExpenseWeb.Controllers
         {
             public string category_id { get; set; } = string.Empty;
             public string period_type { get; set; } = "month";
+            public int? period_year { get; set; }
+            public int? period_month { get; set; }
+            public int? period_week { get; set; }
             public decimal? limit_amount { get; set; }
             public string? budget_id { get; set; }
         }
@@ -150,9 +150,9 @@ namespace ExpenseWeb.Controllers
             {
                 var now = DateTime.Now;
                 var periodType = request.period_type?.Trim().ToLower() ?? "month";
-                var year = now.Year;
-                int? month = periodType == "month" ? now.Month : (int?)null;
-                int? week = periodType == "week" ? ISOWeek.GetWeekOfYear(now) : (int?)null;
+                var year = request.period_year ?? now.Year;
+                int? month = periodType == "month" ? request.period_month ?? now.Month : null;
+                int? week = periodType == "week" ? request.period_week ?? ISOWeek.GetWeekOfYear(now) : null;
 
                 if (!string.IsNullOrWhiteSpace(request.budget_id))
                 {
@@ -200,6 +200,24 @@ namespace ExpenseWeb.Controllers
             catch (Exception ex)
             {
                 return BadRequest(new { success = false, message = ex.Message });
+            }
+        }
+
+
+        [HttpGet]
+        public async Task<IActionResult> BudgetsByCategory(string categoryId)
+        {
+            var token = HttpContext.Session.GetString("AccessToken");
+            if (string.IsNullOrEmpty(token)) return Unauthorized(new { success = false, message = "Hết hạn phiên." });
+
+            try
+            {
+                var budgets = await _categoryApiService.GetBudgetsAsync(token, categoryId: categoryId);
+                return Json(new { success = true, items = budgets.OrderByDescending(x => x.period_year).ThenByDescending(x => x.period_month ?? 0).ThenByDescending(x => x.period_week ?? 0).ToList() });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = ExtractApiMessage(ex.Message, "Không tải được danh sách hạn mức.") });
             }
         }
 

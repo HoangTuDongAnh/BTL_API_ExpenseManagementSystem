@@ -1,8 +1,8 @@
-﻿from datetime import datetime
+from datetime import datetime
 from decimal import Decimal
 
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
-from sqlalchemy.sql import func
 
 from app.models.budget import Budget
 from app.models.category import Category
@@ -38,11 +38,83 @@ class CategoryService:
         new_seq = last_seq + 1
         return f"{prefix}{new_seq:03d}"
 
+    @staticmethod
+    def _normalize_name(value: str | None) -> str:
+        return " ".join((value or "").split()).strip()
+
+    def _find_name_conflict(
+        self,
+        db: Session,
+        user_id: str,
+        category_name: str,
+        exclude_category_id: str | None = None,
+    ) -> Category | None:
+        normalized = self._normalize_name(category_name)
+        if not normalized:
+            return None
+
+        query = db.query(Category).filter(
+            Category.IsDeleted == False,
+            or_(Category.UserID == user_id, Category.UserID.is_(None)),
+            func.lower(func.ltrim(func.rtrim(Category.CategoryName))) == normalized.lower(),
+        )
+
+        if exclude_category_id:
+            query = query.filter(Category.CategoryID != exclude_category_id)
+
+        return query.first()
+
+    def _resolve_replacement_category(
+        self,
+        db: Session,
+        user_id: str,
+        replacement_category_id: str | None,
+        deleting_category_id: str,
+    ) -> Category:
+        replacement: Category | None = None
+
+        if replacement_category_id:
+            replacement = (
+                db.query(Category)
+                .filter(
+                    Category.CategoryID == replacement_category_id,
+                    Category.IsDeleted == False,
+                    or_(Category.UserID == user_id, Category.UserID.is_(None)),
+                )
+                .first()
+            )
+
+            if not replacement:
+                raise ValueError("Danh mục thay thế không hợp lệ hoặc không tồn tại.")
+
+            if replacement.CategoryID == deleting_category_id:
+                raise ValueError("Danh mục thay thế phải khác danh mục đang xóa.")
+
+            return replacement
+
+        replacement = (
+            db.query(Category)
+            .filter(
+                Category.CategoryName == "Khác",
+                Category.IsDeleted == False,
+                or_(Category.UserID == user_id, Category.UserID.is_(None)),
+            )
+            .order_by(Category.IsDefault.desc())
+            .first()
+        )
+
+        if not replacement:
+            raise ValueError("Không tìm thấy danh mục 'Khác' để thay thế dữ liệu.")
+
+        if replacement.CategoryID == deleting_category_id:
+            raise ValueError("Không thể dùng chính danh mục đang xóa làm danh mục thay thế.")
+
+        return replacement
+
     def get_categories(self, db: Session, user_id: str, include_deleted: bool = False):
         return self.category_repo.get_all_by_user(db, user_id, include_deleted)
 
-    def get_categories_response(self, db: Session, user_id: str, include_deleted: bool = False) -> list[
-        CategoryResponse]:
+    def get_categories_response(self, db: Session, user_id: str, include_deleted: bool = False) -> list[CategoryResponse]:
         categories = self.get_categories(db, user_id, include_deleted)
         return [
             CategoryResponse(
@@ -57,13 +129,13 @@ class CategoryService:
         ]
 
     def get_categories_overview(
-            self,
-            db: Session,
-            user_id: str,
-            period_type: str,
-            period_year: int,
-            period_month: int | None = None,
-            period_week: int | None = None,
+        self,
+        db: Session,
+        user_id: str,
+        period_type: str,
+        period_year: int,
+        period_month: int | None = None,
+        period_week: int | None = None,
     ) -> list[CategoryOverviewResponse]:
         period = normalize_period(
             period_type=period_type,
@@ -87,7 +159,7 @@ class CategoryService:
             .filter(
                 Budget.UserID == user_id,
                 Budget.StartDate <= period["end_date"],
-                Budget.EndDate >= period["start_date"]
+                Budget.EndDate >= period["start_date"],
             )
             .all()
         )
@@ -98,9 +170,8 @@ class CategoryService:
             cid = b.CategoryID
             if cid not in budget_map:
                 budget_map[cid] = b
-            else:
-                if priority.get(b.PeriodType, 99) < priority.get(budget_map[cid].PeriodType, 99):
-                    budget_map[cid] = b
+            elif priority.get(b.PeriodType, 99) < priority.get(budget_map[cid].PeriodType, 99):
+                budget_map[cid] = b
 
         result: list[CategoryOverviewResponse] = []
 
@@ -145,25 +216,29 @@ class CategoryService:
                     can_edit=(c.UserID == user_id),
                     can_delete=(c.UserID == user_id),
                     budget=budget_summary,
-                    transaction_count=tx_count_map.get(c.CategoryID, 0)
+                    transaction_count=tx_count_map.get(c.CategoryID, 0),
                 )
             )
 
         return result
 
     def create_category(self, db: Session, user_id: str, data: CategoryCreateRequest):
-        existing_category = self.category_repo.get_by_name_and_user(db, data.category_name, user_id)
+        normalized_name = self._normalize_name(data.category_name)
+        if not normalized_name:
+            raise ValueError("Tên danh mục không được để trống")
+
+        existing_category = self._find_name_conflict(db, user_id, normalized_name)
         if existing_category:
-            raise ValueError("Category name already exists")
+            raise ValueError("Tên danh mục đã tồn tại hoặc trùng với danh mục mặc định")
 
         category = Category(
             CategoryID=self._generate_category_id(db),
             UserID=user_id,
-            CategoryName=data.category_name,
+            CategoryName=normalized_name,
             Icon=data.icon,
             Color=data.color,
             IsDefault=False,
-            IsDeleted=False
+            IsDeleted=False,
         )
 
         return self.category_repo.create(db, category)
@@ -173,11 +248,16 @@ class CategoryService:
         if not category:
             raise ValueError("Category not found or cannot edit default category")
 
-        if data.category_name and data.category_name != category.CategoryName:
-            duplicate = self.category_repo.get_by_name_and_user(db, data.category_name, user_id)
-            if duplicate:
-                raise ValueError("Category name already exists")
-            category.CategoryName = data.category_name
+        if data.category_name is not None:
+            normalized_name = self._normalize_name(data.category_name)
+            if not normalized_name:
+                raise ValueError("Tên danh mục không được để trống")
+
+            if normalized_name != category.CategoryName:
+                duplicate = self._find_name_conflict(db, user_id, normalized_name, exclude_category_id=category_id)
+                if duplicate:
+                    raise ValueError("Tên danh mục đã tồn tại hoặc trùng với danh mục mặc định")
+                category.CategoryName = normalized_name
 
         if data.icon is not None:
             category.Icon = data.icon
@@ -190,64 +270,56 @@ class CategoryService:
         db.refresh(category)
         return category
 
-    def delete_category(self, db: Session, category_id: str, user_id: str, data: CategoryDeleteRequest):
+    def delete_category(self, db: Session, category_id: str, user_id: str, data: CategoryDeleteRequest | None):
         category = self.category_repo.get_custom_by_id_and_user(db, category_id, user_id)
         if not category:
             raise ValueError("Category not found hoặc không thể xóa danh mục mặc định.")
 
-        other_category = (
-            db.query(Category)
-            .filter(
-                Category.CategoryName == "Khác",
-                Category.IsDeleted == False,
-                (Category.UserID == user_id) | (Category.UserID.is_(None))
-            )
-            .order_by(Category.IsDefault.desc())
-            .first()
+        replacement = self._resolve_replacement_category(
+            db=db,
+            user_id=user_id,
+            replacement_category_id=(data.replacement_category_id if data else None),
+            deleting_category_id=category_id,
         )
-
-        if not other_category:
-            raise ValueError("Cần có danh mục 'Khác' để chuyển dữ liệu sang.")
 
         transactions = db.query(Transaction).filter(
             Transaction.CategoryID == category_id,
-            Transaction.UserID == user_id
+            Transaction.UserID == user_id,
         ).all()
 
         for tx in transactions:
-            tx.CategoryID = other_category.CategoryID
+            tx.CategoryID = replacement.CategoryID
             tx.UpdatedAt = datetime.now()
 
         db.flush()
 
         db.query(Budget).filter(
             Budget.CategoryID == category_id,
-            Budget.UserID == user_id
+            Budget.UserID == user_id,
         ).delete()
 
         category.IsDeleted = True
         category.UpdatedAt = datetime.now()
-
         db.flush()
 
-        other_budgets = db.query(Budget).filter(
-            Budget.CategoryID == other_category.CategoryID,
-            Budget.UserID == user_id
+        replacement_budgets = db.query(Budget).filter(
+            Budget.CategoryID == replacement.CategoryID,
+            Budget.UserID == user_id,
         ).all()
 
-        for b in other_budgets:
+        for budget in replacement_budgets:
             spent_query = (
                 db.query(func.sum(Transaction.Amount))
                 .filter(
                     Transaction.UserID == user_id,
-                    Transaction.CategoryID == other_category.CategoryID,
+                    Transaction.CategoryID == replacement.CategoryID,
                     Transaction.TransactionType == "expense",
-                    Transaction.TransactionDate >= b.StartDate,
-                    Transaction.TransactionDate <= b.EndDate
+                    Transaction.TransactionDate >= budget.StartDate,
+                    Transaction.TransactionDate <= budget.EndDate,
                 )
                 .scalar()
             )
-            b.SpentAmount = Decimal(spent_query) if spent_query else Decimal(0)
-            b.UpdatedAt = datetime.now()
+            budget.SpentAmount = Decimal(spent_query) if spent_query else Decimal(0)
+            budget.UpdatedAt = datetime.now()
 
         db.commit()

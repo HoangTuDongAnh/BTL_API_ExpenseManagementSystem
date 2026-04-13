@@ -117,13 +117,37 @@
         }
 
         .icon-scroll-box {
-            max-height: 180px;
+            max-height: 192px;
             overflow-y: auto;
             overflow-x: hidden;
             border: 1px solid #d9dee3;
-            border-radius: 0.375rem;
-            padding: 0.5rem;
-            background: #fcfdfd;
+            border-radius: 1rem;
+            padding: 0.75rem;
+            background: linear-gradient(180deg, #fcfdff 0%, #f6f8fb 100%);
+        }
+
+        .icon-scroll-box::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .icon-scroll-box::-webkit-scrollbar-thumb {
+            background: rgba(105, 108, 255, 0.22);
+            border-radius: 999px;
+        }
+
+        .category-section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.9rem;
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #566a7f;
+        }
+
+        .category-section-title i {
+            font-size: 1rem;
+            color: #696cff;
         }
     </style>
 }
@@ -136,6 +160,8 @@
 <input type="hidden" id="categoryUpdateBaseUrl" value="@Url.Action("Update", "Category", new { id = "__id__" })" />
 <input type="hidden" id="categoryDeleteBaseUrl" value="@Url.Action("Delete", "Category", new { id = "__id__" })" />
 <input type="hidden" id="categorySaveBudgetUrl" value="@Url.Action("SaveBudget", "Category")" />
+<input type="hidden" id="categoryBudgetsByCategoryUrl" value="@Url.Action("BudgetsByCategory", "Category")" />
+<input type="hidden" id="categoryReturnToDetailFlag" value="false" />
 
 <div class="container-xxl flex-grow-1 container-p-y">
     @if (TempData["CategoryPageError"] != null)
@@ -330,47 +356,65 @@
 
 <div class="modal fade category-modal" id="addCategoryModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg category-modal-smaller">
-        <div class="modal-content">
-            <div class="modal-header border-bottom pb-3">
-                <div>
-                    <h4 class="modal-title mb-1">@T("Thêm danh mục", "Add Category")</h4>
-                    <p class="text-body-secondary mb-0 small">@T("Tạo nhanh một danh mục mới.", "Create a new category quickly.")</p>
+        <div class="modal-content category-detail-redesign__content category-modal-create__content">
+            <div class="modal-header category-modal-header border-bottom-0">
+                <div class="category-modal-hero w-100 category-modal-hero--compact">
+                    <div class="category-modal-hero__icon is-accent">
+                        <i class="bx bx-category-alt"></i>
+                    </div>
+                    <div class="category-modal-hero__content">
+                        <h4 class="modal-title mb-1">@T("Thêm danh mục", "Add Category")</h4>
+                        <p class="text-body-secondary mb-0 small">@T("Tạo danh mục mới với bố cục ngắn gọn, đồng bộ cùng popup chi tiết.", "Create a new category with a compact layout that matches the detail popup.")</p>
+                    </div>
                 </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn category-modal-close-solid" data-bs-dismiss="modal" aria-label="Close">&times;</button>
             </div>
 
-            <div class="modal-body pt-4">
-                <div class="row g-4">
-                    <div class="col-md-6">
-                        <label class="form-label">@T("Tên danh mục", "Category name")</label>
-                        <input type="text" id="addCategoryName" class="form-control" placeholder="Ví dụ: Lương, Mua sắm..." />
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">@T("Màu sắc", "Color")</label>
-                        <div class="category-color-tools d-flex align-items-center gap-2">
-                            <div class="category-color-presets d-flex gap-1 flex-wrap">
-                                @foreach (var color in presetColors)
-                                {
-                                    <button type="button" class="category-color-preset @(color == "#FFAB00" ? "active" : "")" data-color="@color" style="background:@color; width: 24px; height: 24px; border-radius: 50%; border: none; cursor: pointer;"></button>
-                                }
+            <div class="modal-body category-create-modal__body">
+                <div class="category-create-grid">
+                    <div class="category-section-card category-section-card--compact">
+                        <div class="category-section-title mb-3">
+                            <i class="bx bx-edit-alt"></i>
+                            <span>@T("Thông tin cơ bản", "Basic information")</span>
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label">@T("Tên danh mục", "Category name")</label>
+                                <input type="text" id="addCategoryName" class="form-control category-field-input" placeholder="Ví dụ: Lương, Mua sắm..." />
                             </div>
 
-                            <div class="category-color-custom d-flex align-items-center gap-2 ms-2 border-start ps-2">
-                                <span class="small text-muted">@T("Tùy chỉnh:", "Custom:")</span>
-                                <input type="color" id="addCategoryColor" class="form-control form-control-color p-0 border-0" value="#FFAB00" style="width: 32px; height: 32px; cursor: pointer;" title="Tự chọn màu" />
+                            <div class="col-12">
+                                <label class="form-label">@T("Màu sắc", "Color")</label>
+                                <div class="category-color-toolbar category-color-toolbar--stack">
+                                    <div class="category-color-presets category-color-presets--inline d-flex gap-2 flex-wrap">
+                                        @foreach (var color in presetColors)
+                                        {
+                                            <button type="button" class="category-color-preset @(color == "#FFAB00" ? "active" : "")" data-color="@color" style="background:@color;"></button>
+                                        }
+                                    </div>
+                                    <label class="category-color-custom-pill mt-2">
+                                        <span>@T("Tùy chỉnh", "Custom")</span>
+                                        <input type="color" id="addCategoryColor" class="form-control form-control-color" value="#FFAB00" title="Tự chọn màu" />
+                                    </label>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    <div class="col-12">
-                        <label class="form-label">@T("Biểu tượng", "Icon")</label>
-                        <div class="category-icon-picker d-flex flex-wrap gap-2 icon-scroll-box">
+
+                    <div class="category-section-card category-section-card--compact category-section-card--fill">
+                        <div class="category-section-title mb-2">
+                            <i class="bx bx-smile"></i>
+                            <span>@T("Biểu tượng", "Icon")</span>
+                        </div>
+                        <div class="category-icon-picker d-flex flex-wrap gap-2 icon-scroll-box category-icon-picker--create">
                             @if (categoryIconFiles.Any())
                             {
                                 for (int i = 0; i < categoryIconFiles.Count; i++)
                                 {
                                     var fileName = categoryIconFiles[i];
                                     <button type="button" class="category-icon-option category-icon-option-add btn btn-outline-secondary p-2 @(i == 0 ? "active" : "")" data-icon="/sneat/img/icons/categories/@fileName">
-                                        <img src="~/sneat/img/icons/categories/@fileName" alt="@fileName" style="width: 24px; height: 24px;" />
+                                        <img src="~/sneat/img/icons/categories/@fileName" alt="@fileName" />
                                     </button>
                                 }
                             }
@@ -380,175 +424,269 @@
                 </div>
             </div>
 
-            <div class="modal-footer border-top pt-3">
+            <div class="modal-footer category-modal-footer border-top">
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">@T("Hủy", "Cancel")</button>
-                <button type="button" class="btn btn-primary" id="btnSaveCategoryStatic">@T("Tạo danh mục", "Create Category")</button>
+                <button type="button" class="btn btn-primary" id="btnSaveCategoryStatic">
+                    <i class="icon-base bx bx-plus me-1"></i>@T("Tạo danh mục", "Create Category")
+                </button>
             </div>
         </div>
     </div>
 </div>
 
 <div class="modal fade category-modal" id="categoryDetailModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg category-modal-smaller">
-        <div class="modal-content">
-            <div class="modal-header border-bottom pb-3">
-                <div>
-                    <h4 class="modal-title mb-1">@T("Chi tiết danh mục", "Category Details")</h4>
-                    <p class="text-body-secondary mb-0 small">@T("Xem và chỉnh sửa nhanh danh mục.", "Quickly view and edit category info.")</p>
+    <div class="modal-dialog modal-dialog-centered modal-xl category-detail-redesign">
+        <div class="modal-content category-detail-redesign__content">
+            <div class="modal-header category-modal-header border-bottom-0">
+                <div class="category-modal-hero w-100 category-modal-hero--compact">
+                    <div id="detailHeadIconWrap" class="category-modal-hero__icon">
+                        <img id="detailHeadIcon" src="@iconAt(0)" class="category-icon-img" alt="icon" />
+                    </div>
+                    <div class="category-modal-hero__content">
+                        <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                            <h4 class="modal-title mb-0" id="detailCategoryTitle">@T("Danh mục", "Category")</h4>
+                            <span class="badge bg-label-secondary" id="detailCategoryTypeBadge"></span>
+                        </div>
+                        <p class="text-body-secondary mb-0 small">@T("Chỉnh sửa thông tin danh mục và xem toàn bộ hạn mức của danh mục này. Card ngoài danh sách vẫn chỉ hiển thị hạn mức ưu tiên.", "Edit category details and view all budgets of this category. Outer cards still show only the priority budget.")</p>
+                        <span id="detailCategoryId" class="d-none"></span>
+                    </div>
                 </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn category-modal-close-solid" data-bs-dismiss="modal" aria-label="Close">&times;</button>
             </div>
 
-            <div class="modal-body pt-4">
-                <div class="category-detail-top card mb-4 shadow-none border">
-                    <div class="card-body p-3">
-                        <div class="category-preview-inline d-flex align-items-center gap-3">
-                            <div id="detailHeadIconWrap" class="category-icon-wrap m-0" style="background: rgba(255,171,0,.14); width: 48px; height: 48px;">
-                                <img id="detailHeadIcon" src="" class="category-icon-img w-50" alt="icon" />
-                            </div>
-                            <div>
-                                <div class="category-name fw-bold fs-5" id="detailCategoryTitle">Danh mục</div>
-                                <div class="category-meta mt-1">
-                                    <span id="detailCategoryId" class="d-none"></span>
-                                    <span class="badge bg-label-secondary" id="detailCategoryTypeBadge"></span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
+            <div class="modal-body category-detail-redesign__body">
                 <input type="hidden" id="detailCategoryCanEdit" value="true" />
                 <input type="hidden" id="detailCategoryCanDelete" value="true" />
-                <input type="hidden" id="detailBudgetId" value="" />
-                <input type="hidden" id="detailBudgetPeriodType" value="month" />
 
-                <div class="row g-4">
-                    <div class="col-md-6">
-                        <label class="form-label">@T("Tên danh mục", "Category name")</label>
-                        <input type="text" id="detailCategoryName" class="form-control" />
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">@T("Màu sắc", "Color")</label>
-                        <div class="category-color-tools d-flex align-items-center gap-2">
-                            <div class="category-color-presets d-flex gap-1 flex-wrap">
-                                @foreach (var color in presetColors)
-                                {
-                                    <button type="button" class="category-color-preset-detail @(color == "#FFAB00" ? "active" : "")" data-color="@color" style="background:@color; width: 24px; height: 24px; border-radius: 50%; border: none; cursor: pointer;"></button>
-                                }
-                            </div>
+                <div class="row g-4 category-detail-layout">
+                    <div class="col-12 col-xl-5 category-detail-col">
+                        <div class="category-stack-card category-stack-card--left">
+                            <div class="category-section-card category-section-card--compact">
+                                <div class="category-section-title mb-3">
+                                    <i class="bx bx-edit"></i>
+                                    <span>@T("Thông tin cơ bản", "Basic information")</span>
+                                </div>
 
-                            <div class="category-color-custom d-flex align-items-center gap-2 ms-2 border-start ps-2">
-                                <span class="small text-muted">@T("Tùy chỉnh:", "Custom:")</span>
-                                <input type="color" id="detailCategoryColor" class="form-control form-control-color p-0 border-0" value="#FFAB00" style="width: 32px; height: 32px; cursor: pointer;" title="Tự chọn màu" />
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-12">
-                        <label class="form-label">@T("Biểu tượng", "Icon")</label>
-                        <div class="category-icon-picker d-flex flex-wrap gap-2 icon-scroll-box">
-                            @if (categoryIconFiles.Any())
-                            {
-                                for (int i = 0; i < categoryIconFiles.Count; i++)
-                                {
-                                    var fileName = categoryIconFiles[i];
-                                    <button type="button" class="category-icon-option category-icon-option-detail btn btn-outline-secondary p-2 @(i == 0 ? "active" : "")" data-icon="/sneat/img/icons/categories/@fileName">
-                                        <img src="~/sneat/img/icons/categories/@fileName" alt="@fileName" style="width: 24px; height: 24px;" />
-                                    </button>
-                                }
-                            }
-                        </div>
-                        <input type="hidden" id="detailCategoryIcon" value="" />
-                    </div>
+                                <div class="row g-3">
+                                    <div class="col-12">
+                                        <label class="form-label">@T("Tên danh mục", "Category name")</label>
+                                        <input type="text" id="detailCategoryName" class="form-control category-field-input" />
+                                    </div>
 
-                    <div class="col-12">
-                        <label class="form-label d-flex align-items-center mb-2 mt-2">
-                            <i class="bx bx-wallet text-warning me-1"></i>
-                            @T("Hạn mức chi tiêu", "Budget Limit")
-                        </label>
+                                    <div class="col-12">
+                                        <label class="form-label">@T("Màu sắc", "Color")</label>
+                                        <div class="category-color-toolbar category-color-toolbar--stack">
+                                            <div class="category-color-presets category-color-presets--inline d-flex gap-2 flex-wrap">
+                                                @foreach (var color in presetColors)
+                                                {
+                                                    <button type="button" class="category-color-preset-detail @(color == "#FFAB00" ? "active" : "")" data-color="@color" style="background:@color;"></button>
+                                                }
+                                            </div>
 
-                        <div id="budgetInfoContainer">
-                            <div id="noBudgetState" class="text-center py-4 border rounded bg-lighter d-none">
-                                <p class="text-muted small mb-3">@T("Danh mục này chưa được thiết lập hạn mức.", "No budget set for this category.")</p>
-                                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#setBudgetModal">
-                                    <i class="bx bx-plus me-1"></i> @T("Thêm hạn mức", "Add Budget")
-                                </button>
-                            </div>
-
-                            <div id="hasBudgetState" class="d-none">
-                                <div class="p-3 border rounded bg-white shadow-sm">
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <div class="d-flex align-items-center gap-2">
-                                            <span class="fw-bold fs-6" id="detailBudgetTitle">Ăn uống</span>
-                                            <span class="badge bg-label-secondary" id="detailBudgetType">Tháng</span>
+                                            <label class="category-color-custom-pill mt-2">
+                                                <span>@T("Tùy chỉnh", "Custom")</span>
+                                                <input type="color" id="detailCategoryColor" class="form-control form-control-color" value="#FFAB00" />
+                                            </label>
                                         </div>
-                                        <span class="text-muted small fw-medium">
-                                            <span id="detailSpentAmount">0 đ</span> / <span id="detailTotalAmount">0 đ</span>
-                                        </span>
                                     </div>
-                                    <div class="progress mb-2" style="height: 8px;">
-                                        <div id="detailProgressBar" class="progress-bar" role="progressbar" style="width: 0%;"></div>
+                                </div>
+                            </div>
+
+                            <div class="category-section-card category-section-card--compact category-section-card--fill">
+                                <div class="category-section-title mb-2">
+                                    <i class="bx bx-smile"></i>
+                                    <span>@T("Biểu tượng", "Icon")</span>
+                                </div>
+
+                                <div class="category-icon-picker d-flex flex-wrap gap-2 icon-scroll-box category-icon-picker--tall">
+                                    @if (categoryIconFiles.Any())
+                                    {
+                                        for (int i = 0; i < categoryIconFiles.Count; i++)
+                                        {
+                                            var fileName = categoryIconFiles[i];
+                                            <button type="button" class="category-icon-option category-icon-option-detail btn btn-outline-secondary p-2 @(i == 0 ? "active" : "")" data-icon="/sneat/img/icons/categories/@fileName">
+                                                <img src="~/sneat/img/icons/categories/@fileName" alt="@fileName" />
+                                            </button>
+                                        }
+                                    }
+                                </div>
+
+                                <input type="hidden" id="detailCategoryIcon" value="" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-xl-7 category-detail-col">
+                        <div class="category-stack-card category-stack-card--right">
+                            <div class="category-section-card category-section-card--compact category-section-card--fill category-budget-panel">
+                                <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
+                                    <div>
+                                        <div class="category-section-title mb-1">
+                                            <i class="bx bx-wallet"></i>
+                                            <span>@T("Hạn mức chi tiêu", "Budgets")</span>
+                                        </div>
+                                        <div class="text-muted small">@T("Hiển thị toàn bộ hạn mức của danh mục này.", "Shows every budget of this category.")</div>
                                     </div>
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <span id="detailProgressText" class="fw-bold small">0%</span>
-                                        <span id="detailStatusText" class="small fw-bold">---</span>
-                                    </div>
-                                    <div class="text-end border-top pt-2 mt-3">
-                                        <button type="button" class="btn btn-sm btn-label-secondary" data-bs-toggle="modal" data-bs-target="#setBudgetModal">
-                                            <i class="bx bx-edit me-1"></i> @T("Sửa hạn mức", "Edit Budget")
+
+                                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                                        <span class="badge bg-label-info" id="budgetModalListCount">0 @T("mục", "items")</span>
+                                        <button type="button" class="btn btn-sm btn-primary" id="btnOpenBudgetEditor">
+                                            <i class="bx bx-plus me-1"></i>@T("Thêm hạn mức", "Add budget")
                                         </button>
                                     </div>
                                 </div>
+
+                                <div id="noBudgetState" class="category-budget-empty d-none">
+                                    <div class="category-budget-empty__icon"><i class="bx bx-wallet"></i></div>
+                                    <div class="category-budget-empty__title">@T("Chưa có hạn mức", "No budgets yet")</div>
+                                    <p class="category-budget-empty__text">@T("Tạo hạn mức theo tuần, tháng hoặc năm.", "Create weekly, monthly, or yearly budgets.")</p>
+                                </div>
+
+                                <div id="hasBudgetState" class="d-none category-budget-state-fill">
+                                    <div class="category-budget-collection-head mb-3">
+                                        <div class="category-inline-budget-list__label">@T("Toàn bộ hạn mức hiện có", "All existing budgets")</div>
+                                        <span class="category-budget-collection-note">@T("Danh sách được sắp theo trạng thái thời gian.", "Sorted by time status.")</span>
+                                    </div>
+
+                                    <div id="detailBudgetList" class="category-budget-grid"></div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="modal-footer justify-content-between border-top pt-3">
-                <button type="button" class="btn btn-outline-danger" id="btnDeleteCategoryStatic">
-                    <i class="icon-base bx bx-trash me-1"></i> @T("Xóa", "Delete")
-                </button>
-                <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">@T("Đóng", "Close")</button>
-                    <button type="button" class="btn btn-primary" id="btnUpdateCategoryStatic">
-                        <i class="icon-base bx bx-save me-1"></i> @T("Lưu", "Save")
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+            <div id="budgetChildOverlay" class="category-subdialog d-none" aria-hidden="true">
+                <div class="category-subdialog__backdrop" data-budget-overlay-close="true"></div>
 
-<div class="modal fade" id="setBudgetModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header border-bottom pb-3">
-                <h5 class="modal-title">@T("Thiết Lập Hạn Mức Chi Tiêu", "Set Budget Limit")</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <div class="category-subdialog__panel">
+                    <div class="category-subdialog__header">
+                        <div>
+                            <div class="category-section-title mb-1">
+                                <i class="bx bx-edit-alt"></i>
+                                <span>@T("Thiết lập hạn mức", "Budget editor")</span>
+                            </div>
+                            <div class="text-muted small">@T("Chọn kỳ hạn và số tiền. Hệ thống tự tính thời gian áp dụng.", "Choose a period and amount. Dates are calculated automatically.")</div>
+                        </div>
+
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-label-primary" id="budgetModalModeBadge">@T("Tạo mới", "Create new")</span>
+                            <button type="button" class="btn category-subdialog__close" id="btnCloseBudgetChild">&times;</button>
+                        </div>
+                    </div>
+
+                    <div class="category-subdialog__body">
+                        <input type="hidden" id="budgetModalBudgetId" value="" />
+
+                        <div class="category-budget-editor-context mb-3">
+                            <span class="category-mini-dot" id="budgetCurrentColorDot"></span>
+                            <strong id="budgetCurrentCategoryText">@T("Danh mục", "Category")</strong>
+                        </div>
+
+                        <div class="category-budget-quick-range mb-3">
+                            <button type="button" class="btn btn-sm btn-label-primary" data-budget-shortcut="current-week">@T("Tuần này", "This week")</button>
+                            <button type="button" class="btn btn-sm btn-label-primary" data-budget-shortcut="current-month">@T("Tháng này", "This month")</button>
+                            <button type="button" class="btn btn-sm btn-label-primary" data-budget-shortcut="current-year">@T("Năm nay", "This year")</button>
+                            <button type="button" class="btn btn-sm btn-label-secondary" data-budget-shortcut="next-month">@T("Tháng sau", "Next month")</button>
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">@T("Kỳ hạn", "Period type")</label>
+                                <select id="budgetModalTimeType" class="form-select">
+                                    <option value="week">@T("Theo tuần", "Weekly")</option>
+                                    <option value="month" selected>@T("Theo tháng", "Monthly")</option>
+                                    <option value="year">@T("Theo năm", "Yearly")</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label class="form-label">@T("Năm", "Year")</label>
+                                <select id="budgetModalYear" class="form-select">
+                                    @for (var y = DateTime.Now.Year - 2; y <= DateTime.Now.Year + 5; y++)
+                                    {
+                                        <option value="@y" selected="@(y == DateTime.Now.Year ? "selected" : null)">@y</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="col-md-4" id="budgetMonthWrap">
+                                <label class="form-label">@T("Tháng", "Month")</label>
+                                <select id="budgetModalMonth" class="form-select">
+                                    @for (var monthOpt = 1; monthOpt <= 12; monthOpt++)
+                                    {
+                                        <option value="@monthOpt">@monthOpt</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="col-md-4 d-none" id="budgetWeekWrap">
+                                <label class="form-label">@T("Tuần", "Week")</label>
+                                <input type="date" id="budgetModalWeekDate" class="form-control" />
+                                <select id="budgetModalWeek" class="form-select d-none">
+                                    @for (var weekOpt = 1; weekOpt <= 53; weekOpt++)
+                                    {
+                                        <option value="@weekOpt">@weekOpt</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="col-12">
+                                <div class="category-period-preview mb-0">
+                                    <div class="category-period-preview__head">
+                                        <div>
+                                            <span>@T("Khoảng thời gian áp dụng", "Applied date range")</span>
+                                            <div class="text-muted small mt-1" id="budgetModalPeriodHint">@T("Tự động theo kỳ hạn đang chọn.", "Calculated automatically from the selected period.")</div>
+                                        </div>
+                                        <span id="budgetModalPeriodLabel" class="badge bg-label-secondary">@T("Theo tháng", "Monthly")</span>
+                                    </div>
+
+                                    <div class="row g-3 mt-0">
+                                        <div class="col-sm-6">
+                                            <div class="category-period-preview__item">
+                                                <span class="category-period-preview__label">@T("Bắt đầu", "Start")</span>
+                                                <strong id="budgetModalStartDate">--/--/----</strong>
+                                            </div>
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <div class="category-period-preview__item">
+                                                <span class="category-period-preview__label">@T("Kết thúc", "End")</span>
+                                                <strong id="budgetModalEndDate">--/--/----</strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-7">
+                                <label class="form-label">@T("Ngân sách dự kiến (VNĐ)", "Budget amount (VND)")</label>
+                                <input type="number" id="budgetModalAmount" class="form-control form-control-lg" placeholder="Ví dụ: 5000000" />
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label">@T("Đã chi trong kỳ", "Spent in period")</label>
+                                <input type="text" id="budgetModalSpent" class="form-control form-control-lg bg-lighter" value="0 đ" readonly />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="category-subdialog__footer">
+                        <button type="button" class="btn btn-outline-secondary" id="btnCreateNewBudgetEntry">
+                            <i class="bx bx-reset me-1"></i>@T("Đặt lại theo hiện tại", "Reset to current")
+                        </button>
+                        <button type="button" class="btn btn-primary" id="btnSaveBudget">
+                            <i class="bx bx-save me-1"></i>@T("Lưu hạn mức", "Save budget")
+                        </button>
+                    </div>
+                </div>
             </div>
-            <div class="modal-body pt-4">
-                <div class="mb-3">
-                    <label class="form-label">@T("Danh Mục", "Category")</label>
-                    <input type="text" id="budgetModalCategoryName" class="form-control bg-lighter" readonly />
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">@T("Loại Thời Gian", "Time Type")</label>
-                    <select id="budgetModalTimeType" class="form-select">
-                        <option value="week">@T("Theo tuần", "Weekly")</option>
-                        <option value="month" selected>@T("Theo tháng", "Monthly")</option>
-                        <option value="year">@T("Theo năm", "Yearly")</option>
-                    </select>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">@T("Ngân Sách Dự Kiến (VNĐ)", "Expected Budget (VND)")</label>
-                    <input type="number" id="budgetModalAmount" class="form-control" placeholder="Ví dụ: 5000000" />
-                </div>
-                <div class="mb-4">
-                    <label class="form-label">@T("Số Tiền Đã Chi (VNĐ)", "Spent Amount (VND)")</label>
-                    <input type="number" id="budgetModalSpent" class="form-control bg-lighter" value="0" readonly />
-                </div>
-                <button type="button" class="btn btn-primary w-100" id="btnSaveBudget">
-                    @T("Lưu Hạn Mức", "Save Budget")
+
+<div class="modal-footer category-modal-footer border-top">
+                <button type="button" class="btn btn-outline-danger me-auto" id="btnDeleteCategoryStatic">
+                    <i class="bx bx-trash me-1"></i>@T("Xóa", "Delete")
+                </button>
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">@T("Đóng", "Close")</button>
+                <button type="button" class="btn btn-success" id="btnUpdateCategoryStatic">
+                    <i class="bx bx-save me-1"></i>@T("Lưu thay đổi", "Save changes")
                 </button>
             </div>
         </div>

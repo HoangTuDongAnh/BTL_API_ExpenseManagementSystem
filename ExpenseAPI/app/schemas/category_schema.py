@@ -1,4 +1,4 @@
-﻿from datetime import date
+from datetime import date
 from decimal import Decimal
 from typing import Optional
 
@@ -18,7 +18,7 @@ class CategoryUpdateRequest(BaseModel):
 
 
 class CategoryDeleteRequest(BaseModel):
-    replacement_category_id: str = Field(..., min_length=1, max_length=15)
+    replacement_category_id: str | None = Field(default=None, min_length=1, max_length=15)
 
 
 class CategoryResponse(BaseModel):

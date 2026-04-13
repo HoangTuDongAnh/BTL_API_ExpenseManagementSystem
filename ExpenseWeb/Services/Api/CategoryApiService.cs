@@ -125,15 +125,21 @@ namespace ExpenseWeb.Services.Api
             }
         }
 
-        public async Task<List<BudgetResponseDto>> GetBudgetsAsync(string token, string periodType, int year, int? month, int? week, string? categoryId)
+        public async Task<List<BudgetResponseDto>> GetBudgetsAsync(string token, string? periodType = null, int? year = null, int? month = null, int? week = null, string? categoryId = null)
         {
             SetBearer(token);
 
-            var query = new List<string>
+            var query = new List<string>();
+
+            if (!string.IsNullOrWhiteSpace(periodType))
             {
-                $"period_type={Uri.EscapeDataString(periodType)}",
-                $"period_year={year}"
-            };
+                query.Add($"period_type={Uri.EscapeDataString(periodType)}");
+            }
+
+            if (year.HasValue)
+            {
+                query.Add($"period_year={year.Value}");
+            }
 
             if (month.HasValue)
             {
@@ -150,7 +156,9 @@ namespace ExpenseWeb.Services.Api
                 query.Add($"category_id={Uri.EscapeDataString(categoryId)}");
             }
 
-            var url = $"{_baseUrl}/budgets?{string.Join("&", query)}";
+            var url = query.Count > 0
+                ? $"{_baseUrl}/budgets?{string.Join("&", query)}"
+                : $"{_baseUrl}/budgets";
             var response = await _httpClient.GetAsync(url);
             var body = await response.Content.ReadAsStringAsync();
 

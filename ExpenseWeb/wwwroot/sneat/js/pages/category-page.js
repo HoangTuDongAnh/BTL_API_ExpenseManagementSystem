@@ -1,11 +1,8 @@
-﻿document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", function () {
     const addModalEl = document.getElementById("addCategoryModal");
     const detailModalEl = document.getElementById("categoryDetailModal");
-    const setBudgetModalEl = document.getElementById("setBudgetModal");
-
     const addModal = addModalEl ? new bootstrap.Modal(addModalEl) : null;
     const detailModal = detailModalEl ? new bootstrap.Modal(detailModalEl) : null;
-    const setBudgetModal = setBudgetModalEl ? new bootstrap.Modal(setBudgetModalEl) : null;
 
     const toastSaved = document.getElementById("categorySavedToast") ? new bootstrap.Toast(document.getElementById("categorySavedToast")) : null;
     const toastUpdated = document.getElementById("categoryUpdatedToast") ? new bootstrap.Toast(document.getElementById("categoryUpdatedToast")) : null;
@@ -15,19 +12,31 @@
     const updateBaseUrl = document.getElementById("categoryUpdateBaseUrl")?.value || "";
     const deleteBaseUrl = document.getElementById("categoryDeleteBaseUrl")?.value || "";
     const saveBudgetUrl = document.getElementById("categorySaveBudgetUrl")?.value || "";
+    const budgetsByCategoryUrl = document.getElementById("categoryBudgetsByCategoryUrl")?.value || "";
+
+    const state = {
+        currentCategory: null,
+        budgets: [],
+        activeBudgetId: null,
+        defaultIcon: document.querySelector(".category-icon-option-detail")?.dataset.icon || document.getElementById("detailHeadIcon")?.getAttribute("src") || ""
+    };
+
+    function currency(value) {
+        return Number(value || 0).toLocaleString("vi-VN") + " đ";
+    }
+
+    function parseBudgetAmount(rawValue) {
+        const normalized = String(rawValue || "").trim().replace(/\s/g, "").replace(/,/g, "");
+        if (!normalized) return NaN;
+        return Number(normalized);
+    }
 
     function hexToRgba(hex, alpha) {
-        if (!hex || !hex.startsWith("#") || hex.length !== 7) {
-            return "rgba(255,171,0,0.14)";
-        }
+        if (!hex || !hex.startsWith("#") || hex.length !== 7) return `rgba(255,171,0,${alpha})`;
         const r = parseInt(hex.slice(1, 3), 16);
         const g = parseInt(hex.slice(3, 5), 16);
         const b = parseInt(hex.slice(5, 7), 16);
         return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-    }
-
-    function currency(value) {
-        return Number(value || 0).toLocaleString("vi-VN") + " đ";
     }
 
     function setActiveColor(selector, color) {
@@ -36,30 +45,22 @@
         });
     }
 
-    function updateAddPreview() {
-        const color = document.getElementById("addCategoryColor")?.value || "#FFAB00";
-        setActiveColor(".category-color-preset", color);
+    function buildUpdateUrl(id) {
+        return updateBaseUrl.replace("__id__", encodeURIComponent(id));
     }
 
-    function updateDetailPreview() {
-        const name = document.getElementById("detailCategoryName")?.value || "Danh mục";
-        const color = document.getElementById("detailCategoryColor")?.value || "#FFAB00";
-        const icon = document.getElementById("detailCategoryIcon")?.value || "";
+    function buildDeleteUrl(id) {
+        return deleteBaseUrl.replace("__id__", encodeURIComponent(id));
+    }
 
-        const headIcon = document.getElementById("detailHeadIcon");
-        const headWrap = document.getElementById("detailHeadIconWrap");
-        const title = document.getElementById("detailCategoryTitle");
-
-        if (title) title.textContent = name;
-        if (headIcon && icon) headIcon.src = icon;
-        if (headWrap) headWrap.style.background = hexToRgba(color, 0.14);
-
-        setActiveColor(".category-color-preset-detail", color);
+    function buildCategoryBudgetsUrl(categoryId) {
+        const connector = budgetsByCategoryUrl.includes("?") ? "&" : "?";
+        return `${budgetsByCategoryUrl}${connector}categoryId=${encodeURIComponent(categoryId)}`;
     }
 
     async function sendJson(url, method, payload) {
         const response = await fetch(url, {
-            method: method,
+            method,
             headers: {
                 "Content-Type": "application/json",
                 "X-Requested-With": "XMLHttpRequest"
@@ -69,7 +70,6 @@
 
         const raw = await response.text();
         let data = null;
-
         if (raw) {
             try {
                 data = JSON.parse(raw);
@@ -85,23 +85,463 @@
         return data || {};
     }
 
-    function buildUpdateUrl(id) {
-        return updateBaseUrl.replace("__id__", encodeURIComponent(id));
+    async function fetchJson(url) {
+        const response = await fetch(url, {
+            headers: {
+                "X-Requested-With": "XMLHttpRequest"
+            }
+        });
+
+        const raw = await response.text();
+        let data = null;
+        if (raw) {
+            try {
+                data = JSON.parse(raw);
+            } catch {
+                data = { message: raw };
+            }
+        }
+
+        if (!response.ok) {
+            throw new Error(data?.message || raw || "Request failed.");
+        }
+
+        return data || {};
     }
 
-    function buildDeleteUrl(id) {
-        return deleteBaseUrl.replace("__id__", encodeURIComponent(id));
+    function formatDate(raw) {
+        if (!raw) return "--";
+        const d = new Date(raw);
+        if (Number.isNaN(d.getTime())) return raw;
+        return d.toLocaleDateString("vi-VN");
     }
 
-    ["addCategoryColor"].forEach(function (id) {
-        const el = document.getElementById(id);
-        if (el) el.addEventListener("input", updateAddPreview);
-    });
+    function formatDateFromObj(dateObj) {
+        return new Date(dateObj).toLocaleDateString("vi-VN", { timeZone: "UTC" });
+    }
 
-    ["detailCategoryName", "detailCategoryColor"].forEach(function (id) {
-        const el = document.getElementById(id);
-        if (el) el.addEventListener("input", updateDetailPreview);
-    });
+    function getWeekNumber(dateObj) {
+        const date = new Date(Date.UTC(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate()));
+        const dayNum = date.getUTCDay() || 7;
+        date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+        const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+        return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+    }
+
+    function getIsoWeekStartDate(year, week) {
+        const jan4 = new Date(Date.UTC(year, 0, 4));
+        const jan4Day = jan4.getUTCDay() || 7;
+        const firstMonday = new Date(jan4);
+        firstMonday.setUTCDate(jan4.getUTCDate() - (jan4Day - 1));
+        const start = new Date(firstMonday);
+        start.setUTCDate(firstMonday.getUTCDate() + ((week - 1) * 7));
+        return start;
+    }
+
+    function periodLabel(periodType) {
+        switch ((periodType || "").toLowerCase()) {
+            case "week": return "Theo tuần";
+            case "month": return "Theo tháng";
+            case "year": return "Theo năm";
+            default: return "Theo tháng";
+        }
+    }
+
+    function periodShortLabel(item) {
+        if (!item) return "";
+        if (item.period_type === "week") return `Tuần ${item.period_week}/${item.period_year}`;
+        if (item.period_type === "month") return `Tháng ${item.period_month}/${item.period_year}`;
+        return `Năm ${item.period_year}`;
+    }
+
+    function getBudgetTimeState(item) {
+        const now = new Date();
+        const start = item?.start_date ? new Date(item.start_date) : null;
+        const end = item?.end_date ? new Date(item.end_date) : null;
+        if (!start || !end || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return "upcoming";
+        if (now < start) return "upcoming";
+        if (now > end) return "ended";
+        return "active";
+    }
+
+    function sortBudgets(items) {
+        const stateRank = { active: 0, upcoming: 1, ended: 2 };
+        return [...(items || [])].sort(function (a, b) {
+            const timeStateDiff = (stateRank[getBudgetTimeState(a)] ?? 9) - (stateRank[getBudgetTimeState(b)] ?? 9);
+            if (timeStateDiff !== 0) return timeStateDiff;
+
+            const aStart = a?.start_date ? new Date(a.start_date).getTime() : 0;
+            const bStart = b?.start_date ? new Date(b.start_date).getTime() : 0;
+
+            if (getBudgetTimeState(a) === 'ended' && getBudgetTimeState(b) === 'ended') {
+                return bStart - aStart;
+            }
+            return aStart - bStart;
+        });
+    }
+
+    function getPreferredBudget(items) {
+        const sorted = sortBudgets(items);
+        return sorted.length ? sorted[0] : null;
+    }
+
+    function getDateRangeFromValues(periodType, year, month, week) {
+        if (!year || year < 2000) return { start: "--/--/----", end: "--/--/----" };
+
+        if (periodType === "week") {
+            const start = getIsoWeekStartDate(year, week || 1);
+            const end = new Date(start);
+            end.setUTCDate(start.getUTCDate() + 6);
+            return { start: formatDateFromObj(start), end: formatDateFromObj(end) };
+        }
+
+        if (periodType === "month") {
+            const start = new Date(Date.UTC(year, (month || 1) - 1, 1));
+            const end = new Date(Date.UTC(year, month || 1, 0));
+            return { start: formatDateFromObj(start), end: formatDateFromObj(end) };
+        }
+
+        const start = new Date(Date.UTC(year, 0, 1));
+        const end = new Date(Date.UTC(year, 11, 31));
+        return { start: formatDateFromObj(start), end: formatDateFromObj(end) };
+    }
+
+    function getDateRangeFromForm() {
+        const periodType = document.getElementById("budgetModalTimeType")?.value || "month";
+        const year = parseInt(document.getElementById("budgetModalYear")?.value || "0", 10);
+        const month = parseInt(document.getElementById("budgetModalMonth")?.value || "0", 10);
+        let week = parseInt(document.getElementById("budgetModalWeek")?.value || "0", 10);
+        const weekDateValue = document.getElementById("budgetModalWeekDate")?.value || "";
+        if (periodType === 'week' && weekDateValue) {
+            const weekDate = new Date(weekDateValue);
+            if (!Number.isNaN(weekDate.getTime())) {
+                week = getWeekNumber(weekDate);
+            }
+        }
+        return getDateRangeFromValues(periodType, year, month, week);
+    }
+
+    function updateAddPreview() {
+        const color = document.getElementById("addCategoryColor")?.value || "#FFAB00";
+        setActiveColor(".category-color-preset", color);
+    }
+
+    function updateDetailPreview() {
+        const name = document.getElementById("detailCategoryName")?.value || "Danh mục";
+        const color = document.getElementById("detailCategoryColor")?.value || "#FFAB00";
+        const iconInputValue = document.getElementById("detailCategoryIcon")?.value || "";
+        const icon = iconInputValue || state.defaultIcon;
+
+        const headIcon = document.getElementById("detailHeadIcon");
+        const headWrap = document.getElementById("detailHeadIconWrap");
+        const title = document.getElementById("detailCategoryTitle");
+        const budgetText = document.getElementById("budgetCurrentCategoryText");
+        const budgetDot = document.getElementById("budgetCurrentColorDot");
+
+        if (title) title.textContent = name;
+        if (budgetText) budgetText.textContent = name;
+        if (headIcon && icon) headIcon.src = icon;
+        if (headWrap) headWrap.style.background = hexToRgba(color, 0.14);
+        if (budgetDot) budgetDot.style.background = color;
+
+        setActiveColor(".category-color-preset-detail", color);
+        document.querySelectorAll(".category-icon-option-detail").forEach(function (btn) {
+            btn.classList.toggle("active", btn.dataset.icon === icon);
+        });
+    }
+
+    function syncBudgetPeriodPreview() {
+        const periodType = document.getElementById("budgetModalTimeType")?.value || "month";
+        const yearEl = document.getElementById("budgetModalYear");
+        const monthWrap = document.getElementById("budgetMonthWrap");
+        const weekWrap = document.getElementById("budgetWeekWrap");
+        const weekDateEl = document.getElementById("budgetModalWeekDate");
+        const weekEl = document.getElementById("budgetModalWeek");
+        const periodBadge = document.getElementById("budgetModalPeriodLabel");
+        const periodHint = document.getElementById("budgetModalPeriodHint");
+
+        if (monthWrap) monthWrap.classList.toggle("d-none", periodType !== "month");
+        if (weekWrap) weekWrap.classList.toggle("d-none", periodType !== "week");
+
+        if (periodType === 'week' && weekDateEl?.value) {
+            const chosen = new Date(weekDateEl.value);
+            if (!Number.isNaN(chosen.getTime())) {
+                if (yearEl) yearEl.value = chosen.getFullYear();
+                if (weekEl) weekEl.value = getWeekNumber(chosen);
+            }
+        }
+
+        const range = getDateRangeFromForm();
+        if (periodBadge) periodBadge.textContent = periodLabel(periodType);
+        if (periodHint) {
+            periodHint.textContent = periodType === "week"
+                ? "Chọn một ngày bất kỳ trong tuần cần áp dụng."
+                : periodType === "month"
+                    ? "Tự động lấy ngày đầu và cuối của tháng đã chọn."
+                    : "Tự động lấy toàn bộ năm đã chọn.";
+        }
+
+        const startEl = document.getElementById("budgetModalStartDate");
+        const endEl = document.getElementById("budgetModalEndDate");
+        if (startEl) startEl.textContent = range.start;
+        if (endEl) endEl.textContent = range.end;
+    }
+
+    function setBudgetFormToDate(periodType, dateObj) {
+        const date = dateObj instanceof Date ? dateObj : new Date();
+        const year = date.getFullYear();
+        const month = date.getMonth() + 1;
+        const week = getWeekNumber(date);
+
+        const typeEl = document.getElementById("budgetModalTimeType");
+        const yearEl = document.getElementById("budgetModalYear");
+        const monthEl = document.getElementById("budgetModalMonth");
+        const weekEl = document.getElementById("budgetModalWeek");
+        const weekDateEl = document.getElementById("budgetModalWeekDate");
+
+        if (typeEl) typeEl.value = periodType;
+        if (yearEl) yearEl.value = year;
+        if (monthEl) monthEl.value = month;
+        if (weekEl) weekEl.value = week;
+        if (weekDateEl) weekDateEl.value = date.toISOString().slice(0, 10);
+
+        syncBudgetPeriodPreview();
+    }
+
+    function fillBudgetForm(budget) {
+        const spentEl = document.getElementById("budgetModalSpent");
+        const modeBadge = document.getElementById("budgetModalModeBadge");
+        const weekDateEl = document.getElementById("budgetModalWeekDate");
+
+        document.getElementById("budgetModalBudgetId").value = budget?.budget_id || "";
+        document.getElementById("budgetModalAmount").value = budget?.limit_amount ?? "";
+        if (spentEl) spentEl.value = currency(budget?.spent_amount ?? 0);
+        document.getElementById("budgetModalYear").value = budget?.period_year || new Date().getFullYear();
+        document.getElementById("budgetModalMonth").value = budget?.period_month || (new Date().getMonth() + 1);
+        document.getElementById("budgetModalWeek").value = budget?.period_week || getWeekNumber(new Date());
+        document.getElementById("budgetModalTimeType").value = budget?.period_type || "month";
+        if (weekDateEl) {
+            if (budget?.start_date) {
+                const d = new Date(budget.start_date);
+                if (!Number.isNaN(d.getTime())) weekDateEl.value = d.toISOString().slice(0, 10);
+            } else {
+                weekDateEl.value = new Date().toISOString().slice(0, 10);
+            }
+        }
+
+        if (modeBadge) {
+            modeBadge.textContent = budget?.budget_id ? "Đang chỉnh sửa" : "Tạo mới";
+            modeBadge.className = budget?.budget_id ? "badge bg-label-warning" : "badge bg-label-primary";
+        }
+
+        state.activeBudgetId = budget?.budget_id || null;
+        syncBudgetPeriodPreview();
+        highlightBudgetItem();
+    }
+
+    function resetBudgetForm() {
+        const spentEl = document.getElementById("budgetModalSpent");
+        const amountEl = document.getElementById("budgetModalAmount");
+        const modeBadge = document.getElementById("budgetModalModeBadge");
+
+        document.getElementById("budgetModalBudgetId").value = "";
+        if (amountEl) amountEl.value = "";
+        if (spentEl) spentEl.value = currency(0);
+        state.activeBudgetId = null;
+        setBudgetFormToDate("month", new Date());
+
+        if (modeBadge) {
+            modeBadge.textContent = "Tạo mới";
+            modeBadge.className = "badge bg-label-primary";
+        }
+
+        highlightBudgetItem();
+    }
+
+    function openBudgetChildDialog() {
+        const overlay = document.getElementById("budgetChildOverlay");
+        if (!overlay) return;
+
+        overlay.classList.remove("d-none");
+        overlay.setAttribute("aria-hidden", "false");
+        document.body.classList.add("category-subdialog-open");
+
+        window.setTimeout(function () {
+            document.getElementById("budgetModalAmount")?.focus();
+        }, 30);
+    }
+
+    function closeBudgetChildDialog() {
+        const overlay = document.getElementById("budgetChildOverlay");
+        if (!overlay) return;
+
+        overlay.classList.add("d-none");
+        overlay.setAttribute("aria-hidden", "true");
+        document.body.classList.remove("category-subdialog-open");
+    }
+
+    function revealBudgetEditor(resetToNew) {
+        if (resetToNew) {
+            resetBudgetForm();
+        }
+        openBudgetChildDialog();
+    }
+
+    function highlightBudgetItem() {
+        document.querySelectorAll(".category-budget-tile").forEach(function (item) {
+            item.classList.toggle("active", item.dataset.budgetId === state.activeBudgetId);
+        });
+    }
+
+    function renderBudgetList(items) {
+        const grid = document.getElementById("detailBudgetList");
+        const countBadge = document.getElementById("budgetModalListCount");
+        const sorted = sortBudgets(items);
+
+        if (countBadge) {
+            countBadge.textContent = `${sorted.length} mục`;
+        }
+
+        if (!grid) return;
+
+        if (!sorted.length) {
+            grid.innerHTML = "";
+            highlightBudgetItem();
+            return;
+        }
+
+        const preferredId = getPreferredBudget(sorted)?.budget_id || null;
+
+        grid.innerHTML = sorted.map(function (item) {
+            const spent = Number(item.spent_amount || 0);
+            const total = Number(item.limit_amount || 0);
+            const percentage = Number(item.percentage_used || 0);
+            const progress = Math.min(Math.max(percentage, 0), 100);
+            const timeState = getBudgetTimeState(item);
+
+            let timeClass = 'is-upcoming';
+            let timeBadge = 'Sắp diễn ra';
+            let statusText = 'Chưa bắt đầu';
+            if (timeState === 'active') {
+                timeClass = 'is-active';
+                timeBadge = 'Đang thực hiện';
+                statusText = item.status === 'over' ? 'Đang vượt mức' : item.status === 'reached' ? 'Đã chạm hạn mức' : 'Đang trong mức';
+            } else if (timeState === 'ended') {
+                timeClass = 'is-ended';
+                timeBadge = 'Đã kết thúc';
+                statusText = item.status === 'over' ? 'Kết thúc - vượt mức' : item.status === 'reached' ? 'Kết thúc - chạm mức' : 'Đã kết thúc';
+            }
+
+            const progressClass = item.status === 'over' ? 'bg-danger' : item.status === 'reached' ? 'bg-warning' : 'bg-primary';
+            const preferredClass = item.budget_id === preferredId ? ' is-preferred' : '';
+
+            return `
+                <button type="button" class="category-budget-tile ${timeClass}${preferredClass}" data-budget-id="${item.budget_id}">
+                    <div class="category-budget-tile__header">
+                        <div>
+                            <div class="category-budget-tile__title">${periodShortLabel(item)}</div>
+                            <div class="category-budget-tile__date">${formatDate(item.start_date)} - ${formatDate(item.end_date)}</div>
+                        </div>
+                        <span class="badge bg-label-secondary">${timeBadge}</span>
+                    </div>
+
+                    <div class="category-budget-tile__amount">${currency(spent)} / ${currency(total)}</div>
+
+                    <div class="progress category-budget-tile__progress">
+                        <div class="progress-bar ${progressClass}" style="width:${progress}%"></div>
+                    </div>
+
+                    <div class="category-budget-tile__footer">
+                        <span>${statusText}</span>
+                        <strong>${percentage.toFixed(1)}%</strong>
+                    </div>
+                </button>
+            `;
+        }).join("");
+
+        grid.querySelectorAll(".category-budget-tile").forEach(function (button) {
+            button.addEventListener("click", function () {
+                const budgetId = button.dataset.budgetId || "";
+                const budget = state.budgets.find(function (item) {
+                    return item.budget_id === budgetId;
+                });
+
+                if (budget) {
+                    fillBudgetForm(budget);
+                    openBudgetChildDialog();
+                }
+            });
+        });
+
+        highlightBudgetItem();
+    }
+
+    function renderDetailBudgetSummary() {
+        const noBudgetState = document.getElementById("noBudgetState");
+        const hasBudgetState = document.getElementById("hasBudgetState");
+        const hasItems = Array.isArray(state.budgets) && state.budgets.length > 0;
+
+        noBudgetState?.classList.toggle("d-none", hasItems);
+        hasBudgetState?.classList.toggle("d-none", !hasItems);
+    }
+
+    async function loadBudgetsForCurrentCategory() {
+        if (!state.currentCategory?.id) return;
+        const response = await fetchJson(buildCategoryBudgetsUrl(state.currentCategory.id));
+        state.budgets = Array.isArray(response.items) ? response.items : [];
+        renderBudgetList(state.budgets);
+        renderDetailBudgetSummary();
+    }
+
+    function setDetailStateFromTrigger(trigger) {
+        const categoryId = trigger.getAttribute("data-category-id") || "";
+        const categoryName = trigger.getAttribute("data-category-name") || "Danh mục";
+        const categoryColor = trigger.getAttribute("data-category-color") || "#FFAB00";
+        const categoryIcon = trigger.getAttribute("data-category-icon") || state.defaultIcon;
+        const canEdit = trigger.getAttribute("data-category-can-edit") === "true";
+        const canDelete = trigger.getAttribute("data-category-can-delete") === "true";
+        const isDefault = trigger.getAttribute("data-category-is-default") === "true";
+
+        state.currentCategory = { id: categoryId, name: categoryName, color: categoryColor, icon: categoryIcon };
+
+        document.getElementById("detailCategoryId").textContent = categoryId;
+        document.getElementById("detailCategoryName").value = categoryName;
+        document.getElementById("detailCategoryColor").value = categoryColor;
+        document.getElementById("detailCategoryIcon").value = categoryIcon || state.defaultIcon;
+        document.getElementById("detailCategoryCanEdit").value = canEdit ? "true" : "false";
+        document.getElementById("detailCategoryCanDelete").value = canDelete ? "true" : "false";
+
+        const typeBadge = document.getElementById("detailCategoryTypeBadge");
+        if (typeBadge) {
+            typeBadge.textContent = isDefault ? "Mặc định" : "Tùy chỉnh";
+            typeBadge.className = isDefault ? "badge bg-label-secondary" : "badge bg-label-primary";
+        }
+
+        const deleteButton = document.getElementById("btnDeleteCategoryStatic");
+        const updateButton = document.getElementById("btnUpdateCategoryStatic");
+        const detailNameInput = document.getElementById("detailCategoryName");
+        const detailColorInput = document.getElementById("detailCategoryColor");
+
+        if (deleteButton) deleteButton.disabled = !canDelete;
+        if (updateButton) updateButton.disabled = !canEdit;
+        if (detailNameInput) detailNameInput.readOnly = !canEdit;
+        if (detailColorInput) detailColorInput.disabled = !canEdit;
+
+        document.querySelectorAll(".category-color-preset-detail, .category-icon-option-detail").forEach(function (el) {
+            if (!canEdit) {
+                el.classList.add("disabled");
+                el.style.pointerEvents = "none";
+                el.style.opacity = "0.65";
+            } else {
+                el.classList.remove("disabled");
+                el.style.pointerEvents = "";
+                el.style.opacity = "";
+            }
+        });
+
+        updateDetailPreview();
+        resetBudgetForm();
+    }
 
     document.querySelectorAll(".category-color-preset").forEach(function (btn) {
         btn.addEventListener("click", function () {
@@ -123,11 +563,8 @@
 
     document.querySelectorAll(".category-icon-option-add").forEach(function (btn) {
         btn.addEventListener("click", function () {
-            document.querySelectorAll(".category-icon-option-add").forEach(function (item) {
-                item.classList.remove("active");
-            });
+            document.querySelectorAll(".category-icon-option-add").forEach(function (item) { item.classList.remove("active"); });
             btn.classList.add("active");
-
             const iconInput = document.getElementById("addCategoryIcon");
             if (iconInput) iconInput.value = btn.dataset.icon || "";
         });
@@ -135,139 +572,65 @@
 
     document.querySelectorAll(".category-icon-option-detail").forEach(function (btn) {
         btn.addEventListener("click", function () {
-            document.querySelectorAll(".category-icon-option-detail").forEach(function (item) {
-                item.classList.remove("active");
-            });
+            if (document.getElementById("detailCategoryCanEdit")?.value !== "true") return;
+            document.querySelectorAll(".category-icon-option-detail").forEach(function (item) { item.classList.remove("active"); });
             btn.classList.add("active");
-
             const iconInput = document.getElementById("detailCategoryIcon");
             if (iconInput) iconInput.value = btn.dataset.icon || "";
             updateDetailPreview();
         });
     });
 
-    if (detailModalEl) {
-        detailModalEl.addEventListener("show.bs.modal", function (event) {
-            const trigger = event.relatedTarget;
-            if (!trigger) return;
+    ["addCategoryColor"].forEach(function (id) {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener("input", updateAddPreview);
+    });
 
-            const categoryId = trigger.getAttribute("data-category-id") || "";
-            const categoryName = trigger.getAttribute("data-category-name") || "Danh mục";
-            const categoryColor = trigger.getAttribute("data-category-color") || "#FFAB00";
-            const categoryIcon = trigger.getAttribute("data-category-icon") || "";
-            const hasBudget = trigger.getAttribute("data-has-budget") === "true";
-            const canEdit = trigger.getAttribute("data-category-can-edit") === "true";
-            const canDelete = trigger.getAttribute("data-category-can-delete") === "true";
-            const isDefault = trigger.getAttribute("data-category-is-default") === "true";
+    ["detailCategoryName", "detailCategoryColor"].forEach(function (id) {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener("input", updateDetailPreview);
+    });
 
-            const budgetId = trigger.getAttribute("data-budget-id") || "";
-            const budgetAmount = parseFloat(trigger.getAttribute("data-budget-amount") || "0");
-            const budgetSpent = parseFloat(trigger.getAttribute("data-budget-spent") || "0");
-            const budgetStatus = trigger.getAttribute("data-budget-status") || "none";
-            const budgetType = trigger.getAttribute("data-budget-type") || "Tháng";
-            const budgetPeriodType = trigger.getAttribute("data-budget-period-type") || "month";
+    ["budgetModalTimeType", "budgetModalYear", "budgetModalMonth", "budgetModalWeek", "budgetModalWeekDate"].forEach(function (id) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener("input", syncBudgetPeriodPreview);
+        el.addEventListener("change", syncBudgetPeriodPreview);
+    });
 
-            document.getElementById("detailCategoryId").textContent = categoryId;
-            document.getElementById("detailCategoryName").value = categoryName;
-            document.getElementById("detailCategoryColor").value = categoryColor;
-            document.getElementById("detailCategoryIcon").value = categoryIcon;
-            document.getElementById("detailCategoryCanEdit").value = canEdit ? "true" : "false";
-            document.getElementById("detailCategoryCanDelete").value = canDelete ? "true" : "false";
-            document.getElementById("detailBudgetId").value = budgetId;
-            document.getElementById("detailBudgetPeriodType").value = budgetPeriodType;
-            document.getElementById("budgetModalCategoryName").value = categoryName;
-
-            const typeBadge = document.getElementById("detailCategoryTypeBadge");
-            if (typeBadge) {
-                typeBadge.textContent = isDefault ? "Mặc định" : "Tùy chỉnh";
-                typeBadge.className = isDefault ? "badge bg-label-secondary" : "badge bg-label-primary";
+    document.querySelectorAll("[data-budget-shortcut]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+            const shortcut = btn.dataset.budgetShortcut || "current-month";
+            const now = new Date();
+            if (shortcut === "current-week") {
+                setBudgetFormToDate("week", now);
+            } else if (shortcut === "current-month") {
+                setBudgetFormToDate("month", now);
+            } else if (shortcut === "current-year") {
+                setBudgetFormToDate("year", now);
+            } else if (shortcut === "next-month") {
+                setBudgetFormToDate("month", new Date(now.getFullYear(), now.getMonth() + 1, 1));
             }
-
-            document.querySelectorAll(".category-icon-option-detail").forEach(function (btn) {
-                btn.classList.toggle("active", btn.dataset.icon === categoryIcon);
-            });
-
-            const deleteButton = document.getElementById("btnDeleteCategoryStatic");
-            const updateButton = document.getElementById("btnUpdateCategoryStatic");
-            const detailNameInput = document.getElementById("detailCategoryName");
-            const detailColorInput = document.getElementById("detailCategoryColor");
-
-            if (deleteButton) deleteButton.disabled = !canDelete;
-            if (updateButton) updateButton.disabled = !canEdit;
-            if (detailNameInput) detailNameInput.readOnly = !canEdit;
-            if (detailColorInput) detailColorInput.disabled = !canEdit;
-
-            document.querySelectorAll(".category-color-preset-detail, .category-icon-option-detail").forEach(function (el) {
-                if (!canEdit) {
-                    el.classList.add("disabled");
-                    el.setAttribute("tabindex", "-1");
-                    el.style.pointerEvents = "none";
-                    el.style.opacity = "0.65";
-                } else {
-                    el.classList.remove("disabled");
-                    el.removeAttribute("tabindex");
-                    el.style.pointerEvents = "";
-                    el.style.opacity = "";
-                }
-            });
-
-            const noBudgetState = document.getElementById("noBudgetState");
-            const hasBudgetState = document.getElementById("hasBudgetState");
-
-            if (hasBudget) {
-                noBudgetState.classList.add("d-none");
-                hasBudgetState.classList.remove("d-none");
-
-                const percentage = budgetAmount > 0 ? (budgetSpent / budgetAmount) * 100 : 0;
-                const remainRaw = budgetAmount - budgetSpent;
-                const overSpentRaw = budgetSpent - budgetAmount;
-                const progressWidth = percentage > 100 ? 100 : percentage;
-
-                document.getElementById("detailBudgetTitle").textContent = categoryName;
-                document.getElementById("detailBudgetType").textContent = budgetType;
-                document.getElementById("detailSpentAmount").textContent = currency(budgetSpent);
-                document.getElementById("detailTotalAmount").textContent = currency(budgetAmount);
-                document.getElementById("detailProgressText").textContent = percentage.toFixed(1) + "%";
-
-                const progressBar = document.getElementById("detailProgressBar");
-                const progressText = document.getElementById("detailProgressText");
-                const statusText = document.getElementById("detailStatusText");
-
-                progressBar.style.width = progressWidth + "%";
-
-                if (budgetStatus === "over") {
-                    progressBar.className = "progress-bar bg-danger progress-bar-striped progress-bar-animated";
-                    progressText.className = "fw-bold small text-danger";
-                    statusText.className = "small fw-bold text-danger";
-                    statusText.innerHTML = '<i class="bx bx-error me-1"></i>Vượt mức ' + currency(overSpentRaw);
-                } else if (budgetStatus === "reached") {
-                    progressBar.className = "progress-bar bg-warning";
-                    progressText.className = "fw-bold small text-warning";
-                    statusText.className = "small fw-bold text-warning";
-                    statusText.textContent = "Đã hết ngân sách";
-                } else {
-                    progressBar.className = "progress-bar bg-primary";
-                    progressText.className = "fw-bold small text-primary";
-                    statusText.className = "small fw-bold text-success";
-                    statusText.textContent = "Còn " + currency(remainRaw);
-                }
-
-                document.getElementById("budgetModalAmount").value = budgetAmount;
-                document.getElementById("budgetModalSpent").value = budgetSpent;
-                document.getElementById("budgetModalTimeType").value = budgetPeriodType || "month";
-            } else {
-                noBudgetState.classList.remove("d-none");
-                hasBudgetState.classList.add("d-none");
-                document.getElementById("budgetModalAmount").value = "";
-                document.getElementById("budgetModalSpent").value = "0";
-
-                const currentDashboardPeriod = document.getElementById("categoryPagePeriodType")?.value || "month";
-                document.getElementById("budgetModalTimeType").value = currentDashboardPeriod;
-            }
-
-            updateDetailPreview();
+            revealBudgetEditor(false);
         });
-    }
+    });
+    document.getElementById("btnOpenBudgetEditor")?.addEventListener("click", function () {
+        revealBudgetEditor(true);
+    });
+
+    document.getElementById("btnCreateNewBudgetEntry")?.addEventListener("click", function () {
+        resetBudgetForm();
+    });
+
+    document.getElementById("btnCloseBudgetChild")?.addEventListener("click", function () {
+        closeBudgetChildDialog();
+    });
+
+    document.querySelectorAll("[data-budget-overlay-close='true']").forEach(function (el) {
+        el.addEventListener("click", function () {
+            closeBudgetChildDialog();
+        });
+    });
 
     const btnSave = document.getElementById("btnSaveCategoryStatic");
     if (btnSave) {
@@ -283,17 +646,10 @@
 
             btnSave.disabled = true;
             try {
-                await sendJson(createUrl, "POST", {
-                    category_name: categoryName,
-                    color: color,
-                    icon: icon
-                });
-
-                if (addModal) addModal.hide();
-                if (toastSaved) toastSaved.show();
-                setTimeout(function () {
-                    window.location.reload();
-                }, 700);
+                await sendJson(createUrl, "POST", { category_name: categoryName, color, icon });
+                addModal?.hide();
+                toastSaved?.show();
+                setTimeout(function () { window.location.reload(); }, 700);
             } catch (error) {
                 alert(error.message || "Tạo danh mục thất bại.");
             } finally {
@@ -313,7 +669,7 @@
             const categoryId = document.getElementById("detailCategoryId")?.textContent || "";
             const categoryName = (document.getElementById("detailCategoryName")?.value || "").trim();
             const color = document.getElementById("detailCategoryColor")?.value || "#FFAB00";
-            const icon = document.getElementById("detailCategoryIcon")?.value || "";
+            const icon = document.getElementById("detailCategoryIcon")?.value || state.defaultIcon;
 
             if (!categoryId || !categoryName) {
                 alert("Dữ liệu danh mục chưa hợp lệ.");
@@ -322,16 +678,9 @@
 
             btnUpdate.disabled = true;
             try {
-                await sendJson(buildUpdateUrl(categoryId), "PUT", {
-                    category_name: categoryName,
-                    color: color,
-                    icon: icon
-                });
-
-                if (toastUpdated) toastUpdated.show();
-                setTimeout(function () {
-                    window.location.reload();
-                }, 700);
+                await sendJson(buildUpdateUrl(categoryId), "PUT", { category_name: categoryName, color, icon });
+                toastUpdated?.show();
+                setTimeout(function () { window.location.reload(); }, 700);
             } catch (error) {
                 alert(error.message || "Cập nhật danh mục thất bại.");
             } finally {
@@ -350,24 +699,17 @@
 
             const categoryId = document.getElementById("detailCategoryId")?.textContent || "";
             const categoryName = document.getElementById("detailCategoryName")?.value || "";
-
-            if (!categoryId) {
-                return;
-            }
+            if (!categoryId) return;
 
             const confirmed = window.confirm(`Bạn có chắc muốn xóa danh mục "${categoryName}" không? Hệ thống sẽ tự chuyển dữ liệu sang danh mục thay thế phù hợp.`);
-            if (!confirmed) {
-                return;
-            }
+            if (!confirmed) return;
 
             btnDelete.disabled = true;
             try {
                 await sendJson(buildDeleteUrl(categoryId), "DELETE");
-                if (detailModal) detailModal.hide();
-                if (toastDeleted) toastDeleted.show();
-                setTimeout(function () {
-                    window.location.reload();
-                }, 700);
+                detailModal?.hide();
+                toastDeleted?.show();
+                setTimeout(function () { window.location.reload(); }, 700);
             } catch (error) {
                 alert(error.message || "Xóa danh mục thất bại.");
             } finally {
@@ -380,13 +722,23 @@
     if (btnSaveBudget) {
         btnSaveBudget.addEventListener("click", async function () {
             const categoryId = (document.getElementById("detailCategoryId")?.textContent || "").trim();
-            const budgetId = document.getElementById("detailBudgetId")?.value || "";
+            const budgetId = document.getElementById("budgetModalBudgetId")?.value || "";
             const periodType = document.getElementById("budgetModalTimeType")?.value || "month";
-            const amountInputValue = document.getElementById("budgetModalAmount")?.value || "";
-            const amount = parseBudgetAmount(amountInputValue);
+            const amount = parseBudgetAmount(document.getElementById("budgetModalAmount")?.value || "");
+            const year = parseInt(document.getElementById("budgetModalYear")?.value || "0", 10);
+            const month = periodType === "month" ? parseInt(document.getElementById("budgetModalMonth")?.value || "0", 10) : null;
+            const week = periodType === "week" ? parseInt(document.getElementById("budgetModalWeek")?.value || "0", 10) : null;
 
-            if (!categoryId || !Number.isFinite(amount) || amount <= 0) {
+            if (!categoryId || !Number.isFinite(amount) || amount <= 0 || !year) {
                 alert("Vui lòng nhập hạn mức hợp lệ.");
+                return;
+            }
+            if (periodType === "month" && (!month || month < 1 || month > 12)) {
+                alert("Vui lòng chọn tháng hợp lệ.");
+                return;
+            }
+            if (periodType === "week" && (!week || week < 1 || week > 53)) {
+                alert("Vui lòng chọn tuần ISO hợp lệ.");
                 return;
             }
 
@@ -394,18 +746,30 @@
             try {
                 await sendJson(saveBudgetUrl, "POST", {
                     category_id: categoryId,
-                    budget_id: budgetId,
+                    budget_id: budgetId || null,
                     period_type: periodType,
+                    period_year: year,
+                    period_month: month,
+                    period_week: week,
                     limit_amount: amount
                 });
 
-                if (setBudgetModal) setBudgetModal.hide();
-                if (detailModal) detailModal.hide();
-                if (toastSaved) toastSaved.show();
+                await loadBudgetsForCurrentCategory();
+                const savedBudget = state.budgets.find(function (item) {
+                    return item.period_type === periodType
+                        && Number(item.period_year || 0) === year
+                        && Number(item.period_month || 0) === Number(month || 0)
+                        && Number(item.period_week || 0) === Number(week || 0);
+                });
 
-                setTimeout(function () {
-                    window.location.reload();
-                }, 700);
+                if (savedBudget) {
+                    fillBudgetForm(savedBudget);
+                } else {
+                    resetBudgetForm();
+                }
+
+                toastSaved?.show();
+                closeBudgetChildDialog();
             } catch (error) {
                 alert(error.message || "Lưu hạn mức thất bại.");
             } finally {
@@ -414,19 +778,23 @@
         });
     }
 
-    function parseBudgetAmount(rawValue) {
-        const normalized = String(rawValue || "")
-            .trim()
-            .replace(/\s/g, "")
-            .replace(/,/g, "");
+    if (detailModalEl) {
+        detailModalEl.addEventListener("show.bs.modal", async function (event) {
+            const trigger = event.relatedTarget;
+            if (!trigger) return;
+            setDetailStateFromTrigger(trigger);
+            await loadBudgetsForCurrentCategory();
+        });
 
-        if (!normalized) {
-            return NaN;
-        }
-
-        return Number(normalized);
+        detailModalEl.addEventListener("hidden.bs.modal", function () {
+            state.currentCategory = null;
+            state.budgets = [];
+            state.activeBudgetId = null;
+            closeBudgetChildDialog();
+        });
     }
 
     updateAddPreview();
     updateDetailPreview();
+    resetBudgetForm();
 });
