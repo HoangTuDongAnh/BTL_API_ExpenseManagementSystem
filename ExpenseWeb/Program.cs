@@ -1,6 +1,11 @@
 using ExpenseWeb.Services.Api;
+using System.Globalization;
 
 var builder = WebApplication.CreateBuilder(args);
+var culture = new CultureInfo("en-US");
+
+CultureInfo.DefaultThreadCurrentCulture = culture;
+CultureInfo.DefaultThreadCurrentUICulture = culture;
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddHttpContextAccessor();
