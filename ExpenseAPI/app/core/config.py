@@ -1,7 +1,11 @@
 ﻿import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+BASE_DIR = Path(__file__).resolve().parents[1]
+ENV_PATH = BASE_DIR / ".env"
+
+load_dotenv(dotenv_path=ENV_PATH)
 
 class Settings:
     # ================= DATABASE =================
@@ -16,7 +20,11 @@ class Settings:
     # ================= EMAIL =================
     EMAIL_HOST: str = os.getenv("EMAIL_HOST", "smtp.gmail.com")
     EMAIL_PORT: int = int(os.getenv("EMAIL_PORT", 587))
-    EMAIL_USER: str = os.getenv("EMAIL_USER", "")
-    EMAIL_PASSWORD: str = os.getenv("EMAIL_PASSWORD", "")
+    EMAIL_USER: str = os.getenv("EMAIL_USER", "").strip()
+    EMAIL_PASSWORD: str = os.getenv("EMAIL_PASSWORD", "").strip().replace(" ", "")
 
 settings = Settings()
+
+print("DEBUG EMAIL_USER =", settings.EMAIL_USER)
+print("DEBUG EMAIL_PASSWORD length =", len(settings.EMAIL_PASSWORD))
+print("DEBUG ENV PATH =", ENV_PATH)

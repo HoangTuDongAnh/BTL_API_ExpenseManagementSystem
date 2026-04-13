@@ -63,13 +63,16 @@ namespace ExpenseWeb.Services.Api
             return (true, "");
         }
 
-        public async Task<(bool Success, string ErrorMessage)> RegisterAsync(RegisterRequestDto request)
+        public async Task<(bool Success, string ErrorMessage, RegisterResponseDto? Data)> RegisterAsync(RegisterRequestDto request)
         {
             var response = await _httpClient.PostAsync($"{_baseUrl}/auth/register", CreateJsonContent(request));
             var responseBody = await response.Content.ReadAsStringAsync();
+
             if (!response.IsSuccessStatusCode)
-                return (false, ExtractErrorMessage(responseBody));
-            return (true, "");
+                return (false, ExtractErrorMessage(responseBody), null);
+
+            var data = JsonSerializer.Deserialize<RegisterResponseDto>(responseBody, _jsonOptions);
+            return (true, "", data);
         }
 
         public async Task<(bool Success, string ErrorMessage)> VerifyOtpAsync(string email, string otp)
@@ -87,6 +90,19 @@ namespace ExpenseWeb.Services.Api
             var responseBody = await response.Content.ReadAsStringAsync();
             if (!response.IsSuccessStatusCode)
                 return (false, ExtractErrorMessage(responseBody));
+
+            try
+            {
+                var doc = JsonDocument.Parse(responseBody);
+                if (doc.RootElement.TryGetProperty("message", out var message))
+                {
+                    return (true, message.GetString() ?? "");
+                }
+            }
+            catch
+            {
+            }
+
             return (true, "");
         }
 
@@ -131,12 +147,22 @@ namespace ExpenseWeb.Services.Api
                 var doc = JsonDocument.Parse(responseBody);
                 if (doc.RootElement.TryGetProperty("detail", out var detail))
                 {
-                    return detail.ValueKind == JsonValueKind.String ? detail.GetString() ?? "Unknown error" : detail.ToString();
+                    return detail.ValueKind == JsonValueKind.String
+                        ? detail.GetString() ?? "Unknown error"
+                        : detail.ToString();
+                }
+
+                if (doc.RootElement.TryGetProperty("message", out var message))
+                {
+                    return message.ValueKind == JsonValueKind.String
+                        ? message.GetString() ?? "Unknown error"
+                        : message.ToString();
                 }
             }
             catch
             {
             }
+
             return string.IsNullOrWhiteSpace(responseBody) ? "Unknown error" : responseBody;
         }
     }

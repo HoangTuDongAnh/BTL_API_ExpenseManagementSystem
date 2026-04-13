@@ -130,7 +130,9 @@ namespace ExpenseWeb.Controllers
 
             if (!model.AgreeTerms)
             {
-                ModelState.AddModelError(nameof(model.AgreeTerms), lang == "en" ? "You must agree to the terms." : "Bạn phải đồng ý với điều khoản sử dụng.");
+                ModelState.AddModelError(nameof(model.AgreeTerms), lang == "en"
+                    ? "You must agree to the terms."
+                    : "Bạn phải đồng ý với điều khoản sử dụng.");
             }
 
             if (!ModelState.IsValid)
@@ -153,13 +155,28 @@ namespace ExpenseWeb.Controllers
             {
                 SetToastErrors("RegisterErrorsJson", new[]
                 {
-                    result.ErrorMessage ?? (lang == "en" ? "Registration failed." : "Đăng ký thất bại.")
-                });
+            result.ErrorMessage ?? (lang == "en" ? "Registration failed." : "Đăng ký thất bại.")
+        });
                 return View("Login", new LoginViewModel());
             }
 
             HttpContext.Session.SetString("TempEmail", model.Email ?? "");
             HttpContext.Session.SetString("TempPassword", model.Password ?? "");
+
+            if (result.Data != null && !result.Data.email_sent)
+            {
+                TempData["ErrorMessage"] = string.IsNullOrWhiteSpace(result.Data.message)
+                    ? (lang == "en"
+                        ? "Account created but OTP email could not be sent. Please use Resend OTP."
+                        : "Tài khoản đã được tạo nhưng chưa gửi được email OTP. Vui lòng bấm Gửi lại OTP.")
+                    : result.Data.message;
+            }
+            else
+            {
+                TempData["SuccessMessage"] = string.IsNullOrWhiteSpace(result.Data?.message)
+                    ? (lang == "en" ? "OTP has been sent to your email." : "Mã OTP đã được gửi tới email của bạn.")
+                    : result.Data!.message;
+            }
 
             return RedirectToAction("VerifyOtp", new { email = model.Email, lang });
         }
@@ -217,13 +234,18 @@ namespace ExpenseWeb.Controllers
             lang = (lang ?? "vi").ToLower() == "en" ? "en" : "vi";
             if (string.IsNullOrWhiteSpace(email))
             {
-                TempData["ErrorMessage"] = lang == "en" ? "Invalid email for resending OTP." : "Email không hợp lệ để gửi lại OTP.";
+                TempData["ErrorMessage"] = lang == "en"
+                    ? "Invalid email for resending OTP."
+                    : "Email không hợp lệ để gửi lại OTP.";
                 return RedirectToAction("Login", new { lang });
             }
 
             var result = await _authApiService.ResendOtpAsync(email);
+
             TempData[result.Success ? "SuccessMessage" : "ErrorMessage"] = result.Success
-                ? (lang == "en" ? "OTP resent successfully." : "Gửi lại OTP thành công.")
+                ? (!string.IsNullOrWhiteSpace(result.ErrorMessage)
+                    ? result.ErrorMessage
+                    : (lang == "en" ? "OTP resent successfully." : "Gửi lại OTP thành công."))
                 : (result.ErrorMessage ?? (lang == "en" ? "Failed to resend OTP." : "Gửi lại OTP thất bại."));
 
             return RedirectToAction("VerifyOtp", new { email, lang });

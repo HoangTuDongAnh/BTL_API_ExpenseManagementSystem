@@ -9,7 +9,7 @@ class RegisterRequest(BaseModel):
     password: str = Field(..., min_length=6, max_length=100)
     phone_number: Optional[str] = Field(default=None, max_length=15)
     avatar: Optional[str] = Field(default=None, max_length=255)
-    agree_terms: bool = Field(...)  # thêm dòng này
+    agree_terms: bool = Field(...)
 
     @field_validator("agree_terms")
     @classmethod
@@ -17,6 +17,7 @@ class RegisterRequest(BaseModel):
         if not v:
             raise ValueError("Bạn phải đồng ý với điều khoản sử dụng")
         return v
+
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -40,6 +41,12 @@ class UserResponse(BaseModel):
     status: str
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class RegisterResponse(BaseModel):
+    user: UserResponse
+    email_sent: bool
+    message: str
 
 
 class TokenResponse(BaseModel):

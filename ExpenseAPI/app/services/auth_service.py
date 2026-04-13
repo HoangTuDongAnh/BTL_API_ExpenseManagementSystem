@@ -31,7 +31,18 @@ class AuthService:
     def register(self, db: Session, data: RegisterRequest):
         existing_user = self.user_repo.get_by_email(db, data.email)
         if existing_user:
-            raise ValueError("Email already exists")
+            if existing_user.Status == "active":
+                raise ValueError("Email already exists")
+
+            otp_result = self.otp_service.create_otp(db, data.email)
+            return {
+                "user": existing_user,
+                "email_sent": otp_result["email_sent"],
+                "message": (
+                    "Tài khoản đã tồn tại nhưng chưa xác thực. Một mã OTP mới đã được tạo. "
+                    + otp_result["message"]
+                ),
+            }
 
         user = User(
             UserID=self._generate_user_id(db),
@@ -45,9 +56,13 @@ class AuthService:
         )
         self.user_repo.create(db, user)
 
-        OTPService().create_otp(db, data.email)
+        otp_result = self.otp_service.create_otp(db, data.email)
 
-        return user
+        return {
+            "user": user,
+            "email_sent": otp_result["email_sent"],
+            "message": otp_result["message"],
+        }
 
     def login(self, db: Session, data: LoginRequest):
         user = self.user_repo.get_by_email(db, data.email)
