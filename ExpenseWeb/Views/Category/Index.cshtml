@@ -218,6 +218,7 @@
                                     data-category-is-default="@(item.is_default.ToString().ToLower())"
                                     data-category-can-edit="@(item.can_edit.ToString().ToLower())"
                                     data-category-can-delete="@(item.can_delete.ToString().ToLower())"
+                                    data-category-transaction-count="@item.transaction_count"
                                     data-has-budget="@(hasBudget.ToString().ToLower())"
                                     data-budget-id="@(budget?.budget_id ?? string.Empty)"
                                     data-budget-amount="@total"
@@ -424,7 +425,8 @@
                 </div>
             </div>
 
-            <div class="modal-footer category-modal-footer border-top">
+
+                        <div class="modal-footer category-modal-footer border-top">
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">@T("Hủy", "Cancel")</button>
                 <button type="button" class="btn btn-primary" id="btnSaveCategoryStatic">
                     <i class="icon-base bx bx-plus me-1"></i>@T("Tạo danh mục", "Create Category")
@@ -679,6 +681,71 @@
                     </div>
                 </div>
             </div>
+
+<div id="deleteChildOverlay" class="category-subdialog category-delete-subdialog d-none" aria-hidden="true">
+                <div class="category-subdialog__backdrop" data-delete-overlay-close="true"></div>
+
+                <div class="category-subdialog__panel category-delete-subdialog__panel">
+                    <div class="category-subdialog__header category-delete-subdialog__header">
+                        <div>
+                            <div class="category-section-title mb-1">
+                                <i class="bx bx-trash"></i>
+                                <span>@T("Xóa danh mục", "Delete category")</span>
+                            </div>
+                            <div class="text-muted small">@T("Chọn cách chuyển các giao dịch trước khi xóa danh mục này.", "Choose how to reassign transactions before deleting this category.")</div>
+                        </div>
+
+                        <button type="button" class="btn category-subdialog__close" id="btnCloseDeleteChild">&times;</button>
+                    </div>
+
+                    <div class="category-subdialog__body">
+                        <div class="category-delete-summary-card mb-3">
+                            <div class="category-delete-summary-card__icon"><i class="bx bx-folder-minus"></i></div>
+                            <div class="category-delete-summary-card__content">
+                                <div class="category-delete-summary-card__title" id="deleteCategoryNameText">@T("Danh mục", "Category")</div>
+                                <div class="category-delete-summary-card__meta"><strong id="deleteCategoryTransactionCount">0</strong> @T("giao dịch sẽ được chuyển sang danh mục khác.", "transactions will be moved to another category.")</div>
+                                <div class="category-delete-summary-card__note">@T("Các hạn mức của danh mục này sẽ bị xóa cùng lúc.", "Budgets of this category will be deleted as well.")</div>
+                            </div>
+                        </div>
+
+                        <div class="category-delete-choice-grid">
+                            <label class="category-delete-choice-card active" data-delete-choice-card="default" for="deleteModeDefault">
+                                <input class="form-check-input" type="radio" name="deleteCategoryMode" id="deleteModeDefault" value="default" checked>
+                                <div class="category-delete-choice-card__top">
+                                    <span class="category-delete-choice-card__title">@T("Chuyển về “Khác”", "Move to “Other”")</span>
+                                    <span class="badge bg-label-success">@T("Mặc định", "Default")</span>
+                                </div>
+                                <div class="category-delete-choice-card__desc">@T("Tất cả giao dịch sẽ được chuyển sang danh mục mặc định “Khác”.", "All transactions will be reassigned to the default “Other” category.")</div>
+                            </label>
+
+                            <label class="category-delete-choice-card" data-delete-choice-card="replacement" for="deleteModeReplacement">
+                                <input class="form-check-input" type="radio" name="deleteCategoryMode" id="deleteModeReplacement" value="replacement">
+                                <div class="category-delete-choice-card__top">
+                                    <span class="category-delete-choice-card__title">@T("Chuyển sang danh mục khác", "Move to another category")</span>
+                                    <span class="badge bg-label-primary">@T("Tùy chọn", "Custom")</span>
+                                </div>
+                                <div class="category-delete-choice-card__desc">@T("Chọn một danh mục thay thế từ danh sách để giữ giao dịch liên quan.", "Choose a replacement category from the list to keep related transactions organized.")</div>
+
+                                <div class="category-delete-choice-card__field mt-3">
+                                    <label class="form-label mb-2">@T("Danh mục thay thế", "Replacement category")</label>
+                                    <select id="deleteReplacementCategoryId" class="form-select" disabled>
+                                        <option value="">@T("-- Chọn danh mục thay thế --", "-- Select replacement category --")</option>
+                                    </select>
+                                    <div id="deleteCategoryError" class="text-danger small mt-2 d-none">@T("Vui lòng chọn danh mục thay thế.", "Please select a replacement category.")</div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="category-subdialog__footer category-delete-subdialog__footer">
+                        <button type="button" class="btn btn-outline-secondary" id="btnCancelDeleteChild">@T("Hủy", "Cancel")</button>
+                        <button type="button" class="btn btn-danger" id="btnConfirmDeleteCategory">
+                            <i class="bx bx-trash me-1"></i>@T("Xóa danh mục", "Delete category")
+                        </button>
+                    </div>
+                </div>
+            </div>
+
 
 <div class="modal-footer category-modal-footer border-top">
                 <button type="button" class="btn btn-outline-danger me-auto" id="btnDeleteCategoryStatic">

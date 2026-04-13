@@ -1448,3 +1448,132 @@
         max-height: 240px;
     }
 }
+
+
+.category-delete-subdialog .category-subdialog__backdrop {
+    background: rgba(17, 24, 39, 0.48);
+    backdrop-filter: blur(3px);
+}
+
+.category-delete-subdialog__panel {
+    width: min(700px, calc(100% - 2rem));
+    max-height: min(640px, calc(100% - 2rem));
+}
+
+.category-delete-subdialog__header {
+    align-items: center;
+}
+
+.category-delete-summary-card {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem;
+    border-radius: 1rem;
+    border: 1px solid rgba(255, 62, 29, 0.14);
+    background: linear-gradient(180deg, #fff7f5 0%, #fff 100%);
+}
+
+.category-delete-summary-card__icon {
+    width: 52px;
+    height: 52px;
+    min-width: 52px;
+    border-radius: 1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 62, 29, 0.12);
+    color: #ff3e1d;
+    font-size: 1.4rem;
+}
+
+.category-delete-summary-card__title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #2b3a4b;
+    margin-bottom: 0.2rem;
+}
+
+.category-delete-summary-card__meta {
+    font-size: 0.9rem;
+    color: #566a7f;
+}
+
+.category-delete-summary-card__note {
+    margin-top: 0.4rem;
+    font-size: 0.82rem;
+    color: #ff3e1d;
+    font-weight: 600;
+}
+
+.category-delete-choice-grid {
+    display: grid;
+    gap: 1rem;
+}
+
+.category-delete-choice-card {
+    display: block;
+    padding: 1rem;
+    border-radius: 1rem;
+    border: 1px solid rgba(67, 89, 113, 0.14);
+    background: #fff;
+    transition: all 0.18s ease;
+    cursor: pointer;
+}
+
+.category-delete-choice-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 0.5rem 1rem rgba(67, 89, 113, 0.08);
+}
+
+.category-delete-choice-card.active {
+    border-color: rgba(105, 108, 255, 0.34);
+    box-shadow: 0 0 0 2px rgba(105, 108, 255, 0.08), 0 0.8rem 1.8rem rgba(105, 108, 255, 0.12);
+    background: linear-gradient(180deg, #ffffff 0%, #f8faff 100%);
+}
+
+.category-delete-choice-card .form-check-input {
+    display: none;
+}
+
+.category-delete-choice-card__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.4rem;
+}
+
+.category-delete-choice-card__title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #2b3a4b;
+}
+
+.category-delete-choice-card__desc {
+    font-size: 0.84rem;
+    color: #6b7280;
+    line-height: 1.5;
+}
+
+.category-delete-choice-card__field {
+    padding-top: 0.2rem;
+}
+
+.category-delete-subdialog__footer {
+    justify-content: space-between;
+}
+
+@media (max-width: 767.98px) {
+    .category-delete-summary-card {
+        flex-direction: column;
+    }
+
+    .category-delete-choice-card__top {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .category-delete-subdialog__footer {
+        flex-direction: column-reverse;
+    }
+}

@@ -105,7 +105,7 @@ namespace ExpenseWeb.Controllers
         }
 
         [HttpDelete]
-        public async Task<IActionResult> Delete(string id)
+        public async Task<IActionResult> Delete(string id, [FromBody] CategoryDeleteRequestDto? request)
         {
             var token = HttpContext.Session.GetString("AccessToken");
             if (string.IsNullOrEmpty(token))
@@ -115,7 +115,7 @@ namespace ExpenseWeb.Controllers
 
             try
             {
-                await _categoryApiService.DeleteCategoryAsync(token, id, new CategoryDeleteRequestDto());
+                await _categoryApiService.DeleteCategoryAsync(token, id, request ?? new CategoryDeleteRequestDto());
 
                 return Json(new
                 {

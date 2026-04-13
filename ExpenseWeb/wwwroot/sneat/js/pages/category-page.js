@@ -1,4 +1,4 @@
-document.addEventListener("DOMContentLoaded", function () {
+﻿document.addEventListener("DOMContentLoaded", function () {
     const addModalEl = document.getElementById("addCategoryModal");
     const detailModalEl = document.getElementById("categoryDetailModal");
     const addModal = addModalEl ? new bootstrap.Modal(addModalEl) : null;
@@ -20,6 +20,17 @@ document.addEventListener("DOMContentLoaded", function () {
         activeBudgetId: null,
         defaultIcon: document.querySelector(".category-icon-option-detail")?.dataset.icon || document.getElementById("detailHeadIcon")?.getAttribute("src") || ""
     };
+
+    function getCurrentCategoryCard() {
+        const categoryId = state.currentCategory?.id || "";
+        if (!categoryId) return null;
+        return document.querySelector(`.category-card[data-category-id="${categoryId}"]`);
+    }
+
+    function getCurrentTransactionCount() {
+        const card = getCurrentCategoryCard();
+        return parseInt(card?.getAttribute("data-category-transaction-count") || "0", 10) || 0;
+    }
 
     function currency(value) {
         return Number(value || 0).toLocaleString("vi-VN") + " đ";
@@ -689,31 +700,143 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    function syncDeleteChoiceCards() {
+        const mode = document.querySelector("input[name='deleteCategoryMode']:checked")?.value || "default";
+        document.querySelectorAll("[data-delete-choice-card]").forEach(function (card) {
+            card.classList.toggle("active", card.getAttribute("data-delete-choice-card") === mode);
+        });
+    }
+
+    function openDeleteChildDialog() {
+        const overlay = document.getElementById("deleteChildOverlay");
+        if (!overlay) return;
+        overlay.classList.remove("d-none");
+        overlay.setAttribute("aria-hidden", "false");
+        document.body.classList.add("category-subdialog-open");
+        syncDeleteChoiceCards();
+    }
+
+    function closeDeleteChildDialog() {
+        const overlay = document.getElementById("deleteChildOverlay");
+        if (!overlay) return;
+        overlay.classList.add("d-none");
+        overlay.setAttribute("aria-hidden", "true");
+        document.body.classList.remove("category-subdialog-open");
+    }
+
+    function buildReplacementCategoryOptions() {
+        const select = document.getElementById("deleteReplacementCategoryId");
+        if (!select) return;
+
+        const currentId = state.currentCategory?.id || "";
+        const cards = Array.from(document.querySelectorAll(".category-card[data-category-id]"));
+        const options = cards
+            .map(function (card) {
+                return {
+                    id: card.getAttribute("data-category-id") || "",
+                    name: card.getAttribute("data-category-name") || "",
+                    canDelete: card.getAttribute("data-category-can-delete") === "true"
+                };
+            })
+            .filter(function (item) {
+                return item.id && item.id !== currentId;
+            })
+            .sort(function (a, b) {
+                return a.name.localeCompare(b.name, "vi");
+            });
+
+        select.innerHTML = `<option value="">-- Chọn danh mục thay thế --</option>` + options.map(function (item) {
+            return `<option value="${item.id}">${item.name}</option>`;
+        }).join("");
+    }
+
+    function prepareDeleteDialog() {
+        const categoryName = document.getElementById("detailCategoryName")?.value || state.currentCategory?.name || "Danh mục";
+        const txCount = getCurrentTransactionCount();
+        const txCountEl = document.getElementById("deleteCategoryTransactionCount");
+        const nameEl = document.getElementById("deleteCategoryNameText");
+        const select = document.getElementById("deleteReplacementCategoryId");
+        const error = document.getElementById("deleteCategoryError");
+        const defaultRadio = document.getElementById("deleteModeDefault");
+
+        if (nameEl) nameEl.textContent = categoryName;
+        if (txCountEl) txCountEl.textContent = String(txCount);
+        if (defaultRadio) defaultRadio.checked = true;
+        if (select) {
+            buildReplacementCategoryOptions();
+            select.disabled = true;
+            select.value = "";
+        }
+        if (error) error.classList.add("d-none");
+        syncDeleteChoiceCards();
+    }
+
+    document.getElementById("deleteModeDefault")?.addEventListener("change", function () {
+        const select = document.getElementById("deleteReplacementCategoryId");
+        const error = document.getElementById("deleteCategoryError");
+        if (select) {
+            select.disabled = true;
+            select.value = "";
+        }
+        if (error) error.classList.add("d-none");
+        syncDeleteChoiceCards();
+    });
+
+    document.getElementById("deleteModeReplacement")?.addEventListener("change", function () {
+        const select = document.getElementById("deleteReplacementCategoryId");
+        if (select) select.disabled = false;
+        syncDeleteChoiceCards();
+    });
+
+    document.getElementById("btnCloseDeleteChild")?.addEventListener("click", closeDeleteChildDialog);
+    document.getElementById("btnCancelDeleteChild")?.addEventListener("click", closeDeleteChildDialog);
+    document.querySelectorAll("[data-delete-overlay-close='true']").forEach(function (el) {
+        el.addEventListener("click", closeDeleteChildDialog);
+    });
+
     const btnDelete = document.getElementById("btnDeleteCategoryStatic");
     if (btnDelete) {
-        btnDelete.addEventListener("click", async function () {
+        btnDelete.addEventListener("click", function () {
             if (document.getElementById("detailCategoryCanDelete")?.value !== "true") {
                 alert("Danh mục mặc định không thể xóa.");
                 return;
             }
 
             const categoryId = document.getElementById("detailCategoryId")?.textContent || "";
-            const categoryName = document.getElementById("detailCategoryName")?.value || "";
             if (!categoryId) return;
 
-            const confirmed = window.confirm(`Bạn có chắc muốn xóa danh mục "${categoryName}" không? Hệ thống sẽ tự chuyển dữ liệu sang danh mục thay thế phù hợp.`);
-            if (!confirmed) return;
+            prepareDeleteDialog();
+            openDeleteChildDialog();
+        });
+    }
 
-            btnDelete.disabled = true;
+    const btnConfirmDelete = document.getElementById("btnConfirmDeleteCategory");
+    if (btnConfirmDelete) {
+        btnConfirmDelete.addEventListener("click", async function () {
+            const categoryId = document.getElementById("detailCategoryId")?.textContent || "";
+            if (!categoryId) return;
+
+            const mode = document.querySelector("input[name='deleteCategoryMode']:checked")?.value || "default";
+            const replacementId = document.getElementById("deleteReplacementCategoryId")?.value || "";
+            const error = document.getElementById("deleteCategoryError");
+
+            if (mode === "replacement" && !replacementId) {
+                error?.classList.remove("d-none");
+                return;
+            }
+
+            btnConfirmDelete.disabled = true;
             try {
-                await sendJson(buildDeleteUrl(categoryId), "DELETE");
+                const payload = mode === "replacement" ? { replacement_category_id: replacementId } : {};
+                await sendJson(buildDeleteUrl(categoryId), "DELETE", payload);
+                closeDeleteChildDialog();
                 detailModal?.hide();
                 toastDeleted?.show();
                 setTimeout(function () { window.location.reload(); }, 700);
             } catch (error) {
                 alert(error.message || "Xóa danh mục thất bại.");
             } finally {
-                btnDelete.disabled = false;
+                btnConfirmDelete.disabled = false;
             }
         });
     }
