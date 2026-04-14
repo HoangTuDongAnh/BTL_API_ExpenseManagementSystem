@@ -14,17 +14,60 @@
         .ThenBy(x => x.WalletName)
         .ToList();
 
-    var trendLabels = JsonSerializer.Serialize(Model.MonthlyTrend.Select(x => x.Label));
-    var trendIncome = JsonSerializer.Serialize(Model.MonthlyTrend.Select(x => x.Income));
-    var trendExpense = JsonSerializer.Serialize(Model.MonthlyTrend.Select(x => x.Expense));
+    var trendLabels = JsonSerializer.Serialize(Model.CashflowSeries.Select(x => x.Label));
+    var trendIncome = JsonSerializer.Serialize(Model.CashflowSeries.Select(x => x.Income));
+    var trendExpense = JsonSerializer.Serialize(Model.CashflowSeries.Select(x => x.Expense));
+    var trendNet = JsonSerializer.Serialize(Model.CashflowSeries.Select(x => x.Net));
+    var trendRunningBalance = JsonSerializer.Serialize(Model.CashflowSeries.Select(x => x.RunningBalance));
+
     var donutLabels = JsonSerializer.Serialize(Model.CategoryBreakdown.Select(x => x.CategoryName));
     var donutSeries = JsonSerializer.Serialize(Model.CategoryBreakdown.Select(x => x.TotalAmount));
-    var donutColors = JsonSerializer.Serialize(Model.CategoryBreakdown.Select(x => x.Color));
+    var donutColors = JsonSerializer.Serialize(
+        Model.CategoryBreakdown.Select(x => string.IsNullOrWhiteSpace(x.Color) ? "#696cff" : x.Color)
+    );
+    var donutIcons = JsonSerializer.Serialize(
+        Model.CategoryBreakdown.Select(x => string.IsNullOrWhiteSpace(x.Icon) ? "" : x.Icon)
+    );
 }
 
 @section Styles {
     <link rel="stylesheet" href="~/sneat/css/pages/wallet-dashboard.css" />
     <link rel="stylesheet" href="~/sneat/css/pages/report-page.css" />
+
+    <style>
+        .chartjs-shell {
+            position: relative;
+            width: 100%;
+            min-height: 320px;
+        }
+
+            .chartjs-shell.chartjs-shell-sm {
+                min-height: 280px;
+            }
+
+        .chartjs-canvas {
+            width: 100% !important;
+            height: 320px !important;
+        }
+
+            .chartjs-canvas.chartjs-canvas-sm {
+                height: 280px !important;
+            }
+
+        @@media (max-width: 991.98px) {
+            .chartjs-shell,
+            .chartjs-canvas {
+                min-height: 280px;
+                height: 280px !important;
+            }
+
+                .chartjs-shell.chartjs-shell-sm,
+                .chartjs-canvas.chartjs-canvas-sm {
+                    min-height: 260px;
+                    height: 260px !important;
+                }
+        }
+    </style>
 }
 
 <div class="container-xxl flex-grow-1 container-p-y">
@@ -36,8 +79,8 @@
             </h1>
             <p class="dashboard-hero-text">
                 @T(
-                    "Xem nhanh số dư hiện có, tình hình thu chi trong kỳ và các báo cáo quan trọng để biết tiền đang đi đâu.",
-                    "Quickly review current balances, period cashflow, and the key reports that show where your money is going.")
+                "Xem nhanh số dư hiện có, tình hình thu chi trong kỳ và các báo cáo quan trọng để biết tiền đang đi đâu.",
+                                "Quickly review current balances, period cashflow, and the key reports that show where your money is going.")
             </p>
         </div>
     </section>
@@ -191,18 +234,18 @@
                 </div>
                 <div class="dashboard-kpi-card">
                     <div class="dashboard-kpi-label">@T("Thu trong kỳ", "Income in period")</div>
-                    <h3 class="dashboard-kpi-value positive">@Model.MonthlyIncome.ToString("N0") VND</h3>
-                    <div class="dashboard-kpi-helper">@T("Thu nhập của tháng đang được chọn để xem báo cáo.", "Income for the month currently selected in the report filter.")</div>
+                    <h3 class="dashboard-kpi-value positive">@Model.RangeIncome.ToString("N0") VND</h3>
+                    <div class="dashboard-kpi-helper">@T("Tổng thu trong khoảng thời gian đang lọc.", "Income in the selected date range.")</div>
                 </div>
                 <div class="dashboard-kpi-card">
                     <div class="dashboard-kpi-label">@T("Chi trong kỳ", "Expense in period")</div>
-                    <h3 class="dashboard-kpi-value negative">@Model.MonthlyExpense.ToString("N0") VND</h3>
-                    <div class="dashboard-kpi-helper">@T("Tổng chi tiêu của tháng đang được chọn để xem báo cáo.", "Expenses for the month currently selected in the report filter.")</div>
+                    <h3 class="dashboard-kpi-value negative">@Model.RangeExpense.ToString("N0") VND</h3>
+                    <div class="dashboard-kpi-helper">@T("Tổng chi trong khoảng thời gian đang lọc.", "Expense in the selected date range.")</div>
                 </div>
                 <div class="dashboard-kpi-card">
                     <div class="dashboard-kpi-label">@T("Dòng tiền ròng", "Net cashflow")</div>
-                    <h3 class="dashboard-kpi-value @(Model.NetCashflow >= 0 ? "positive" : "negative")">@Model.NetCashflow.ToString("N0") VND</h3>
-                    <div class="dashboard-kpi-helper">@Model.TransactionCount @T("giao dịch trong tháng hiện tại của dashboard.", "transactions in the current dashboard month.")</div>
+                    <h3 class="dashboard-kpi-value @(Model.NetCashflow >= 0 ? "positive" : "negative")">@Model.RangeNetChange.ToString("N0") VND</h3>
+                    <div class="dashboard-kpi-helper">@Model.RangeTransactionCount @T("giao dịch trong khoảng thời gian đang lọc.", "transactions in the selected date range.")</div>
                 </div>
             </div>
         </div>
@@ -219,18 +262,30 @@
         <div class="card report-card">
             <div class="card-header d-flex justify-content-between align-items-start gap-3">
                 <div>
-                    <h3 class="report-title">@T("Xu hướng thu và chi theo tháng", "Monthly income and expense trend")</h3>
-                    <p class="report-text">@T("Giúp bạn nhìn nhanh tháng nào thu tốt, tháng nào chi tăng cao để so sánh trong cả năm.", "See which months earned well and which months had heavier spending across the year.")</p>
+                    <h3 class="report-title">@T("Biến động và số dư lũy kế", "Changes and running balance")</h3>
+                    <p class="report-text">@T("Cột thể hiện biến động từng mốc, đường thể hiện số dư lũy kế theo bộ lọc và cách nhóm dữ liệu phía trên.", "Bars show change per point while the line shows running balance based on the selected filter and grouping.")</p>
                 </div>
-                <a class="btn btn-sm btn-outline-primary report-export-btn" asp-controller="Dashboard" asp-action="ExportMonthlySummaryCsv" asp-route-year="@Model.SelectedYear">CSV</a>
+                <a class="btn btn-sm btn-outline-primary report-export-btn"
+                   asp-controller="Dashboard"
+                   asp-action="ExportMonthlySummaryCsv"
+                   asp-route-year="@Model.SelectedYear">CSV</a>
             </div>
             <div class="card-body">
-                <div id="dashboardCashflowChart"
-                     data-labels='@Html.Raw(trendLabels)'
-                     data-income='@Html.Raw(trendIncome)'
-                     data-expense='@Html.Raw(trendExpense)'></div>
+                <div class="chartjs-shell">
+                    <canvas id="dashboardCashflowChart"
+                            class="chartjs-canvas"
+                            data-labels='@Html.Raw(trendLabels)'
+                            data-income='@Html.Raw(trendIncome)'
+                            data-expense='@Html.Raw(trendExpense)'
+                            data-net='@Html.Raw(trendNet)'
+                            data-running-balance='@Html.Raw(trendRunningBalance)'></canvas>
+                </div>
+
                 <div class="report-period-bar report-period-bar-static">
-                    <p class="report-period-note mb-0">@T("Biểu đồ này dùng kỳ năm để so sánh các tháng, còn bộ lọc phía trên áp dụng cho các thẻ tổng quan và các phần báo cáo chi tiết.", "This chart keeps a yearly view for month-to-month comparison, while the filter above refreshes the summary cards and detailed reports.")</p>
+                    <p class="report-period-note mb-0">
+                        @T("Biểu đồ này dùng dữ liệu xu hướng để so sánh thu và chi theo các mốc thời gian, hiển thị bằng Chart.js.",
+                        "This chart uses trend data to compare income and expenses over time, rendered with Chart.js.")
+                    </p>
                 </div>
             </div>
         </div>
@@ -239,19 +294,28 @@
             <div class="card-header d-flex justify-content-between align-items-start gap-3">
                 <div>
                     <h3 class="report-title">@T("Cơ cấu chi tiêu theo danh mục", "Expense breakdown by category")</h3>
-                    <p class="report-text">@T("Cho biết tiền trong kỳ lọc đang tập trung vào nhóm nào nhiều nhất.", "Shows which categories take the largest share of spending in the filtered period.")</p>
+                    <p class="report-text">@T("Cho biết tiền trong kỳ lọc đang tập trung vào nhóm nào nhiều nhất, kèm đường nối trực quan tới từng danh mục chính.", "Shows which categories take the largest share of spending in the filtered period, with visual leader lines to the main categories.")</p>
                 </div>
-                <a class="btn btn-sm btn-outline-primary report-export-btn" asp-controller="Dashboard" asp-action="ExportCategorySummaryCsv" asp-route-month="@Model.SelectedMonth" asp-route-year="@Model.SelectedYear">CSV</a>
+                <a class="btn btn-sm btn-outline-primary report-export-btn"
+                   asp-controller="Dashboard"
+                   asp-action="ExportCategorySummaryCsv"
+                   asp-route-month="@Model.SelectedMonth"
+                   asp-route-year="@Model.SelectedYear">CSV</a>
             </div>
             <div class="card-body">
                 @if (Model.CategoryBreakdown.Any())
                 {
                     <div class="category-chart-shell">
-                        <div id="dashboardExpenseDonutChart"
-                             data-labels='@Html.Raw(donutLabels)'
-                             data-series='@Html.Raw(donutSeries)'
-                             data-colors='@Html.Raw(donutColors)'></div>
+                        <div class="chartjs-shell chartjs-shell-sm">
+                            <canvas id="dashboardExpenseDonutChart"
+                                    class="chartjs-canvas chartjs-canvas-sm"
+                                    data-labels='@Html.Raw(donutLabels)'
+                                    data-series='@Html.Raw(donutSeries)'
+                                    data-colors='@Html.Raw(donutColors)'
+                                    data-icons='@Html.Raw(donutIcons)'></canvas>
+                        </div>
                     </div>
+
                     <div class="category-ring-wrap">
                         @foreach (var item in Model.CategoryBreakdown.Take(5))
                         {
@@ -278,7 +342,11 @@
                     <h3 class="report-title">@T("Khoản chi đáng chú ý", "Notable expenses")</h3>
                     <p class="report-text">@T("Các giao dịch chi lớn nhất trong kỳ để bạn phát hiện ngay những khoản cần xem lại.", "The largest expenses in the selected period so you can quickly review what deserves attention.")</p>
                 </div>
-                <a class="btn btn-sm btn-outline-primary report-export-btn" asp-controller="Dashboard" asp-action="ExportTopExpensesCsv" asp-route-month="@Model.SelectedMonth" asp-route-year="@Model.SelectedYear">CSV</a>
+                <a class="btn btn-sm btn-outline-primary report-export-btn"
+                   asp-controller="Dashboard"
+                   asp-action="ExportTopExpensesCsv"
+                   asp-route-month="@Model.SelectedMonth"
+                   asp-route-year="@Model.SelectedYear">CSV</a>
             </div>
             <div class="card-body">
                 @if (Model.TopExpenses.Any())
@@ -315,10 +383,10 @@
                     {
                         var statusClass = item.Status == "over" ? "over" : item.Status == "reached" ? "reached" : "normal";
                         var statusText = item.Status == "over"
-                            ? T("Vượt mức", "Over")
-                            : item.Status == "reached"
-                                ? T("Chạm ngưỡng", "Reached")
-                                : T("Ổn", "On track");
+                        ? T("Vượt mức", "Over")
+                        : item.Status == "reached"
+                        ? T("Chạm ngưỡng", "Reached")
+                        : T("Ổn", "On track");
                         var fillColor = item.Status == "over" ? "#ff5c39" : item.Status == "reached" ? "#ffb400" : "#76b947";
                         var remaining = item.RemainingAmount;
                         var progressWidth = $"{Math.Min(item.PercentageUsed, 100).ToString(System.Globalization.CultureInfo.InvariantCulture)}%";
@@ -478,6 +546,7 @@
 </div>
 
 @section Scripts {
-    <script src="~/sneat/libs/apex-charts/apexcharts.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="~/sneat/js/pages/wallet-dashboard.js"></script>
+    <script src="~/sneat/js/pages/dashboard-chartjs-custom.js"></script>
 }

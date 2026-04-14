@@ -18,10 +18,15 @@ namespace ExpenseWeb.Controllers
         private string GetLang()
         {
             var lang = HttpContext.Request.Query["lang"].ToString().ToLower();
+
             if (string.IsNullOrWhiteSpace(lang))
             {
-                lang = Request.Form["lang"].ToString().ToLower();
+                if (Request.HasFormContentType && Request.Form.ContainsKey("lang"))
+                {
+                    lang = Request.Form["lang"].ToString().ToLower();
+                }
             }
+
             return lang == "en" ? "en" : "vi";
         }
 

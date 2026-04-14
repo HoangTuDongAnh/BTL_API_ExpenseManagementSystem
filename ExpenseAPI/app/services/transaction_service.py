@@ -73,7 +73,8 @@ class TransactionService:
             db.query(Category)
             .filter(
                 Category.CategoryID == data.category_id,
-                ((Category.UserID == user_id) | (Category.UserID.is_(None)))
+                ((Category.UserID == user_id) | (Category.UserID.is_(None))),
+                Category.IsDeleted.is_(False)
             )
             .first()
         )
@@ -162,7 +163,8 @@ class TransactionService:
             db.query(Category)
             .filter(
                 Category.CategoryID == new_category_id,
-                ((Category.UserID == user_id) | (Category.UserID.is_(None)))
+                ((Category.UserID == user_id) | (Category.UserID.is_(None))),
+                Category.IsDeleted.is_(False)
             )
             .first()
         )
@@ -190,11 +192,15 @@ class TransactionService:
         transaction.Amount = new_amount
         transaction.TransactionDate = new_date
 
-        if data.note is not None:
-            transaction.Note = data.note
+        transaction.Note = data.note
+
         if data.is_recurring is not None:
             transaction.IsRecurring = data.is_recurring
-        if data.recur_interval is not None:
+            if data.is_recurring is False:
+                transaction.RecurInterval = None
+            else:
+                transaction.RecurInterval = data.recur_interval
+        elif data.recur_interval is not None:
             transaction.RecurInterval = data.recur_interval
 
         transaction.UpdatedAt = datetime.now()

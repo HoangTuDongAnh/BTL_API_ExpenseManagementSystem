@@ -49,6 +49,16 @@ def get_dashboard_overview(db: Session = Depends(get_db), current_user=Depends(g
     return report_service.get_dashboard_overview(db, current_user.UserID)
 
 
+@router.get("/dashboard-range", response_model=DashboardOverviewResponse)
+def get_dashboard_overview_range(
+    start_date: date,
+    end_date: date,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    return report_service.get_dashboard_overview_range(db, current_user.UserID, start_date, end_date)
+
+
 @router.get("/cashflow-analytics", response_model=CashflowAnalyticsResponse)
 def get_cashflow_analytics(
     start_date: date,
@@ -69,7 +79,6 @@ def get_top_expenses(
     current_user=Depends(get_current_user),
 ):
     return report_service.get_top_expenses(db, current_user.UserID, month, year, limit)
-
 
 
 @router.get("/top-expenses-range", response_model=list[TopExpenseItem])
