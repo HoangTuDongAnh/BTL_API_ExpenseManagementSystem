@@ -1,152 +1,631 @@
-@model ExpenseWeb.Models.ViewModels.Profile.SupportPageViewModel
+@* @model ExpenseWeb.Models.ViewModels.Profile.SupportPageViewModel
 @{
     ViewData["Title"] = "Hỗ trợ & Liên hệ admin";
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
+@section Styles {
+    <link rel="stylesheet" href="~/sneat/css/pages/wallet-dashboard.css" />
+    <link rel="stylesheet" href="~/sneat/css/pages/category-page.css" />
+    <link rel="stylesheet" href="~/sneat/css/pages/report-page.css" />
+    <style>
+        .hover-opacity:hover {
+            opacity: 0.8;
+            transition: opacity 0.2s ease-in-out;
+        }
+    </style>
+}
+
 <div class="container-xxl flex-grow-1 container-p-y">
-    <div class="row">
-        <div class="col-md-12">
-            <div class="nav-align-top mb-4">
-                <ul class="nav nav-pills flex-column flex-md-row mb-0 gap-md-0 gap-2">
-                    <li class="nav-item">
-                        <a class="nav-link" href="@Url.Action("Index", "Profile")">
-                            <i class="icon-base bx bx-user icon-sm me-1_5"></i>
-                            <span>Hồ sơ</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link active" href="@Url.Action("Support", "Profile")">
-                            <i class="icon-base bx bx-help-circle icon-sm me-1_5"></i>
-                            <span>Hỗ trợ</span>
-                        </a>
-                    </li>
-                </ul>
-            </div>
+    <section class="dashboard-hero mb-4">
+        <div class="dashboard-hero-copy hero-copy-single">
+            <span class="dashboard-hero-eyebrow">Liên hệ hệ thống</span>
+            <h1 class="dashboard-hero-title">Trung tâm hỗ trợ</h1>
+            <p class="dashboard-hero-text">
+                Gửi yêu cầu trợ giúp, báo lỗi hoặc góp ý tính năng. Đội ngũ admin sẽ phản hồi bạn trong thời gian sớm nhất.
+            </p>
+        </div>
+    </section>
 
-            @if (!string.IsNullOrWhiteSpace(Model.SuccessMessage))
-            {
-                <div class="alert alert-success alert-dismissible" role="alert">
-                    @Model.SuccessMessage
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    @if (!string.IsNullOrWhiteSpace(Model.SuccessMessage))
+    {
+        <div class="alert alert-success alert-dismissible mb-4" role="alert">
+            <i class="bx bx-check-circle me-2"></i>@Model.SuccessMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="alert alert-warning alert-dismissible mb-4" role="alert">
+            <i class="bx bx-error me-2"></i>@Model.ErrorMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="row g-4">
+        <div class="col-12">
+            <div class="card report-filter-card">
+                <div class="card-header border-bottom pb-3">
+                    <h2 class="dashboard-section-title mb-1"><i class="bx bx-support me-2 text-primary"></i>Gửi hỗ trợ đến admin</h2>
+                    <p class="dashboard-section-text mb-0">Vui lòng điền chi tiết thông tin để chúng tôi có thể hỗ trợ bạn tốt nhất.</p>
                 </div>
-            }
-
-            @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
-            {
-                <div class="alert alert-danger alert-dismissible" role="alert">
-                    @Model.ErrorMessage
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-            }
-
-            <div class="row g-4">
-                <div class="col-12 col-xl-8">
-                    <div class="card mb-4">
-                        <div class="card-header d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
-                            <div>
-                                <h5 class="mb-1"><i class="bx bx-support me-2 text-primary"></i>Gửi hỗ trợ đến admin</h5>
-                                <p class="mb-0 text-muted">Form này map tới endpoint POST /support-requests.</p>
+                <div class="card-body pt-4">
+                    <form asp-action="Support" asp-controller="Profile" method="post" enctype="multipart/form-data">
+                        @Html.AntiForgeryToken()
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                        <div class="row g-4">
+                            <div class="col-md-6">
+                                <label asp-for="Form.SupportType" class="form-label">Loại hỗ trợ</label>
+                                <select asp-for="Form.SupportType" class="form-select">
+                                    <option value="bug">Báo lỗi hệ thống</option>
+                                    <option value="transaction">Hỗ trợ giao dịch</option>
+                                    <option value="account">Hỗ trợ tài khoản</option>
+                                    <option value="feature">Góp ý tính năng</option>
+                                    <option value="other">Khác</option>
+                                </select>
                             </div>
-                            <span class="badge bg-label-primary">Đã nối ViewModel</span>
-                        </div>
-                        <div class="card-body">
-                            <form asp-action="Support" asp-controller="Profile" method="post" enctype="multipart/form-data">
-                                @Html.AntiForgeryToken()
-                                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
-                                <div class="row g-4">
-                                    <div class="col-md-6">
-                                        <label asp-for="Form.SupportType" class="form-label">Loại hỗ trợ</label>
-                                        <select asp-for="Form.SupportType" class="form-select">
-                                            <option value="bug">Báo lỗi hệ thống</option>
-                                            <option value="transaction">Hỗ trợ giao dịch</option>
-                                            <option value="account">Hỗ trợ tài khoản</option>
-                                            <option value="feature">Góp ý tính năng</option>
-                                            <option value="other">Khác</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label asp-for="Form.Priority" class="form-label">Mức độ ưu tiên</label>
-                                        <select asp-for="Form.Priority" class="form-select">
-                                            <option value="low">Thấp</option>
-                                            <option value="medium">Trung bình</option>
-                                            <option value="high">Cao</option>
-                                            <option value="urgent">Khẩn cấp</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-12">
-                                        <label asp-for="Form.Subject" class="form-label">Tiêu đề</label>
-                                        <input asp-for="Form.Subject" class="form-control" placeholder="Ví dụ: Không thể lưu giao dịch chi tiêu trong ví MB Bank" />
-                                        <span asp-validation-for="Form.Subject" class="text-danger"></span>
-                                    </div>
-                                    <div class="col-12">
-                                        <label asp-for="Form.Message" class="form-label">Nội dung hỗ trợ</label>
-                                        <textarea asp-for="Form.Message" class="form-control" rows="6" placeholder="Mô tả chi tiết vấn đề bạn gặp phải..."></textarea>
-                                        <span asp-validation-for="Form.Message" class="text-danger"></span>
-                                    </div>
-                                    <div class="col-12">
-                                        <label asp-for="Form.Files" class="form-label">Tệp đính kèm</label>
-                                        <input asp-for="Form.Files" type="file" multiple class="form-control" accept="image/*,video/*" />
-                                        <div class="form-text">Hiện patch này mới nối luồng form và endpoint support. Nếu muốn upload file thật, cần bổ sung upload API riêng.</div>
-                                    </div>
-                                    <div class="col-12 d-flex justify-content-end gap-2">
-                                        <button type="reset" class="btn btn-outline-secondary">Làm mới</button>
-                                        <button type="submit" class="btn btn-primary"><i class="bx bx-send me-1"></i> Gửi hỗ trợ</button>
-                                    </div>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
+                            <div class="col-md-6">
+                                <label asp-for="Form.Priority" class="form-label">Mức độ ưu tiên</label>
+                                <select asp-for="Form.Priority" class="form-select">
+                                    <option value="low">Thấp</option>
+                                    <option value="medium">Trung bình</option>
+                                    <option value="high">Cao</option>
+                                    <option value="urgent">Khẩn cấp</option>
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <label asp-for="Form.Subject" class="form-label">Tiêu đề</label>
+                                <input asp-for="Form.Subject" class="form-control" placeholder="Ví dụ: Không thể lưu giao dịch chi tiêu trong ví MB Bank" />
+                                <span asp-validation-for="Form.Subject" class="text-danger small mt-1 d-block"></span>
+                            </div>
+                            <div class="col-12">
+                                <label asp-for="Form.Message" class="form-label">Nội dung hỗ trợ</label>
+                                <textarea asp-for="Form.Message" class="form-control" rows="5" placeholder="Mô tả chi tiết vấn đề bạn gặp phải..."></textarea>
+                                <span asp-validation-for="Form.Message" class="text-danger small mt-1 d-block"></span>
+                            </div>
+                            <div class="col-12">
+                                <label asp-for="Form.Files" class="form-label">Tệp đính kèm (Tùy chọn)</label>
+                                <input asp-for="Form.Files" type="file" multiple class="form-control" accept="image/*,video/*" />
+                            </div>
 
-                    <div class="card">
-                        <div class="card-header">
-                            <h5 class="mb-1"><i class="bx bx-history me-2 text-info"></i>Lịch sử hỗ trợ gần đây</h5>
-                            <p class="mb-0 text-muted">Danh sách này map tới GET /support-requests/my.</p>
+                            <div class="col-12 pt-2 border-top d-flex justify-content-end gap-2 mt-4">
+                                <button type="reset" class="btn btn-outline-secondary">Làm mới</button>
+                                <button type="submit" class="btn btn-primary"><i class="bx bx-send me-2"></i>Gửi hỗ trợ</button>
+                            </div>
                         </div>
-                        <div class="card-body">
-                            @if (Model.HistoryItems.Count == 0)
-                            {
-                                <div class="text-muted">Chưa có yêu cầu hỗ trợ nào.</div>
-                            }
-                            else
-                            {
-                                foreach (var item in Model.HistoryItems)
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12">
+            <div class="card report-card">
+                <div class="card-header border-bottom pb-3">
+                    <h3 class="report-title m-0"><i class="bx bx-history me-2 text-primary"></i>Lịch sử gần đây</h3>
+                    <p class="report-text mt-1 mb-0">Theo dõi trạng thái các yêu cầu hỗ trợ bạn đã gửi.</p>
+                </div>
+                <div class="card-body p-0">
+                    @if (Model.HistoryItems.Count == 0)
+                    {
+                        <div class="report-empty p-4 text-center text-muted">Chưa có yêu cầu hỗ trợ nào.</div>
+                    }
+                    else
+                    {
+                        <div class="report-list">
+                            <div class="report-list">
+                                @foreach (var item in Model.HistoryItems)
                                 {
-                                    <div class="border rounded-3 p-3 mb-3">
-                                        <div class="d-flex flex-column flex-md-row justify-content-between gap-2 mb-2">
-                                            <div>
-                                                <h6 class="mb-1">@item.Subject</h6>
-                                                <div class="d-flex flex-wrap gap-2">
+                                    var collapseId = "collapseSupport_" + item.SupportRequestId;
+                                    <div class="report-expense-item d-block px-4 py-3 border-bottom">
+                                        <div class="d-flex justify-content-between align-items-start" data-bs-toggle="collapse" href="#@collapseId" role="button" aria-expanded="false" aria-controls="@collapseId" style="cursor: pointer;" title="Nhấn để xem chi tiết">
+                                            <div class="w-100 pe-3">
+                                                <div class="report-expense-name mb-1 fw-bold fs-6 text-primary hover-opacity">
+                                                    @item.Subject <i class="bx bx-chevron-down ms-1 text-muted"></i>
+                                                </div>
+                                                <div class="d-flex align-items-center gap-2 flex-wrap mt-2">
                                                     <span class="badge @item.StatusBadgeClass">@item.StatusLabel</span>
-                                                    <span class="badge bg-label-info">@item.SupportTypeLabel</span>
-                                                    <span class="badge bg-label-secondary">@item.SupportRequestId</span>
+                                                    <span class="badge bg-label-secondary">@item.SupportTypeLabel</span>
+                                                    <span class="text-muted small ms-1">
+                                                        <i class="bx bx-time-five me-1"></i>@item.CreatedAt.ToString("HH:mm - dd/MM/yyyy")
+                                                    </span>
                                                 </div>
                                             </div>
-                                            <small class="text-muted">@item.CreatedAt.ToString("HH:mm - dd/MM/yyyy")</small>
+                                            <div class="text-end flex-shrink-0">
+                                                <span class="badge bg-label-primary bg-opacity-10 text-primary border-0 mb-1">@item.PriorityLabel</span>
+                                                <div class="text-muted small mt-1">#@item.SupportRequestId</div>
+                                            </div>
                                         </div>
-                                        <div class="text-muted small">Ưu tiên: @item.PriorityLabel</div>
+
+                                        <div class="collapse mt-3" id="@collapseId">
+                                            <div class="p-3 bg-lighter rounded border">
+                                                <div class="mb-3">
+                                                    <span class="fw-semibold text-dark"><i class="bx bx-user me-1"></i>Bạn đã gửi:</span>
+                                                    @if (!string.IsNullOrWhiteSpace(item.Message))
+                                                    {
+                                                        <p class="text-muted small mb-0 mt-2" style="white-space: pre-line; word-break: break-word;">@item.Message</p>
+                                                    }
+                                                    else
+                                                    {
+                                                        <p class="text-muted small mb-0 mt-2 fst-italic">(Chưa tải được nội dung từ API)</p>
+                                                    }
+                                                </div>
+
+                                                @if (item.Attachments != null && item.Attachments.Any())
+                                                {
+                                                    <div class="d-flex flex-wrap gap-2 mb-3">
+                                                        @foreach (var attachment in item.Attachments)
+                                                        {
+                                                            <a href="@attachment.FileUrl" target="_blank" class="badge bg-label-secondary text-decoration-none">
+                                                                <i class="bx bx-paperclip me-1"></i>@attachment.FileName
+                                                            </a>
+                                                        }
+                                                    </div>
+                                                }
+
+                                                @if (!string.IsNullOrWhiteSpace(item.AdminReply))
+                                                {
+                                                    <div class="mt-2 p-3 bg-label-success rounded border-start border-3 border-success">
+                                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                                            <div class="d-flex align-items-center">
+                                                                <i class="bx bx-support text-success fs-5 me-2"></i>
+                                                                <span class="fw-bold text-success">Admin phản hồi</span>
+                                                            </div>
+                                                            @if (item.RepliedAt.HasValue)
+                                                            {
+                                                                <span class="text-success small">@item.RepliedAt.Value.ToString("HH:mm - dd/MM")</span>
+                                                            }
+                                                        </div>
+                                                        <p class="mb-0 mt-2 text-dark small" style="white-space: pre-line; word-break: break-word;">@item.AdminReply</p>
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
                                     </div>
                                 }
-                            }
+                            </div>
                         </div>
-                    </div>
+                    }
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
 
-                <div class="col-12 col-xl-4">
-                    <div class="card mb-4">
-                        <div class="card-header">
-                            <h5 class="mb-1"><i class="bx bx-transfer-alt me-2 text-warning"></i>Mapping đang dùng</h5>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
+
+@model ExpenseWeb.Models.ViewModels.Profile.SupportPageViewModel
+@{
+    // Lấy ngôn ngữ hiện tại
+    var lang = (Model.Lang ?? Context.Request.Query["lang"].FirstOrDefault() ?? ViewBag.Lang as string ?? "vi").ToLower();
+    string T(string vi, string en) => lang == "en" ? en : vi;
+
+    ViewData["Title"] = T("Hỗ trợ & Liên hệ admin", "Support & Contact Admin");
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/sneat/css/pages/wallet-dashboard.css" />
+    <link rel="stylesheet" href="~/sneat/css/pages/category-page.css" />
+    <link rel="stylesheet" href="~/sneat/css/pages/report-page.css" />
+    <style>
+        .hover-opacity:hover {
+            opacity: 0.8;
+            transition: opacity 0.2s ease-in-out;
+        }
+    </style>
+}
+
+<div class="container-xxl flex-grow-1 container-p-y">
+    <section class="dashboard-hero mb-4">
+        <div class="dashboard-hero-copy hero-copy-single">
+            <span class="dashboard-hero-eyebrow">@T("Liên hệ hệ thống", "System Contact")</span>
+            <h1 class="dashboard-hero-title">@T("Trung tâm hỗ trợ", "Support Center")</h1>
+            <p class="dashboard-hero-text">
+                @T("Gửi yêu cầu trợ giúp, báo lỗi hoặc góp ý tính năng. Đội ngũ admin sẽ phản hồi bạn trong thời gian sớm nhất.", "Send help requests, report bugs, or suggest features. The admin team will respond to you shortly.")
+            </p>
+        </div>
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(Model.SuccessMessage))
+    {
+        <div class="alert alert-success alert-dismissible mb-4" role="alert">
+            <i class="bx bx-check-circle me-2"></i>@Model.SuccessMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="alert alert-warning alert-dismissible mb-4" role="alert">
+            <i class="bx bx-error me-2"></i>@Model.ErrorMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="row g-4">
+        <div class="col-12">
+            <div class="card report-filter-card">
+                <div class="card-header border-bottom pb-3">
+                    <h2 class="dashboard-section-title mb-1"><i class="bx bx-support me-2 text-primary"></i>@T("Gửi hỗ trợ đến admin", "Send Support Request")</h2>
+                    <p class="dashboard-section-text mb-0">@T("Vui lòng điền chi tiết thông tin để chúng tôi có thể hỗ trợ bạn tốt nhất.", "Please provide detailed information so we can assist you better.")</p>
+                </div>
+                <div class="card-body pt-4">
+                    <form asp-action="Support" asp-controller="Profile" method="post" enctype="multipart/form-data">
+                        @Html.AntiForgeryToken()
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                        <div class="row g-4">
+                            <div class="col-md-6">
+                                <label asp-for="Form.SupportType" class="form-label">@T("Loại hỗ trợ", "Support Type")</label>
+                                <select asp-for="Form.SupportType" class="form-select">
+                                    <option value="bug">@T("Báo lỗi hệ thống", "System Bug")</option>
+                                    <option value="transaction">@T("Hỗ trợ giao dịch", "Transaction Support")</option>
+                                    <option value="account">@T("Hỗ trợ tài khoản", "Account Support")</option>
+                                    <option value="feature">@T("Góp ý tính năng", "Feature Request")</option>
+                                    <option value="other">@T("Khác", "Other")</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="Form.Priority" class="form-label">@T("Mức độ ưu tiên", "Priority")</label>
+                                <select asp-for="Form.Priority" class="form-select">
+                                    <option value="low">@T("Thấp", "Low")</option>
+                                    <option value="medium">@T("Trung bình", "Medium")</option>
+                                    <option value="high">@T("Cao", "High")</option>
+                                    <option value="urgent">@T("Khẩn cấp", "Urgent")</option>
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <label asp-for="Form.Subject" class="form-label">@T("Tiêu đề", "Subject")</label>
+                                <input asp-for="Form.Subject" class="form-control" placeholder="@T("Ví dụ: Không thể lưu giao dịch...", "Example: Cannot save transaction...")" />
+                                <span asp-validation-for="Form.Subject" class="text-danger small mt-1 d-block"></span>
+                            </div>
+                            <div class="col-12">
+                                <label asp-for="Form.Message" class="form-label">@T("Nội dung hỗ trợ", "Message Details")</label>
+                                <textarea asp-for="Form.Message" class="form-control" rows="5" placeholder="@T("Mô tả chi tiết vấn đề bạn gặp phải...", "Describe your issue in detail...")"></textarea>
+                                <span asp-validation-for="Form.Message" class="text-danger small mt-1 d-block"></span>
+                            </div>
+                            <div class="col-12">
+                                <label asp-for="Form.Files" class="form-label">@T("Tệp đính kèm (Tùy chọn)", "Attachments (Optional)")</label>
+                                <input asp-for="Form.Files" type="file" multiple class="form-control" accept="image/*,video/*" />
+                            </div>
+
+                            <div class="col-12 pt-2 border-top d-flex justify-content-end gap-2 mt-4">
+                                <button type="reset" class="btn btn-outline-secondary">@T("Làm mới", "Reset")</button>
+                                <button type="submit" class="btn btn-primary"><i class="bx bx-send me-2"></i>@T("Gửi hỗ trợ", "Submit")</button>
+                            </div>
                         </div>
-                        <div class="card-body">
-                            <ul class="mb-0 ps-3">
-                                <li>`Form.SupportType` -> `support_type`</li>
-                                <li>`Form.Priority` -> `priority`</li>
-                                <li>`Form.Subject` -> `subject`</li>
-                                <li>`Form.Message` -> `message`</li>
-                                <li>Lịch sử support -> `SupportHistoryItemViewModel`</li>
-                            </ul>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12">
+            <div class="card report-card">
+                <div class="card-header border-bottom pb-3">
+                    <h3 class="report-title m-0"><i class="bx bx-history me-2 text-primary"></i>@T("Lịch sử gần đây", "Recent History")</h3>
+                    <p class="report-text mt-1 mb-0">@T("Theo dõi trạng thái các yêu cầu hỗ trợ bạn đã gửi.", "Track the status of your submitted support requests.")</p>
+                </div>
+                <div class="card-body p-0">
+                    @if (Model.HistoryItems.Count == 0)
+                    {
+                        <div class="report-empty p-4 text-center text-muted">@T("Chưa có yêu cầu hỗ trợ nào.", "No support requests found.")</div>
+                    }
+                    else
+                    {
+                        <div class="report-list">
+                            <div class="report-list">
+                                @foreach (var item in Model.HistoryItems)
+                                {
+                                    var collapseId = "collapseSupport_" + item.SupportRequestId;
+                                    <div class="report-expense-item d-block px-4 py-3 border-bottom">
+                                        <div class="d-flex justify-content-between align-items-start" data-bs-toggle="collapse" href="#@collapseId" role="button" aria-expanded="false" aria-controls="@collapseId" style="cursor: pointer;" title="@T("Nhấn để xem chi tiết", "Click to view details")">
+                                            <div class="w-100 pe-3">
+                                                <div class="report-expense-name mb-1 fw-bold fs-6 text-primary hover-opacity">
+                                                    @item.Subject <i class="bx bx-chevron-down ms-1 text-muted"></i>
+                                                </div>
+                                                <div class="d-flex align-items-center gap-2 flex-wrap mt-2">
+                                                    <span class="badge @item.StatusBadgeClass">
+                                                        @(lang == "en" ?
+                                                                                                        item.Status == "pending" ? "Pending" :
+                                                                                                        item.Status == "viewed" ? "Processing" :
+                                                                                                        item.Status == "replied" ? "Replied" : "Closed"
+                                                                                                        : item.StatusLabel)
+                                                                                                                       </span>
+                                                                                                                       <span class="badge bg-label-secondary">
+                                                        @(lang == "en" ?
+                                                                                                        item.SupportType == "bug" ? "System Bug" :
+                                                                                                        item.SupportType == "transaction" ? "Transaction Support" :
+                                                                                                        item.SupportType == "account" ? "Account Support" : "Feature Request"
+                                                                                                        : item.SupportTypeLabel)
+                                                                                                                            </span>
+                                                                                                                            <span class="text-muted small ms-1">
+                                                                                                                                <i class="bx bx-time-five me-1"></i>@item.CreatedAt.ToString("HH:mm - dd/MM/yyyy")
+                                                                                                                            </span>
+                                                                                                                        </div>
+                                                                                                                    </div>
+                                                                                                                    <div class="text-end flex-shrink-0">
+                                                                                                                        <span class="badge bg-label-primary bg-opacity-10 text-primary border-0 mb-1">
+                                                    @(lang == "en" ?
+                                                                                                item.Priority == "low" ? "Low" :
+                                                                                                item.Priority == "medium" ? "Medium" :
+                                                                                                item.Priority == "high" ? "High" : "Urgent"
+                                                                                                : item.PriorityLabel)
+                                        </span>
+                                        <div class="text-muted small mt-1">#@item.SupportRequestId</div>
+                                    </div>
+                                </div>
+
+                                        <div class="collapse mt-3" id="@collapseId">
+                                            <div class="p-3 bg-lighter rounded border">
+                                                <div class="mb-3">
+                                                    <span class="fw-semibold text-dark"><i class="bx bx-user me-1"></i>@T("Bạn đã gửi:", "You sent:")</span>
+                                            @if (!string.IsNullOrWhiteSpace(item.Message))
+                                                    {
+                                                        <p class="text-muted small mb-0 mt-2" style="white-space: pre-line; word-break: break-word;">@item.Message</p>
+                                                    }
+                                                    else
+                                                    {
+                                                        <p class="text-muted small mb-0 mt-2 fst-italic">@T("(Chưa tải được nội dung từ API)", "(Failed to load content from API)")</p>
+                                                    }
+                                                </div>
+
+                                                @if (item.Attachments != null && item.Attachments.Any())
+                                                {
+                                                    <div class="d-flex flex-wrap gap-2 mb-3">
+                                                        @foreach (var attachment in item.Attachments)
+                                                        {
+                                                            <a href="@attachment.FileUrl" target="_blank" class="badge bg-label-secondary text-decoration-none">
+                                                                <i class="bx bx-paperclip me-1"></i>@attachment.FileName
+                                                            </a>
+                                                        }
+                                                    </div>
+                                                }
+
+                                                @if (!string.IsNullOrWhiteSpace(item.AdminReply))
+                                                {
+                                                    <div class="mt-2 p-3 bg-label-success rounded border-start border-3 border-success">
+                                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                                            <div class="d-flex align-items-center">
+                                                                <i class="bx bx-support text-success fs-5 me-2"></i>
+                                                                <span class="fw-bold text-success">@T("Admin phản hồi", "Admin Reply")</span>
+                                                            </div>
+                                                            @if (item.RepliedAt.HasValue)
+                                                            {
+                                                                <span class="text-success small">@item.RepliedAt.Value.ToString("HH:mm - dd/MM")</span>
+                                                            }
+                                                        </div>
+                                                        <p class="mb-0 mt-2 text-dark small" style="white-space: pre-line; word-break: break-word;">@item.AdminReply</p>
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
                         </div>
-                    </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+} *@
+
+@model ExpenseWeb.Models.ViewModels.Profile.SupportPageViewModel
+@{
+    // Đã xóa Model.Lang để ép hệ thống đọc trực tiếp từ URL (?lang=en)
+    var lang = (Context.Request.Query["lang"].FirstOrDefault() ?? ViewBag.Lang as string ?? "vi").ToLower();
+    string T(string vi, string en) => lang == "en" ? en : vi;
+
+    ViewData["Title"] = T("Hỗ trợ & Liên hệ admin", "Support & Contact Admin");
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/sneat/css/pages/wallet-dashboard.css" />
+    <link rel="stylesheet" href="~/sneat/css/pages/category-page.css" />
+    <link rel="stylesheet" href="~/sneat/css/pages/report-page.css" />
+    <style>
+        .hover-opacity:hover {
+            opacity: 0.8;
+            transition: opacity 0.2s ease-in-out;
+        }
+    </style>
+}
+
+<div class="container-xxl flex-grow-1 container-p-y">
+    <section class="dashboard-hero mb-4">
+        <div class="dashboard-hero-copy hero-copy-single">
+            <span class="dashboard-hero-eyebrow">@T("Liên hệ hệ thống", "System Contact")</span>
+            <h1 class="dashboard-hero-title">@T("Trung tâm hỗ trợ", "Support Center")</h1>
+            <p class="dashboard-hero-text">
+                @T("Gửi yêu cầu trợ giúp, báo lỗi hoặc góp ý tính năng. Đội ngũ admin sẽ phản hồi bạn trong thời gian sớm nhất.", "Send help requests, report bugs, or suggest features. The admin team will respond to you shortly.")
+            </p>
+        </div>
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(Model.SuccessMessage))
+    {
+        <div class="alert alert-success alert-dismissible mb-4" role="alert">
+            <i class="bx bx-check-circle me-2"></i>@Model.SuccessMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="alert alert-warning alert-dismissible mb-4" role="alert">
+            <i class="bx bx-error me-2"></i>@Model.ErrorMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="row g-4">
+        <div class="col-12">
+            <div class="card report-filter-card">
+                <div class="card-header border-bottom pb-3">
+                    <h2 class="dashboard-section-title mb-1"><i class="bx bx-support me-2 text-primary"></i>@T("Gửi hỗ trợ đến admin", "Send Support Request")</h2>
+                    <p class="dashboard-section-text mb-0">@T("Vui lòng điền chi tiết thông tin để chúng tôi có thể hỗ trợ bạn tốt nhất.", "Please provide detailed information so we can assist you better.")</p>
+                </div>
+                <div class="card-body pt-4">
+                    <form asp-action="Support" asp-controller="Profile" method="post" enctype="multipart/form-data">
+                        @Html.AntiForgeryToken()
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                        <div class="row g-4">
+                            <div class="col-md-6">
+                                <label asp-for="Form.SupportType" class="form-label">@T("Loại hỗ trợ", "Support Type")</label>
+                                <select asp-for="Form.SupportType" class="form-select">
+                                    <option value="bug">@T("Báo lỗi hệ thống", "System Bug")</option>
+                                    <option value="transaction">@T("Hỗ trợ giao dịch", "Transaction Support")</option>
+                                    <option value="account">@T("Hỗ trợ tài khoản", "Account Support")</option>
+                                    <option value="feature">@T("Góp ý tính năng", "Feature Request")</option>
+                                    <option value="other">@T("Khác", "Other")</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="Form.Priority" class="form-label">@T("Mức độ ưu tiên", "Priority")</label>
+                                <select asp-for="Form.Priority" class="form-select">
+                                    <option value="low">@T("Thấp", "Low")</option>
+                                    <option value="medium">@T("Trung bình", "Medium")</option>
+                                    <option value="high">@T("Cao", "High")</option>
+                                    <option value="urgent">@T("Khẩn cấp", "Urgent")</option>
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <label asp-for="Form.Subject" class="form-label">@T("Tiêu đề", "Subject")</label>
+                                <input asp-for="Form.Subject" class="form-control" placeholder="@T("Ví dụ: Không thể lưu giao dịch...", "Example: Cannot save transaction...")" />
+                                <span asp-validation-for="Form.Subject" class="text-danger small mt-1 d-block"></span>
+                            </div>
+                            <div class="col-12">
+                                <label asp-for="Form.Message" class="form-label">@T("Nội dung hỗ trợ", "Message Details")</label>
+                                <textarea asp-for="Form.Message" class="form-control" rows="5" placeholder="@T("Mô tả chi tiết vấn đề bạn gặp phải...", "Describe your issue in detail...")"></textarea>
+                                <span asp-validation-for="Form.Message" class="text-danger small mt-1 d-block"></span>
+                            </div>
+                            <div class="col-12">
+                                <label asp-for="Form.Files" class="form-label">@T("Tệp đính kèm (Tùy chọn)", "Attachments (Optional)")</label>
+                                <input asp-for="Form.Files" type="file" multiple class="form-control" accept="image/*,video/*" />
+                            </div>
+
+                            <div class="col-12 pt-2 border-top d-flex justify-content-end gap-2 mt-4">
+                                <button type="reset" class="btn btn-outline-secondary">@T("Làm mới", "Reset")</button>
+                                <button type="submit" class="btn btn-primary"><i class="bx bx-send me-2"></i>@T("Gửi hỗ trợ", "Submit")</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12">
+            <div class="card report-card">
+                <div class="card-header border-bottom pb-3">
+                    <h3 class="report-title m-0"><i class="bx bx-history me-2 text-primary"></i>@T("Lịch sử gần đây", "Recent History")</h3>
+                    <p class="report-text mt-1 mb-0">@T("Theo dõi trạng thái các yêu cầu hỗ trợ bạn đã gửi.", "Track the status of your submitted support requests.")</p>
+                </div>
+                <div class="card-body p-0">
+                    @if (Model.HistoryItems.Count == 0)
+                    {
+                        <div class="report-empty p-4 text-center text-muted">@T("Chưa có yêu cầu hỗ trợ nào.", "No support requests found.")</div>
+                    }
+                    else
+                    {
+                        <div class="report-list">
+                            <div class="report-list">
+                                @foreach (var item in Model.HistoryItems)
+                                {
+                                    var collapseId = "collapseSupport_" + item.SupportRequestId;
+                                    <div class="report-expense-item d-block px-4 py-3 border-bottom">
+                                        <div class="d-flex justify-content-between align-items-start" data-bs-toggle="collapse" href="#@collapseId" role="button" aria-expanded="false" aria-controls="@collapseId" style="cursor: pointer;" title="@T("Nhấn để xem chi tiết", "Click to view details")">
+                                            <div class="w-100 pe-3">
+                                                <div class="report-expense-name mb-1 fw-bold fs-6 text-primary hover-opacity">
+                                                    @item.Subject <i class="bx bx-chevron-down ms-1 text-muted"></i>
+                                                </div>
+                                                <div class="d-flex align-items-center gap-2 flex-wrap mt-2">
+                                                    <span class="badge @item.StatusBadgeClass">
+                                                        @(lang == "en" ?
+                                                                                                        item.Status == "pending" ? "Pending" :
+                                                                                                        item.Status == "viewed" ? "Processing" :
+                                                                                                        item.Status == "replied" ? "Replied" : "Closed"
+                                                                                                        : item.StatusLabel)
+                                                                                                                       </span>
+                                                                                                                       <span class="badge bg-label-secondary">
+                                                        @(lang == "en" ?
+                                                                                                        item.SupportType == "bug" ? "System Bug" :
+                                                                                                        item.SupportType == "transaction" ? "Transaction Support" :
+                                                                                                        item.SupportType == "account" ? "Account Support" : "Feature Request"
+                                                                                                        : item.SupportTypeLabel)
+                                                                                                                            </span>
+                                                                                                                            <span class="text-muted small ms-1">
+                                                                                                                                <i class="bx bx-time-five me-1"></i>@item.CreatedAt.ToString("HH:mm - dd/MM/yyyy")
+                                                                                                                            </span>
+                                                                                                                        </div>
+                                                                                                                    </div>
+                                                                                                                    <div class="text-end flex-shrink-0">
+                                                                                                                        <span class="badge bg-label-primary bg-opacity-10 text-primary border-0 mb-1">
+                                                    @(lang == "en" ?
+                                                                                                item.Priority == "low" ? "Low" :
+                                                                                                item.Priority == "medium" ? "Medium" :
+                                                                                                item.Priority == "high" ? "High" : "Urgent"
+                                                                                                : item.PriorityLabel)
+                                        </span>
+                                        <div class="text-muted small mt-1">#@item.SupportRequestId</div>
+                                    </div>
+                                </div>
+
+                                        <div class="collapse mt-3" id="@collapseId">
+                                            <div class="p-3 bg-lighter rounded border">
+                                                <div class="mb-3">
+                                                    <span class="fw-semibold text-dark"><i class="bx bx-user me-1"></i>@T("Bạn đã gửi:", "You sent:")</span>
+                                            @if (!string.IsNullOrWhiteSpace(item.Message))
+                                                    {
+                                                        <p class="text-muted small mb-0 mt-2" style="white-space: pre-line; word-break: break-word;">@item.Message</p>
+                                                    }
+                                                    else
+                                                    {
+                                                        <p class="text-muted small mb-0 mt-2 fst-italic">@T("(Chưa tải được nội dung từ API)", "(Failed to load content from API)")</p>
+                                                    }
+                                                </div>
+
+                                                @if (item.Attachments != null && item.Attachments.Any())
+                                                {
+                                                    <div class="d-flex flex-wrap gap-2 mb-3">
+                                                        @foreach (var attachment in item.Attachments)
+                                                        {
+                                                            <a href="@attachment.FileUrl" target="_blank" class="badge bg-label-secondary text-decoration-none">
+                                                                <i class="bx bx-paperclip me-1"></i>@attachment.FileName
+                                                            </a>
+                                                        }
+                                                    </div>
+                                                }
+
+                                                @if (!string.IsNullOrWhiteSpace(item.AdminReply))
+                                                {
+                                                    <div class="mt-2 p-3 bg-label-success rounded border-start border-3 border-success">
+                                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                                            <div class="d-flex align-items-center">
+                                                                <i class="bx bx-support text-success fs-5 me-2"></i>
+                                                                <span class="fw-bold text-success">@T("Admin phản hồi", "Admin Reply")</span>
+                                                            </div>
+                                                            @if (item.RepliedAt.HasValue)
+                                                            {
+                                                                <span class="text-success small">@item.RepliedAt.Value.ToString("HH:mm - dd/MM")</span>
+                                                            }
+                                                        </div>
+                                                        <p class="mb-0 mt-2 text-dark small" style="white-space: pre-line; word-break: break-word;">@item.AdminReply</p>
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
                 </div>
             </div>
         </div>

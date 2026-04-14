@@ -8,10 +8,6 @@
 
   <ItemGroup>
     <None Include="wwwroot\sneat\css\demo.css" />
-    <None Include="wwwroot\sneat\img\avatars\1.png" />
-    <None Include="wwwroot\sneat\img\avatars\2.png" />
-    <None Include="wwwroot\sneat\img\avatars\3.png" />
-    <None Include="wwwroot\sneat\img\avatars\4.png" />
     <None Include="wwwroot\sneat\img\backgrounds\1.jpg" />
     <None Include="wwwroot\sneat\img\elements\1.png" />
     <None Include="wwwroot\sneat\img\elements\10.png" />

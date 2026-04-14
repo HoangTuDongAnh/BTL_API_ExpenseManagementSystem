@@ -26,6 +26,8 @@ class SupportService:
             "user_full_name": user.FullName if user else "",
             "user_email": user.Email if user else None,
             "subject": item.Subject,
+            "message": item.Message,
+            "admin_reply": item.AdminReply,
             "support_type": item.SupportType,
             "priority": item.Priority,
             "status": item.Status,

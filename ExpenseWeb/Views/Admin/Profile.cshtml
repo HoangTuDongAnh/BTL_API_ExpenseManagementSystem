@@ -1,0 +1,235 @@
+﻿@model ExpenseWeb.Models.ViewModels.Profile.ProfilePageViewModel
+@{
+    var lang = (Context.Request.Query["lang"].FirstOrDefault() ?? ViewBag.Lang as string ?? "vi").ToLower();
+    string T(string vi, string en) => lang == "en" ? en : vi;
+
+    ViewData["Title"] = T("Hồ sơ Quản trị viên", "Admin Profile");
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+    var avatarUrl = string.IsNullOrWhiteSpace(Model?.Avatar)
+        ? Url.Content("~/sneat/img/avatars/1.png")
+        : Model.Avatar;
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/sneat/css/pages/wallet-dashboard.css" />
+    <link rel="stylesheet" href="~/sneat/css/pages/category-page.css" />
+    <link rel="stylesheet" href="~/sneat/css/pages/report-page.css" />
+    <style>
+        .profile-avatar-wrap {
+            position: relative;
+            display: inline-block;
+        }
+
+        .profile-avatar-img {
+            object-fit: cover;
+            box-shadow: 0 0 0 4px #fff, 0 4px 12px rgba(67, 89, 113, 0.15);
+            transition: all 0.3s ease;
+        }
+
+        .profile-avatar-wrap:hover .profile-avatar-img {
+            box-shadow: 0 0 0 4px #696cff, 0 6px 16px rgba(105, 108, 255, 0.2);
+            opacity: 0.85;
+        }
+
+        .profile-section-divider {
+            border-right: 1px dashed #d9dee3;
+        }
+
+        .dark-mode .profile-section-divider {
+            border-right-color: #444;
+        }
+
+        @@media (max-width: 768px) {
+            .profile-section-divider {
+                border-right: none;
+                border-bottom: 1px dashed #d9dee3;
+                padding-bottom: 2rem;
+                margin-bottom: 2rem;
+            }
+        }
+    </style>
+}
+
+<div class="container-xxl flex-grow-1 container-p-y">
+    <section class="dashboard-hero mb-4">
+        <div class="dashboard-hero-copy hero-copy-single">
+            <span class="dashboard-hero-eyebrow">@T("Quản trị hệ thống", "System Administration")</span>
+            <h1 class="dashboard-hero-title">@T("Hồ sơ Quản trị viên", "Admin Profile")</h1>
+            <p class="dashboard-hero-text">
+                @T("Xem và cập nhật thông tin cá nhân, ảnh đại diện dành riêng cho Ban quản trị.", "View and update personal information and avatar for Administrators.")
+            </p>
+        </div>
+    </section>
+
+    <div class="row g-4">
+        <div class="col-12">
+            <div class="card report-filter-card">
+                <div class="card-header border-bottom pb-3">
+                    <h2 class="dashboard-section-title mb-1"><i class="bx bx-shield-quarter me-2 text-primary"></i>@T("Thông tin liên hệ", "Contact Information")</h2>
+                    <p class="dashboard-section-text mb-0">@T("Cập nhật họ tên, số điện thoại và ảnh đại diện của tài khoản Admin.", "Update your name, phone number, and admin avatar.")</p>
+                </div>
+                <div class="card-body pt-4">
+                    <div class="row">
+                        <div class="col-12 col-md-4 profile-section-divider d-flex flex-column align-items-center justify-content-center pe-md-4">
+                            <div class="profile-avatar-wrap mb-4" style="cursor: zoom-in;"
+                                 title="@T("Click để xem ảnh phóng to", "Click to zoom in")" data-bs-toggle="modal" data-bs-target="#viewAvatarModal">
+                                <img src="@avatarUrl" alt="admin-avatar" class="d-block w-px-150 h-px-150 rounded-circle profile-avatar-img" id="uploadedAvatar" />
+                            </div>
+                            <div class="d-flex flex-column gap-3 w-100" style="max-width: 260px;">
+                                <input type="file" id="uploadAvatarFile" name="AvatarFile" accept="image/*" style="display: none;" />
+                                <button type="button" class="btn btn-primary w-100" onclick="document.getElementById('uploadAvatarFile').click()">
+                                    <i class="bx bx-upload me-2"></i>@T("Upload ảnh", "Upload Image")
+                                </button>
+                                <button type="button" class="btn btn-label-secondary w-100" data-bs-toggle="modal" data-bs-target="#defaultAvatarModal">
+                                    <i class="bx bx-image me-2"></i>@T("Dùng ảnh mặc định", "Use Default Avatar")
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-8 ps-md-5 mt-4 mt-md-0">
+                            <form id="formProfileSettings" method="post" enctype="multipart/form-data" onsubmit="return false">
+                                <input type="hidden" id="avatarUrl" name="Avatar" value="@Model.Avatar" />
+
+                                <div class="row g-4">
+                                    <div class="col-md-6">
+                                        <label for="lastName" class="form-label">@T("Họ và tên đệm", "Last & Middle Name")</label>
+                                        <input class="form-control" type="text" name="lastName" id="lastName" value="@Model.LastName" placeholder="Nguyễn Văn" />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="firstName" class="form-label">@T("Tên", "First Name")</label>
+                                        <input class="form-control" type="text" id="firstName" name="firstName" value="@Model.FirstName" autofocus placeholder="A" />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="email" class="form-label">@T("Email (Tài khoản đăng nhập)", "Email (Login Account)")</label>
+                                        <input class="form-control bg-lighter" type="email" id="email" name="email" value="@Model.Email" readonly title="@T("Email Admin không thể thay đổi", "Admin email cannot be changed")" />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="phoneNumber">@T("Số điện thoại liên hệ", "Contact Phone Number")</label>
+                                        <div class="input-group input-group-merge">
+                                            <span class="input-group-text">VN (+84)</span>
+                                            <input type="text" id="phoneNumber" name="phoneNumber" class="form-control" value="@Model.PhoneNumber" placeholder="09xx xxx xxx" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mt-5 pt-4 border-top d-flex justify-content-end gap-2">
+                                    <button type="button" class="btn btn-outline-secondary" id="btnResetProfile">@T("Khôi phục", "Reset")</button>
+                                    <button type="submit" class="btn btn-primary" id="btnSaveProfile">
+                                        <i class="bx bx-save me-1"></i>@T("Lưu thay đổi", "Save Changes")
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12">
+            <div class="card report-card">
+                <div class="card-header border-bottom pb-3">
+                    <h3 class="report-title m-0 text-danger"><i class="bx bx-error-circle me-2"></i>@T("Khu vực nguy hiểm", "Danger Zone")</h3>
+                    <p class="report-text mt-1 mb-0 text-danger">@T("Hành động này không thể hoàn tác. Dữ liệu của bạn sẽ bị xóa vĩnh viễn.", "This action cannot be undone. Your data will be permanently deleted.")</p>
+                </div>
+                <div class="card-body pt-4">
+                    <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-4">
+                        <div>
+                            <h6 class="mb-1 fw-bold fs-6">@T("Xóa tài khoản", "Delete Account")</h6>
+                            <p class="mb-0 text-muted small">
+                                @T("Sau khi tài khoản của bạn bị xóa, tất cả dữ liệu hệ thống, quyền quản trị và thiết lập sẽ không thể khôi phục.", "Once your account is deleted, all system data, administrative privileges, and settings cannot be recovered.")
+                            </p>
+                        </div>
+                        <button type="button" class="btn btn-danger text-nowrap" id="btnDeleteAccount">
+                            <i class="bx bx-trash me-2"></i>@T("Xóa tài khoản", "Delete Account")
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="viewAvatarModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-transparent border-0 shadow-none">
+            <div class="modal-body text-center p-0 position-relative d-flex justify-content-center">
+                <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 mt-3 me-3" data-bs-dismiss="modal" aria-label="Close" style="z-index: 10;"></button>
+                <img src="@avatarUrl" id="zoomedAvatar" class="img-fluid rounded-circle shadow-lg" style="width: 350px; aspect-ratio: 1/1; object-fit: cover; border: 5px solid #fff;" />
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="defaultAvatarModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">@T("Chọn ảnh đại diện mặc định", "Choose Default Avatar")</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3 justify-content-center">
+                    @if (ViewBag.DefaultAvatars != null && ((List<string>)ViewBag.DefaultAvatars).Any())
+                    {
+                        foreach (var defaultUrl in (List<string>)ViewBag.DefaultAvatars)
+                        {
+                            <div class="col-4 col-sm-3 text-center">
+                                <img src="@defaultUrl" class="rounded-circle default-avatar-option"
+                                     style="width: 80px; height: 80px; object-fit: cover; cursor: pointer; border: 3px solid transparent; transition: all 0.2s ease-in-out;"
+                                     data-url="@defaultUrl"
+                                     onmouseover="this.style.borderColor='#696cff'; this.style.transform='scale(1.1)';"
+                                     onmouseout="this.style.borderColor='transparent'; this.style.transform='scale(1)';" />
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="text-center text-muted">@T("Chưa có ảnh mặc định trong hệ thống.", "No default avatars available.")</div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/sneat/js/pages/profile-page.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const uploadedAvatar = document.getElementById('uploadedAvatar');
+            const zoomedAvatar = document.getElementById('zoomedAvatar');
+            const uploadAvatarFile = document.getElementById('uploadAvatarFile');
+            const hiddenAvatarInput = document.getElementById('avatarUrl');
+
+            uploadAvatarFile.addEventListener('change', function(e) {
+                if (e.target.files && e.target.files[0]) {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        uploadedAvatar.src = event.target.result;
+                        zoomedAvatar.src = event.target.result;
+                        hiddenAvatarInput.value = '';
+                    };
+                    reader.readAsDataURL(e.target.files[0]);
+                }
+            });
+
+            const defaultOptions = document.querySelectorAll('.default-avatar-option');
+            defaultOptions.forEach(option => {
+                option.addEventListener('click', function() {
+                    const selectedUrl = this.getAttribute('data-url');
+
+                    uploadedAvatar.src = selectedUrl;
+                    zoomedAvatar.src = selectedUrl;
+
+                    hiddenAvatarInput.value = selectedUrl;
+                    uploadAvatarFile.value = '';
+
+                    const modalEl = document.getElementById('defaultAvatarModal');
+                    const modal = bootstrap.Modal.getInstance(modalEl);
+                    modal.hide();
+                });
+            });
+        });
+    </script>
+}

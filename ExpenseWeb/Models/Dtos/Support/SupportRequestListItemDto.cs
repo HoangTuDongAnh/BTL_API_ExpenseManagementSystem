@@ -15,5 +15,8 @@ namespace ExpenseWeb.Models.Dtos.Support
         public DateTime? replied_at { get; set; }
         public DateTime? closed_at { get; set; }
         public bool has_attachments { get; set; }
+
+        public string? message { get; set; }
+        public string? admin_reply { get; set; }
     }
 }

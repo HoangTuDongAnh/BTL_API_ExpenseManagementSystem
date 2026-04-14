@@ -46,6 +46,8 @@ class SupportRequestListItem(BaseModel):
     replied_at: datetime | None = None
     closed_at: datetime | None = None
     has_attachments: bool = False
+    message: str | None = None
+    admin_reply: str | None = None
 
 
 class SupportRequestDetail(BaseModel):

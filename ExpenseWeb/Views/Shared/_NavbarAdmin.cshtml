@@ -4,6 +4,13 @@
 
     var userFullName = Context.Session.GetString("UserFullName") ?? "Admin";
     var userEmail = Context.Session.GetString("UserEmail") ?? "admin@example.com";
+
+    var userAvatar = Context.Session.GetString("UserAvatar");
+    if (string.IsNullOrWhiteSpace(userAvatar))
+    {
+        userAvatar = Url.Content("~/sneat/img/avatars/1.png");
+    }
+
     var currentController = ViewContext.RouteData.Values["controller"]?.ToString() ?? "Admin";
     var currentAction = ViewContext.RouteData.Values["action"]?.ToString() ?? "Index";
 
@@ -60,11 +67,11 @@
                     <a class="nav-link dropdown-toggle hide-arrow p-0 d-flex align-items-center gap-2"
                        href="javascript:void(0);" data-bs-toggle="dropdown" aria-expanded="false">
                         <div class="avatar avatar-online">
-                            <img src="~/sneat/img/avatars/1.png" alt="avatar" class="w-px-40 h-auto rounded-circle" />
+                            <img src="@userAvatar" alt="avatar" class="w-px-40 h-px-40 rounded-circle" style="object-fit: cover;" />
                         </div>
                         <div class="d-none d-lg-flex flex-column text-start lh-sm">
                             <strong class="text-heading">@userFullName</strong>
-                            <small class="text-body-secondary">Administrator</small>
+                            <small class="text-body-secondary">@T("Quản trị viên", "Administrator")</small>
                         </div>
                     </a>
 
@@ -74,6 +81,14 @@
                                 <div class="fw-semibold">@userFullName</div>
                                 <small class="text-body-secondary">@userEmail</small>
                             </div>
+                        </li>
+                        <li><div class="dropdown-divider my-1"></div></li>
+
+                        <li>
+                            <a class="dropdown-item" asp-controller="Admin" asp-action="Profile" asp-route-lang="@lang">
+                                <i class="bx bx-user icon-md me-3"></i>
+                                <span>@T("Hồ sơ cá nhân", "My Profile")</span>
+                            </a>
                         </li>
                         <li><div class="dropdown-divider my-1"></div></li>
                         <li>

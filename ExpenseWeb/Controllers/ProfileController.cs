@@ -59,7 +59,7 @@ namespace ExpenseWeb.Controllers
 
             var (lastName, firstName) = SplitFullName(result.Data.full_name);
             HttpContext.Session.SetString("UserFullName", result.Data.full_name ?? string.Empty);
-
+            HttpContext.Session.SetString("UserAvatar", result.Data.avatar ?? string.Empty);
             var model = new ProfilePageViewModel
             {
                 LastName = lastName,
@@ -70,11 +70,24 @@ namespace ExpenseWeb.Controllers
             };
 
             SetProfileViewData(result.Data.full_name);
+
+            var defaultAvatarsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "sneat", "img", "avatars", "default");
+            var defaultAvatars = new List<string>();
+            if (Directory.Exists(defaultAvatarsFolder))
+            {
+                var files = Directory.GetFiles(defaultAvatarsFolder);
+                foreach (var file in files)
+                {
+                    defaultAvatars.Add("/sneat/img/avatars/default/" + Path.GetFileName(file));
+                }
+            }
+            ViewBag.DefaultAvatars = defaultAvatars;
+
             return View(model);
         }
 
         [HttpPost]
-        public async Task<IActionResult> UpdateAjax([FromBody] ProfilePageViewModel model)
+        public async Task<IActionResult> UpdateAjax([FromForm] ProfilePageViewModel model, IFormFile? AvatarFile)
         {
             var token = GetAccessToken();
             if (string.IsNullOrWhiteSpace(token))
@@ -89,12 +102,46 @@ namespace ExpenseWeb.Controllers
             if (string.IsNullOrWhiteSpace(fullName))
                 return BadRequest(new { success = false, message = "Họ tên không được để trống." });
 
+            string finalAvatarUrl = string.IsNullOrWhiteSpace(model.Avatar) ? string.Empty : model.Avatar.Trim();
+
+            if (AvatarFile != null && AvatarFile.Length > 0)
+            {
+                try
+                {
+                    var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "sneat", "img", "avatars", "upload");
+                    if (!Directory.Exists(uploadsFolder))
+                    {
+                        Directory.CreateDirectory(uploadsFolder);
+                    }
+
+                    var userEmail = string.IsNullOrWhiteSpace(model.Email) ? "unknown" : model.Email.Trim();
+                    var fileName = $"{userEmail}.png";
+                    var filePath = Path.Combine(uploadsFolder, fileName);
+
+                    if (System.IO.File.Exists(filePath))
+                    {
+                        System.IO.File.Delete(filePath);
+                    }
+
+                    using (var stream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await AvatarFile.CopyToAsync(stream);
+                    }
+
+                    finalAvatarUrl = "/sneat/img/avatars/upload/" + fileName;
+                }
+                catch (Exception ex)
+                {
+                    return BadRequest(new { success = false, message = "Lỗi khi lưu ảnh: " + ex.Message });
+                }
+            }
+
             var request = new UpdateProfileRequestDto
             {
                 full_name = fullName,
                 email = model.Email?.Trim() ?? string.Empty,
                 phone_number = string.IsNullOrWhiteSpace(model.PhoneNumber) ? null : model.PhoneNumber.Trim(),
-                avatar = string.IsNullOrWhiteSpace(model.Avatar) ? null : model.Avatar.Trim()
+                avatar = string.IsNullOrWhiteSpace(finalAvatarUrl) ? null : finalAvatarUrl
             };
 
             var result = await _authApiService.UpdateProfileAsync(token, request);
@@ -103,6 +150,7 @@ namespace ExpenseWeb.Controllers
 
             HttpContext.Session.SetString("UserFullName", result.Data.full_name ?? string.Empty);
             HttpContext.Session.SetString("UserEmail", result.Data.email ?? string.Empty);
+            HttpContext.Session.SetString("UserAvatar", finalAvatarUrl ?? string.Empty);
 
             return Json(new { success = true, message = "Cập nhật hồ sơ thành công." });
         }
@@ -159,9 +207,6 @@ namespace ExpenseWeb.Controllers
                 attachments = new List<SupportAttachmentUploadDto>()
             };
 
-            // Ghi chú: hiện patch này chỉ hoàn thiện luồng mapping view -> controller -> endpoint support.
-            // Nếu bạn muốn upload file thật, hãy bổ sung upload endpoint riêng rồi map Files sang file_url tại đây.
-
             var createResult = await _supportApiService.CreateRequestAsync(token, createRequest);
             if (!createResult.Success)
             {
@@ -206,7 +251,7 @@ namespace ExpenseWeb.Controllers
             {
                 SupportRequestId = dto.support_request_id,
                 Subject = dto.subject,
-                Message = string.Empty,
+                Message = dto.message ?? string.Empty,
                 SupportType = dto.support_type,
                 SupportTypeLabel = ToSupportTypeLabel(dto.support_type),
                 Priority = dto.priority,
@@ -216,6 +261,7 @@ namespace ExpenseWeb.Controllers
                 StatusBadgeClass = ToStatusBadgeClass(dto.status),
                 CreatedAt = dto.created_at,
                 RepliedAt = dto.replied_at,
+                AdminReply = dto.admin_reply,
                 Attachments = new List<SupportAttachmentViewModel>()
             };
         }
