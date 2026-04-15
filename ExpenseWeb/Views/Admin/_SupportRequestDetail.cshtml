@@ -124,7 +124,7 @@
         </div>
     }
 
-    {{-- Reply Form --}}
+   
     @if (Model.Status != "closed")
     {
         <hr class="my-3" />
@@ -132,30 +132,26 @@
             <div class="fw-semibold mb-2"><i class="bx bx-reply me-1 text-primary"></i>@T("Gửi phản hồi", "Send Reply")</div>
             <form method="post" asp-action="ReplySupport" asp-controller="Admin">
                 <input type="hidden" name="supportRequestId" value="@Model.SupportRequestId" />
-                <textarea name="replyText" class="form-control mb-2" rows="4"
+
+                <textarea name="adminReply" class="form-control mb-2" rows="4"
                       placeholder="@T("Nhập nội dung phản hồi...", "Enter reply content...")"
                       style="resize:vertical;">@Model.AdminReply</textarea>
+
                 <div class="d-flex gap-2 flex-wrap">
-                    <button type="submit" name="statusValue" value="replied" class="btn btn-primary btn-sm">
+                    <button type="submit" name="status" value="replied" class="btn btn-primary btn-sm">
                         <i class="bx bx-send me-1"></i>@T("Gửi phản hồi", "Send Reply")
                     </button>
                     @if (Model.Status == "pending")
                     {
-                        <button type="submit" name="statusValue" value="viewed" class="btn btn-outline-warning btn-sm">
+                        <button type="submit" name="status" value="viewed" class="btn btn-outline-warning btn-sm">
                             <i class="bx bx-show me-1"></i>@T("Đánh dấu đã xem", "Mark as Viewed")
                         </button>
                     }
-                    <button type="submit" name="statusValue" value="closed" class="btn btn-outline-secondary btn-sm">
+                    <button type="submit" name="status" value="closed" class="btn btn-outline-secondary btn-sm">
                         <i class="bx bx-lock me-1"></i>@T("Đóng yêu cầu", "Close Request")
                     </button>
                 </div>
             </form>
-        </div>
-    }
-    else
-    {
-        <div class="alert alert-secondary mt-3 mb-0">
-            <i class="bx bx-lock me-1"></i>@T("Yêu cầu này đã được đóng.", "This request has been closed.")
         </div>
     }
 </div>
