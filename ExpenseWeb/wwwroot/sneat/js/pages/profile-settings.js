@@ -8,11 +8,8 @@
     const email = document.getElementById('email');
     const phoneNumber = document.getElementById('phoneNumber');
     const avatarUrl = document.getElementById('avatarUrl');
-
     const uploadedAvatar = document.getElementById('uploadedAvatar');
     const uploadAvatarFile = document.getElementById('uploadAvatarFile');
-
-    const btnResetAvatar = document.getElementById('btnResetAvatar');
     const btnResetProfile = document.getElementById('btnResetProfile');
     const btnDeleteAccount = document.getElementById('btnDeleteAccount');
 
@@ -26,37 +23,20 @@
 
     function updateAvatarPreview() {
         if (!uploadedAvatar || !avatarUrl) return;
-        uploadedAvatar.src = avatarUrl.value.trim() || defaultAvatar;
+        uploadedAvatar.src = avatarUrl.value.trim() || uploadedAvatar.src || defaultAvatar;
     }
 
-    uploadAvatarFile?.addEventListener('change', function (e) {
-        if (e.target.files && e.target.files[0]) {
-            const reader = new FileReader();
-            reader.onload = function (event) {
-                uploadedAvatar.src = event.target.result;
-            };
-            reader.readAsDataURL(e.target.files[0]);
-            if (avatarUrl) avatarUrl.value = ''; 
-        }
-    });
-
     function restoreInitialState() {
-        lastName.value = initialState.lastName;
-        firstName.value = initialState.firstName;
-        email.value = initialState.email;
-        phoneNumber.value = initialState.phoneNumber;
+        if (lastName) lastName.value = initialState.lastName;
+        if (firstName) firstName.value = initialState.firstName;
+        if (email) email.value = initialState.email;
+        if (phoneNumber) phoneNumber.value = initialState.phoneNumber;
         if (avatarUrl) avatarUrl.value = initialState.avatar;
         if (uploadAvatarFile) uploadAvatarFile.value = '';
         updateAvatarPreview();
     }
 
     avatarUrl?.addEventListener('input', function () {
-        if (uploadAvatarFile) uploadAvatarFile.value = ''; 
-        updateAvatarPreview();
-    });
-
-    btnResetAvatar?.addEventListener('click', function () {
-        if (avatarUrl) avatarUrl.value = '';
         if (uploadAvatarFile) uploadAvatarFile.value = '';
         updateAvatarPreview();
     });
@@ -89,7 +69,7 @@
         try {
             const response = await fetch('/Profile/UpdateAjax', {
                 method: 'POST',
-                body: formData 
+                body: formData
             });
 
             const data = await response.json();
@@ -124,8 +104,4 @@
             alert('Đã xảy ra lỗi khi xóa tài khoản.');
         }
     });
-
-    if (!uploadAvatarFile || uploadAvatarFile.files.length === 0) {
-        updateAvatarPreview();
-    }
 })();

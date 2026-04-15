@@ -1,4 +1,5 @@
-﻿@model ExpenseWeb.Models.ViewModels.Profile.SupportPageViewModel
+@model ExpenseWeb.Models.ViewModels.Profile.SupportPageViewModel
+@using System.Linq
 @{
     var lang = (Context.Request.Query["lang"].FirstOrDefault() ?? ViewBag.Lang as string ?? "vi").ToLower();
     string T(string vi, string en) => lang == "en" ? en : vi;
@@ -8,65 +9,9 @@
 }
 
 @section Styles {
-    <link rel="stylesheet" href="~/sneat/css/pages/wallet-dashboard.css" />
-    <link rel="stylesheet" href="~/sneat/css/pages/category-page.css" />
-    <link rel="stylesheet" href="~/sneat/css/pages/report-page.css" />
+    <link rel="stylesheet" href="~/sneat/css/pages/core-page-hero.css" />
     <link rel="stylesheet" href="~/sneat/css/pages/page-shell.css" />
-    <style>
-        .hover-opacity:hover {
-            opacity: 0.8;
-            transition: opacity 0.2s ease-in-out;
-        }
-
-        .support-attachment-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-            gap: 12px;
-        }
-
-        .support-attachment-card {
-            border: 1px solid #e9ecef;
-            border-radius: 12px;
-            background: #fff;
-            overflow: hidden;
-        }
-
-        .support-attachment-preview {
-            width: 100%;
-            height: 140px;
-            object-fit: cover;
-            display: block;
-            background: #f5f5f9;
-        }
-
-        .support-attachment-video {
-            width: 100%;
-            height: 140px;
-            background: #000;
-        }
-
-        .support-attachment-body {
-            padding: 10px 12px;
-        }
-
-        .support-attachment-name {
-            font-size: 13px;
-            font-weight: 600;
-            color: #566a7f;
-            word-break: break-word;
-        }
-
-        .support-attachment-meta {
-            font-size: 12px;
-            color: #8592a3;
-        }
-
-        .support-file-hint {
-            font-size: 12px;
-            color: #8592a3;
-            margin-top: 6px;
-        }
-    </style>
+    <link rel="stylesheet" href="~/sneat/css/pages/support-page.css" />
 }
 
 <div class="container-xxl flex-grow-1 container-p-y">
@@ -98,25 +43,28 @@
 
     <div class="row g-4">
         <div class="col-12">
-            <div class="card report-filter-card page-shell-card support-form-card">
-                <div class="card-header border-bottom pb-3">
-                    <h2 class="dashboard-section-title mb-1">
-                        <i class="bx bx-support me-2 text-primary"></i>@T("Gửi hỗ trợ đến admin", "Send Support Request")
-                    </h2>
-                    <p class="dashboard-section-text mb-0">
-                        @T("Vui lòng điền chi tiết thông tin để chúng tôi có thể hỗ trợ bạn tốt nhất.", "Please provide detailed information so we can assist you better.")
-                    </p>
+            <div class="card support-shell-card">
+                <div class="support-card-header">
+                    <div class="support-card-title">
+                        <div class="support-card-icon"><i class="bx bx-support"></i></div>
+                        <div>
+                            <h2 class="support-card-heading">@T("Gửi hỗ trợ đến admin", "Send support request")</h2>
+                            <p class="support-card-desc">
+                                @T("Điền đúng loại hỗ trợ, mức ưu tiên và mô tả đủ chi tiết để đội ngũ quản trị tiếp nhận nhanh hơn.", "Choose the right support type, priority, and provide enough detail so the admin team can process it faster.")
+                            </p>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body pt-4">
+
+                <div class="support-form-panel">
                     <form asp-action="Support" asp-controller="Profile" method="post" enctype="multipart/form-data">
                         @Html.AntiForgeryToken()
-
                         <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
-                        <div class="row g-4">
-                            <div class="col-md-6">
+                        <div class="support-form-grid">
+                            <div>
                                 <label asp-for="Form.SupportType" class="form-label">@T("Loại hỗ trợ", "Support Type")</label>
-                                <select asp-for="Form.SupportType" class="form-select">
+                                <select asp-for="Form.SupportType" class="form-select support-select">
                                     <option value="bug">@T("Báo lỗi hệ thống", "System Bug")</option>
                                     <option value="transaction">@T("Hỗ trợ giao dịch", "Transaction Support")</option>
                                     <option value="account">@T("Hỗ trợ tài khoản", "Account Support")</option>
@@ -125,9 +73,9 @@
                                 </select>
                             </div>
 
-                            <div class="col-md-6">
+                            <div>
                                 <label asp-for="Form.Priority" class="form-label">@T("Mức độ ưu tiên", "Priority")</label>
-                                <select asp-for="Form.Priority" class="form-select">
+                                <select asp-for="Form.Priority" class="form-select support-select">
                                     <option value="low">@T("Thấp", "Low")</option>
                                     <option value="medium">@T("Trung bình", "Medium")</option>
                                     <option value="high">@T("Cao", "High")</option>
@@ -135,33 +83,35 @@
                                 </select>
                             </div>
 
-                            <div class="col-12">
+                            <div class="full-span">
                                 <label asp-for="Form.Subject" class="form-label">@T("Tiêu đề", "Subject")</label>
-                                <input asp-for="Form.Subject" class="form-control" placeholder="@T("Ví dụ: Không thể lưu giao dịch chi tiêu", "Example: Cannot save expense transaction")" />
+                                <input asp-for="Form.Subject" class="form-control support-input" placeholder="@T("Ví dụ: Không thể lưu giao dịch chi tiêu", "Example: Cannot save expense transaction")" />
                                 <span asp-validation-for="Form.Subject" class="text-danger small mt-1 d-block"></span>
                             </div>
 
-                            <div class="col-12">
+                            <div class="full-span">
                                 <label asp-for="Form.Message" class="form-label">@T("Nội dung hỗ trợ", "Message Details")</label>
-                                <textarea asp-for="Form.Message" class="form-control" rows="5" placeholder="@T("Mô tả chi tiết vấn đề bạn gặp phải...", "Describe your issue in detail...")"></textarea>
+                                <textarea asp-for="Form.Message" class="form-control support-textarea" placeholder="@T("Mô tả chi tiết vấn đề bạn gặp phải...", "Describe your issue in detail...")"></textarea>
                                 <span asp-validation-for="Form.Message" class="text-danger small mt-1 d-block"></span>
                             </div>
 
-                            <div class="col-12">
+                            <div class="full-span">
                                 <label asp-for="Form.Files" class="form-label">@T("Tệp đính kèm (Tùy chọn)", "Attachments (Optional)")</label>
-                                <input asp-for="Form.Files" type="file" multiple class="form-control" accept="image/*,video/*" />
-                                <span asp-validation-for="Form.Files" class="text-danger small mt-1 d-block"></span>
-                                <div class="support-file-hint">
-                                    @T("Hỗ trợ ảnh/video. Tối đa 5 tệp, mỗi tệp tối đa 20 MB.", "Support image/video. Maximum 5 files, each file up to 20 MB.")
+                                <div class="support-file-wrap">
+                                    <input asp-for="Form.Files" type="file" multiple class="form-control support-file" accept="image/*,video/*" />
+                                    <span asp-validation-for="Form.Files" class="text-danger small mt-1 d-block"></span>
+                                    <div class="support-file-hint">
+                                        @T("Hỗ trợ ảnh/video. Tối đa 5 tệp, mỗi tệp tối đa 20 MB.", "Support image/video. Maximum 5 files, each file up to 20 MB.")
+                                    </div>
                                 </div>
                             </div>
+                        </div>
 
-                            <div class="col-12 pt-2 border-top d-flex justify-content-end gap-2 mt-4">
-                                <button type="reset" class="btn btn-outline-secondary">@T("Làm mới", "Reset")</button>
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="bx bx-send me-2"></i>@T("Gửi hỗ trợ", "Submit")
-                                </button>
-                            </div>
+                        <div class="support-actions">
+                            <button type="reset" class="btn btn-outline-secondary">@T("Làm mới", "Reset")</button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bx bx-send me-2"></i>@T("Gửi hỗ trợ", "Submit")
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -169,174 +119,161 @@
         </div>
 
         <div class="col-12">
-            <div class="card report-card page-shell-card support-history-card">
-                <div class="card-header border-bottom pb-3">
-                    <h3 class="report-title m-0">
-                        <i class="bx bx-history me-2 text-primary"></i>@T("Lịch sử gần đây", "Recent History")
-                    </h3>
-                    <p class="report-text mt-1 mb-0">
-                        @T("Theo dõi trạng thái các yêu cầu hỗ trợ bạn đã gửi.", "Track the status of your submitted support requests.")
-                    </p>
+            <div class="card support-shell-card">
+                <div class="support-card-header">
+                    <div class="support-card-title">
+                        <div class="support-card-icon"><i class="bx bx-history"></i></div>
+                        <div>
+                            <h3 class="support-card-heading" style="font-size: 1.5rem;">@T("Lịch sử gần đây", "Recent history")</h3>
+                            <p class="support-card-desc">@T("Theo dõi trạng thái các yêu cầu hỗ trợ bạn đã gửi.", "Track the status of the support requests you have submitted.")</p>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="card-body p-0">
+                <div class="support-history-wrap">
                     @if (Model.HistoryItems.Count == 0)
                     {
-                        <div class="report-empty p-4 text-center text-muted">
-                            @T("Chưa có yêu cầu hỗ trợ nào.", "No support requests found.")
-                        </div>
+                        <div class="support-empty">@T("Chưa có yêu cầu hỗ trợ nào.", "No support requests found.")</div>
                     }
                     else
                     {
-                        <div class="report-list">
+                        <div class="support-history-list">
                             @foreach (var item in Model.HistoryItems)
                             {
                                 var collapseId = "collapseSupport_" + item.SupportRequestId;
+                                var statusText = lang == "en"
+                                    ? item.Status == "pending" ? "Pending"
+                                        : item.Status == "viewed" ? "Processing"
+                                        : item.Status == "replied" ? "Replied"
+                                        : "Closed"
+                                    : item.StatusLabel;
 
-                                <div class="report-expense-item d-block px-4 py-3 border-bottom">
-                                    <div class="d-flex justify-content-between align-items-start"
+                                var supportTypeText = lang == "en"
+                                    ? item.SupportType == "bug" ? "System Bug"
+                                        : item.SupportType == "transaction" ? "Transaction Support"
+                                        : item.SupportType == "account" ? "Account Support"
+                                        : item.SupportType == "feature" ? "Feature Request"
+                                        : "Other"
+                                    : item.SupportTypeLabel;
+
+                                var priorityText = lang == "en"
+                                    ? item.Priority == "low" ? "Low"
+                                        : item.Priority == "medium" ? "Medium"
+                                        : item.Priority == "high" ? "High"
+                                        : "Urgent"
+                                    : item.PriorityLabel;
+
+                                <div class="support-history-item">
+                                    <div class="support-history-head"
                                          data-bs-toggle="collapse"
-                                         href="#@collapseId"
-                                         role="button"
+                                         data-bs-target="#@collapseId"
                                          aria-expanded="false"
                                          aria-controls="@collapseId"
-                                         style="cursor: pointer;"
                                          title="@T("Nhấn để xem chi tiết", "Click to view details")">
-                                        <div class="w-100 pe-3">
-                                            <div class="report-expense-name mb-1 fw-bold fs-6 text-primary hover-opacity">
-                                                @item.Subject <i class="bx bx-chevron-down ms-1 text-muted"></i>
+                                        <div class="flex-grow-1">
+                                            <div class="support-history-title">
+                                                <span>@item.Subject</span>
+                                                <i class="bx bx-chevron-down text-muted"></i>
                                             </div>
 
-                                            <div class="d-flex align-items-center gap-2 flex-wrap mt-2">
-                                                <span class="badge @item.StatusBadgeClass">
-                                                    @(lang == "en"
-                                                                                                ? item.Status == "pending" ? "Pending"
-                                                                                                : item.Status == "viewed" ? "Processing"
-                                                                                                : item.Status == "replied" ? "Replied"
-                                                                                                : "Closed"
-                                                                                                : item.StatusLabel)
-                                                                                                               </span>
-
-                                                <span class="badge bg-label-secondary">
-                                                    @(lang == "en"
-                                                                                                ? item.SupportType == "bug" ? "System Bug"
-                                                                                                : item.SupportType == "transaction" ? "Transaction Support"
-                                                                                                : item.SupportType == "account" ? "Account Support"
-                                                                                                : item.SupportType == "feature" ? "Feature Request"
-                                                                                                : "Other"
-                                                                                                : item.SupportTypeLabel)
-                                                                                                                    </span>
-
-                                                <span class="text-muted small ms-1">
-                                                    <i class="bx bx-time-five me-1"></i>@item.CreatedAt.ToString("HH:mm - dd/MM/yyyy")
-                                                </span>
+                                            <div class="support-meta-row">
+                                                <span class="badge @item.StatusBadgeClass">@statusText</span>
+                                                <span class="support-chip">@supportTypeText</span>
+                                                <span class="support-chip"><i class="bx bx-time-five"></i>@item.CreatedAt.ToString("HH:mm - dd-MM-yyyy")</span>
                                             </div>
                                         </div>
 
                                         <div class="text-end flex-shrink-0">
-                                            <span class="badge bg-label-primary bg-opacity-10 text-primary border-0 mb-1">
-                                                @(lang == "en"
-                                                                                        ? item.Priority == "low" ? "Low"
-                                                                                        : item.Priority == "medium" ? "Medium"
-                                                                                        : item.Priority == "high" ? "High"
-                                                                                        : "Urgent"
-                                                                                        : item.PriorityLabel)
-                                    </span>
-                                    <div class="text-muted small mt-1">#@item.SupportRequestId</div>
-                                </div>
-                            </div>
+                                            <span class="support-chip support-priority-chip">@priorityText</span>
+                                            <span class="support-request-code">#@item.SupportRequestId</span>
+                                        </div>
+                                    </div>
 
-                                    <div class="collapse mt-3" id="@collapseId">
-                                        <div class="p-3 bg-lighter rounded border">
-                                            <div class="mb-3">
-                                                <span class="fw-semibold text-dark">
-                                                    <i class="bx bx-user me-1"></i>@T("Bạn đã gửi:", "You sent:")
-                                                </span>
-
-                                        @if (!string.IsNullOrWhiteSpace(item.Message))
-                                                {
-                                                    <p class="text-muted small mb-0 mt-2" style="white-space: pre-line; word-break: break-word;">
-                                                        @item.Message
-                                                    </p>
-                                                }
-                                                else
-                                                {
-                                                    <p class="text-muted small mb-0 mt-2 fst-italic">
-                                                        @T("(Chưa tải được nội dung từ API)", "(Failed to load content from API)")
-                                                    </p>
-                                                }
-                                            </div>
-
-                                            @if (item.Attachments != null && item.Attachments.Any())
-                                            {
-                                                <div class="mb-3">
-                                                    <div class="fw-semibold text-dark mb-2">
-                                                        <i class="bx bx-paperclip me-1"></i>@T("Tệp đính kèm", "Attachments")
+                                    <div class="collapse" id="@collapseId">
+                                        <div class="support-history-body">
+                                            <div class="support-body-panel">
+                                                <div>
+                                                    <div class="support-block-title">
+                                                        <i class="bx bx-message-square-detail"></i>
+                                                        <span>@T("Nội dung bạn đã gửi", "Message you sent")</span>
                                                     </div>
 
-                                                    <div class="support-attachment-grid">
-                                                        @foreach (var attachment in item.Attachments)
-                                                        {
-                                                            <div class="support-attachment-card">
-                                                                @if (attachment.IsImage)
-                                                                {
-                                                                    <a href="@attachment.FileUrl" target="_blank">
-                                                                        <img src="@attachment.FileUrl"
-                                                                             alt="@attachment.FileName"
-                                                                             class="support-attachment-preview" />
-                                                                    </a>
-                                                                }
-                                                                else if (attachment.IsVideo)
-                                                                {
-                                                                    <video class="support-attachment-video" controls preload="metadata">
-                                                                        <source src="@attachment.FileUrl" type="@attachment.FileType" />
-                                                                    </video>
-                                                                }
-                                                                else
-                                                                {
-                                                                    <div class="support-attachment-preview d-flex align-items-center justify-content-center">
-                                                                        <i class="bx bx-file fs-1 text-muted"></i>
-                                                                    </div>
-                                                                }
-
-                                                                <div class="support-attachment-body">
-                                                                    <div class="support-attachment-name">@attachment.FileName</div>
-                                                                    <div class="support-attachment-meta">
-                                                                        @if (!string.IsNullOrWhiteSpace(attachment.DisplaySize))
-                                                                        {
-                                                                            <span>@attachment.DisplaySize</span>
-                                                                        }
-                                                                    </div>
-                                                                    <a href="@attachment.FileUrl" target="_blank" class="small text-primary text-decoration-none">
-                                                                        @T("Mở tệp", "Open file")
-                                                                    </a>
-                                                                </div>
-                                                            </div>
-                                                        }
-                                                    </div>
+                                                    @if (!string.IsNullOrWhiteSpace(item.Message))
+                                                    {
+                                                        <p class="support-message-text">@item.Message</p>
+                                                    }
+                                                    else
+                                                    {
+                                                        <p class="support-message-text fst-italic">@T("(Chưa tải được nội dung từ API)", "(Failed to load content from API)")</p>
+                                                    }
                                                 </div>
-                                            }
 
-                                            @if (!string.IsNullOrWhiteSpace(item.AdminReply))
-                                            {
-                                                <div class="mt-2 p-3 bg-label-success rounded border-start border-3 border-success">
-                                                    <div class="d-flex justify-content-between align-items-center mb-1">
-                                                        <div class="d-flex align-items-center">
-                                                            <i class="bx bx-support text-success fs-5 me-2"></i>
-                                                            <span class="fw-bold text-success">@T("Admin phản hồi", "Admin Reply")</span>
+                                                @if (item.Attachments != null && item.Attachments.Any())
+                                                {
+                                                    <div class="mt-4">
+                                                        <div class="support-block-title">
+                                                            <i class="bx bx-paperclip"></i>
+                                                            <span>@T("Tệp đính kèm", "Attachments")</span>
                                                         </div>
 
-                                                        @if (item.RepliedAt.HasValue)
-                                                        {
-                                                            <span class="text-success small">@item.RepliedAt.Value.ToString("HH:mm - dd/MM")</span>
-                                                        }
-                                                    </div>
+                                                        <div class="support-attachment-grid">
+                                                            @foreach (var attachment in item.Attachments)
+                                                            {
+                                                                <div class="support-attachment-card">
+                                                                    @if (attachment.IsImage)
+                                                                    {
+                                                                        <a href="@attachment.FileUrl" target="_blank">
+                                                                            <img src="@attachment.FileUrl" alt="@attachment.FileName" class="support-attachment-preview" />
+                                                                        </a>
+                                                                    }
+                                                                    else if (attachment.IsVideo)
+                                                                    {
+                                                                        <video class="support-attachment-video" controls preload="metadata">
+                                                                            <source src="@attachment.FileUrl" type="@attachment.FileType" />
+                                                                        </video>
+                                                                    }
+                                                                    else
+                                                                    {
+                                                                        <div class="support-attachment-preview d-flex align-items-center justify-content-center">
+                                                                            <i class="bx bx-file fs-1 text-muted"></i>
+                                                                        </div>
+                                                                    }
 
-                                                    <p class="mb-0 mt-2 text-dark small" style="white-space: pre-line; word-break: break-word;">
-                                                        @item.AdminReply
-                                                    </p>
-                                                </div>
-                                            }
+                                                                    <div class="support-attachment-body">
+                                                                        <div class="support-attachment-name">@attachment.FileName</div>
+                                                                        <div class="support-attachment-meta">
+                                                                            @if (!string.IsNullOrWhiteSpace(attachment.DisplaySize))
+                                                                            {
+                                                                                <span>@attachment.DisplaySize</span>
+                                                                            }
+                                                                        </div>
+                                                                        <a href="@attachment.FileUrl" target="_blank" class="small text-primary text-decoration-none">
+                                                                            @T("Mở tệp", "Open file")
+                                                                        </a>
+                                                                    </div>
+                                                                </div>
+                                                            }
+                                                        </div>
+                                                    </div>
+                                                }
+
+                                                @if (!string.IsNullOrWhiteSpace(item.AdminReply))
+                                                {
+                                                    <div class="support-admin-reply">
+                                                        <div class="d-flex justify-content-between align-items-center gap-3 mb-2 flex-wrap">
+                                                            <div class="support-block-title mb-0 text-success">
+                                                                <i class="bx bx-support"></i>
+                                                                <span>@T("Phản hồi từ admin", "Reply from admin")</span>
+                                                            </div>
+                                                            @if (item.RepliedAt.HasValue)
+                                                            {
+                                                                <span class="small text-success">@item.RepliedAt.Value.ToString("HH:mm - dd/MM")</span>
+                                                            }
+                                                        </div>
+                                                        <p class="support-message-text text-dark mb-0">@item.AdminReply</p>
+                                                    </div>
+                                                }
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

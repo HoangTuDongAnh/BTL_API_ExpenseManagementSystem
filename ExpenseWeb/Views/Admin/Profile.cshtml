@@ -1,4 +1,4 @@
-﻿@model ExpenseWeb.Models.ViewModels.Profile.ProfilePageViewModel
+@model ExpenseWeb.Models.ViewModels.Profile.ProfilePageViewModel
 @{
     var lang = (Context.Request.Query["lang"].FirstOrDefault() ?? ViewBag.Lang as string ?? "vi").ToLower();
     string T(string vi, string en) => lang == "en" ? en : vi;
@@ -12,43 +12,9 @@
 }
 
 @section Styles {
-    <link rel="stylesheet" href="~/sneat/css/pages/wallet-dashboard.css" />
-    <link rel="stylesheet" href="~/sneat/css/pages/category-page.css" />
-    <link rel="stylesheet" href="~/sneat/css/pages/report-page.css" />
-    <style>
-        .profile-avatar-wrap {
-            position: relative;
-            display: inline-block;
-        }
-
-        .profile-avatar-img {
-            object-fit: cover;
-            box-shadow: 0 0 0 4px #fff, 0 4px 12px rgba(67, 89, 113, 0.15);
-            transition: all 0.3s ease;
-        }
-
-        .profile-avatar-wrap:hover .profile-avatar-img {
-            box-shadow: 0 0 0 4px #696cff, 0 6px 16px rgba(105, 108, 255, 0.2);
-            opacity: 0.85;
-        }
-
-        .profile-section-divider {
-            border-right: 1px dashed #d9dee3;
-        }
-
-        .dark-mode .profile-section-divider {
-            border-right-color: #444;
-        }
-
-        @@media (max-width: 768px) {
-            .profile-section-divider {
-                border-right: none;
-                border-bottom: 1px dashed #d9dee3;
-                padding-bottom: 2rem;
-                margin-bottom: 2rem;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="~/sneat/css/pages/core-page-hero.css" />
+    <link rel="stylesheet" href="~/sneat/css/pages/page-shell.css" />
+    <link rel="stylesheet" href="~/sneat/css/pages/profile-page.css" />
 }
 
 <div class="container-xxl flex-grow-1 container-p-y">

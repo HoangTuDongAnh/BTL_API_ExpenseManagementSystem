@@ -1,0 +1,22 @@
+.table-custom-scroll {
+    min-width: 1300px;
+    table-layout: fixed;
+}
+
+.col-ticket { width: 280px; }
+.col-user { width: 300px; }
+.col-category { width: 220px; }
+.col-date { width: 200px; }
+.col-status { width: 150px; }
+.col-actions { width: 150px; }
+
+.selected-row {
+    background-color: #f0f2f8 !important;
+    border-left: 4px solid #696cff !important;
+}
+
+.table-responsive::-webkit-scrollbar { height: 8px; }
+.table-responsive::-webkit-scrollbar-thumb {
+    background: #dcdfe8;
+    border-radius: 10px;
+}

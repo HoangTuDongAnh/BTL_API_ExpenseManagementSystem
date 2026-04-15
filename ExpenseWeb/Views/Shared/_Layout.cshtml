@@ -1,4 +1,4 @@
-﻿@{
+@{
     var lang = (Context.Request.Query["lang"].FirstOrDefault() ?? "vi").ToLower();
     if (lang != "en") lang = "vi";
 
@@ -65,7 +65,9 @@
     <script src="~/sneat/vendor/libs/apex-charts/apexcharts.js"></script>
     <script src="~/sneat/js/main.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="~/js/app.js" asp-append-version="true"></script>
     <script src="~/js/app.ui.js" asp-append-version="true"></script>
+    <script src="~/js/popup.base.js" asp-append-version="true"></script>
 
     @RenderSection("Scripts", required: false)
 </body>

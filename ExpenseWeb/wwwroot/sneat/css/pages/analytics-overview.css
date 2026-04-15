@@ -1,3 +1,4 @@
+/* Analytics layout and report widgets. Hero styles moved to core-page-hero.css */
 .dashboard-kpi-card,
 .report-card,
 .report-filter-card {
@@ -173,28 +174,10 @@
 }
 
 @media (max-width: 767.98px) {
-    .dashboard-hero,
-    .dashboard-hero-copy,
     .dashboard-kpi-card,
     .report-card,
     .report-filter-card {
         border-radius: 22px;
-    }
-
-    .dashboard-hero {
-        padding: 1rem;
-    }
-
-    .dashboard-hero-copy {
-        padding: 1.2rem 1.1rem;
-    }
-
-    .dashboard-hero-title {
-        font-size: 2.35rem;
-    }
-
-    .dashboard-hero-text {
-        font-size: 0.96rem;
     }
 
     .report-chart-wrap,
