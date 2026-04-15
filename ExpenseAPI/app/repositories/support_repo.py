@@ -10,13 +10,9 @@ from app.models.user import User
 
 class SupportRepository:
     def _generate_support_request_id(self, db: Session) -> str:
-        sql = text("""
-            DECLARE @NewID VARCHAR(17);
-            EXEC dbo.sp_GenerateSupportRequestID @NewID=@NewID OUTPUT;
-            SELECT @NewID AS NewID;
-        """)
+        sql = text("SELECT fn_GenerateSupportRequestID() AS NewID")
         row = db.execute(sql).mappings().first()
-        return row["NewID"]
+        return row["newid"]
 
     def create_request(self, db: Session, payload: dict, user_id: str) -> SupportRequest:
         new_id = self._generate_support_request_id(db)

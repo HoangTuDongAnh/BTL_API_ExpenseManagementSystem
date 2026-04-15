@@ -17,12 +17,15 @@ namespace ExpenseWeb.Services.Api
         public AuthApiService(HttpClient httpClient, IConfiguration configuration)
         {
             _httpClient = httpClient;
-            _baseUrl = configuration["ApiSettings:BaseUrl"] ?? "";
+            _baseUrl = (configuration["ApiSettings:BaseUrl"] ?? string.Empty).TrimEnd('/');
         }
 
-        private void SetBearerToken(string token)
+        private HttpRequestMessage CreateRequest(HttpMethod method, string url, string token, HttpContent? content = null)
         {
-            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            var request = new HttpRequestMessage(method, url);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            if (content != null) request.Content = content;
+            return request;
         }
 
         private StringContent CreateJsonContent<T>(T payload)
@@ -44,22 +47,23 @@ namespace ExpenseWeb.Services.Api
 
         public async Task<(bool Success, string ErrorMessage)> ForgotPasswordAsync(string email)
         {
-            var response = await _httpClient.PostAsJsonAsync($"{_baseUrl}/auth/forgot-password", new { email });
+            var response = await _httpClient.PostAsync($"{_baseUrl}/auth/forgot-password", CreateJsonContent(new { email }));
+            var responseBody = await response.Content.ReadAsStringAsync();
             if (!response.IsSuccessStatusCode)
-                return (false, await response.Content.ReadAsStringAsync());
+                return (false, ExtractErrorMessage(responseBody));
             return (true, "");
         }
 
         public async Task<(bool Success, string ErrorMessage)> ResetPasswordAsync(string token, string newPassword)
         {
-            var response = await _httpClient.PostAsJsonAsync($"{_baseUrl}/auth/reset-password", new
+            var response = await _httpClient.PostAsync($"{_baseUrl}/auth/reset-password", CreateJsonContent(new
             {
                 token,
                 new_password = newPassword
-            });
-
+            }));
+            var responseBody = await response.Content.ReadAsStringAsync();
             if (!response.IsSuccessStatusCode)
-                return (false, await response.Content.ReadAsStringAsync());
+                return (false, ExtractErrorMessage(responseBody));
             return (true, "");
         }
 
@@ -67,7 +71,6 @@ namespace ExpenseWeb.Services.Api
         {
             var response = await _httpClient.PostAsync($"{_baseUrl}/auth/register", CreateJsonContent(request));
             var responseBody = await response.Content.ReadAsStringAsync();
-
             if (!response.IsSuccessStatusCode)
                 return (false, ExtractErrorMessage(responseBody), null);
 
@@ -95,21 +98,17 @@ namespace ExpenseWeb.Services.Api
             {
                 var doc = JsonDocument.Parse(responseBody);
                 if (doc.RootElement.TryGetProperty("message", out var message))
-                {
                     return (true, message.GetString() ?? "");
-                }
             }
-            catch
-            {
-            }
+            catch { }
 
             return (true, "");
         }
 
         public async Task<(bool Success, string ErrorMessage, UserDto? Data)> GetMeAsync(string token)
         {
-            SetBearerToken(token);
-            var response = await _httpClient.GetAsync($"{_baseUrl}/auth/me");
+            var request = CreateRequest(HttpMethod.Get, $"{_baseUrl}/auth/me", token);
+            var response = await _httpClient.SendAsync(request);
             var responseBody = await response.Content.ReadAsStringAsync();
             if (!response.IsSuccessStatusCode)
                 return (false, ExtractErrorMessage(responseBody), null);
@@ -118,10 +117,10 @@ namespace ExpenseWeb.Services.Api
             return (true, "", data);
         }
 
-        public async Task<(bool Success, string ErrorMessage, UserDto? Data)> UpdateProfileAsync(string token, UpdateProfileRequestDto request)
+        public async Task<(bool Success, string ErrorMessage, UserDto? Data)> UpdateProfileAsync(string token, UpdateProfileRequestDto dto)
         {
-            SetBearerToken(token);
-            var response = await _httpClient.PutAsync($"{_baseUrl}/auth/me", CreateJsonContent(request));
+            var request = CreateRequest(HttpMethod.Put, $"{_baseUrl}/auth/me", token, CreateJsonContent(dto));
+            var response = await _httpClient.SendAsync(request);
             var responseBody = await response.Content.ReadAsStringAsync();
             if (!response.IsSuccessStatusCode)
                 return (false, ExtractErrorMessage(responseBody), null);
@@ -132,8 +131,8 @@ namespace ExpenseWeb.Services.Api
 
         public async Task<(bool Success, string ErrorMessage)> DeleteMeAsync(string token)
         {
-            SetBearerToken(token);
-            var response = await _httpClient.DeleteAsync($"{_baseUrl}/auth/me");
+            var request = CreateRequest(HttpMethod.Delete, $"{_baseUrl}/auth/me", token);
+            var response = await _httpClient.SendAsync(request);
             var responseBody = await response.Content.ReadAsStringAsync();
             if (!response.IsSuccessStatusCode)
                 return (false, ExtractErrorMessage(responseBody));
@@ -146,22 +145,12 @@ namespace ExpenseWeb.Services.Api
             {
                 var doc = JsonDocument.Parse(responseBody);
                 if (doc.RootElement.TryGetProperty("detail", out var detail))
-                {
-                    return detail.ValueKind == JsonValueKind.String
-                        ? detail.GetString() ?? "Unknown error"
-                        : detail.ToString();
-                }
+                    return detail.ValueKind == JsonValueKind.String ? detail.GetString() ?? "Unknown error" : detail.ToString();
 
                 if (doc.RootElement.TryGetProperty("message", out var message))
-                {
-                    return message.ValueKind == JsonValueKind.String
-                        ? message.GetString() ?? "Unknown error"
-                        : message.ToString();
-                }
+                    return message.ValueKind == JsonValueKind.String ? message.GetString() ?? "Unknown error" : message.ToString();
             }
-            catch
-            {
-            }
+            catch { }
 
             return string.IsNullOrWhiteSpace(responseBody) ? "Unknown error" : responseBody;
         }

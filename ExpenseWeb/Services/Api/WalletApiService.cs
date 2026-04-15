@@ -20,29 +20,25 @@ namespace ExpenseWeb.Services.Api
             _httpClient = httpClient;
         }
 
-        private void SetBearerToken(string token)
+        private HttpRequestMessage CreateRequest(HttpMethod method, string url, string token, HttpContent? content = null)
         {
-            _httpClient.DefaultRequestHeaders.Authorization =
-                new AuthenticationHeaderValue("Bearer", token);
+            var request = new HttpRequestMessage(method, url);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            if (content != null) request.Content = content;
+            return request;
         }
 
-        private StringContent CreateJsonContent<T>(T data)
-        {
-            var json = JsonSerializer.Serialize(data, _jsonOptions);
-            return new StringContent(json, Encoding.UTF8, "application/json");
-        }
+        private StringContent CreateJsonContent<T>(T data) =>
+            new(JsonSerializer.Serialize(data, _jsonOptions), Encoding.UTF8, "application/json");
 
         public async Task<List<WalletResponseDto>> GetWalletsAsync(string token)
         {
-            SetBearerToken(token);
-
-            var response = await _httpClient.GetAsync("/wallets");
+            var request = CreateRequest(HttpMethod.Get, "/wallets", token);
+            var response = await _httpClient.SendAsync(request);
             var body = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
-            {
                 throw new InvalidOperationException(body);
-            }
 
             return JsonSerializer.Deserialize<List<WalletResponseDto>>(body, _jsonOptions)
                    ?? new List<WalletResponseDto>();
@@ -50,68 +46,51 @@ namespace ExpenseWeb.Services.Api
 
         public async Task<WalletResponseDto> GetWalletByIdAsync(string token, string walletId)
         {
-            SetBearerToken(token);
-
-            var response = await _httpClient.GetAsync($"/wallets/{walletId}");
+            var request = CreateRequest(HttpMethod.Get, $"/wallets/{walletId}", token);
+            var response = await _httpClient.SendAsync(request);
             var body = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
-            {
                 throw new InvalidOperationException(body);
-            }
 
             return JsonSerializer.Deserialize<WalletResponseDto>(body, _jsonOptions)
                    ?? throw new InvalidOperationException("Không đọc được dữ liệu ví.");
         }
 
-        public async Task<WalletResponseDto> CreateWalletAsync(string token, WalletCreateRequestDto request)
+        public async Task<WalletResponseDto> CreateWalletAsync(string token, WalletCreateRequestDto dto)
         {
-            SetBearerToken(token);
-
-            var response = await _httpClient.PostAsync("/wallets", CreateJsonContent(request));
+            var request = CreateRequest(HttpMethod.Post, "/wallets", token, CreateJsonContent(dto));
+            var response = await _httpClient.SendAsync(request);
             var body = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
-            {
                 throw new InvalidOperationException(body);
-            }
 
             return JsonSerializer.Deserialize<WalletResponseDto>(body, _jsonOptions)
                    ?? throw new InvalidOperationException("API tạo ví trả về rỗng.");
         }
 
-        public async Task<WalletResponseDto> UpdateWalletAsync(string token, string walletId, WalletUpdateRequestDto request)
+        public async Task<WalletResponseDto> UpdateWalletAsync(string token, string walletId, WalletUpdateRequestDto dto)
         {
-            SetBearerToken(token);
-
-            var response = await _httpClient.PutAsync($"/wallets/{walletId}", CreateJsonContent(request));
+            var request = CreateRequest(HttpMethod.Put, $"/wallets/{walletId}", token, CreateJsonContent(dto));
+            var response = await _httpClient.SendAsync(request);
             var body = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
-            {
                 throw new InvalidOperationException(body);
-            }
 
             return JsonSerializer.Deserialize<WalletResponseDto>(body, _jsonOptions)
                    ?? throw new InvalidOperationException("API cập nhật ví trả về rỗng.");
         }
 
-        public async Task DeleteWalletAsync(string token, string walletId, WalletDeleteRequestDto request)
+        public async Task DeleteWalletAsync(string token, string walletId, WalletDeleteRequestDto dto)
         {
-            SetBearerToken(token);
-
-            using var httpRequest = new HttpRequestMessage(HttpMethod.Delete, $"/wallets/{walletId}")
-            {
-                Content = CreateJsonContent(request)
-            };
-
-            var response = await _httpClient.SendAsync(httpRequest);
+            var request = CreateRequest(HttpMethod.Delete, $"/wallets/{walletId}", token, CreateJsonContent(dto));
+            var response = await _httpClient.SendAsync(request);
             var body = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
-            {
                 throw new InvalidOperationException(body);
-            }
         }
     }
 }

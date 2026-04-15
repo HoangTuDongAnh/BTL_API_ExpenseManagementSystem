@@ -19,16 +19,16 @@ namespace ExpenseWeb.Services.Api
             _httpClient = httpClient;
         }
 
-        private void SetBearerToken(string token)
-        {
-            _httpClient.DefaultRequestHeaders.Authorization =
-                new AuthenticationHeaderValue("Bearer", token);
-        }
+        private HttpRequestMessage CreateRequest(string url, string token) =>
+            new(HttpMethod.Get, url)
+            {
+                Headers = { Authorization = new AuthenticationHeaderValue("Bearer", token) }
+            };
 
         public async Task<DashboardOverviewDto> GetDashboardOverviewAsync(string token)
         {
-            SetBearerToken(token);
-            var response = await _httpClient.GetAsync("/reports/dashboard");
+            var request = CreateRequest("/reports/dashboard", token);
+            var response = await _httpClient.SendAsync(request);
             var body = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
@@ -40,8 +40,8 @@ namespace ExpenseWeb.Services.Api
 
         public async Task<DashboardOverviewDto> GetDashboardOverviewRangeAsync(string token, DateTime startDate, DateTime endDate)
         {
-            SetBearerToken(token);
-            var response = await _httpClient.GetAsync($"/reports/dashboard-range?start_date={startDate:yyyy-MM-dd}&end_date={endDate:yyyy-MM-dd}");
+            var request = CreateRequest($"/reports/dashboard-range?start_date={startDate:yyyy-MM-dd}&end_date={endDate:yyyy-MM-dd}", token);
+            var response = await _httpClient.SendAsync(request);
             var body = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
@@ -53,8 +53,8 @@ namespace ExpenseWeb.Services.Api
 
         public async Task<List<MonthlySummaryItemDto>> GetMonthlySummaryAsync(string token, int year)
         {
-            SetBearerToken(token);
-            var response = await _httpClient.GetAsync($"/reports/monthly?year={year}");
+            var request = CreateRequest($"/reports/monthly?year={year}", token);
+            var response = await _httpClient.SendAsync(request);
             var body = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
@@ -65,8 +65,8 @@ namespace ExpenseWeb.Services.Api
 
         public async Task<List<CategorySummaryItemDto>> GetCategorySummaryAsync(string token, int month, int year)
         {
-            SetBearerToken(token);
-            var response = await _httpClient.GetAsync($"/reports/by-category?month={month}&year={year}");
+            var request = CreateRequest($"/reports/by-category?month={month}&year={year}", token);
+            var response = await _httpClient.SendAsync(request);
             var body = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
@@ -77,8 +77,8 @@ namespace ExpenseWeb.Services.Api
 
         public async Task<List<CategorySummaryItemDto>> GetCategorySummaryRangeAsync(string token, DateTime startDate, DateTime endDate)
         {
-            SetBearerToken(token);
-            var response = await _httpClient.GetAsync($"/reports/by-category-range?start_date={startDate:yyyy-MM-dd}&end_date={endDate:yyyy-MM-dd}");
+            var request = CreateRequest($"/reports/by-category-range?start_date={startDate:yyyy-MM-dd}&end_date={endDate:yyyy-MM-dd}", token);
+            var response = await _httpClient.SendAsync(request);
             var body = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
@@ -89,8 +89,8 @@ namespace ExpenseWeb.Services.Api
 
         public async Task<List<TopExpenseItemDto>> GetTopExpensesAsync(string token, int month, int year, int limit = 5)
         {
-            SetBearerToken(token);
-            var response = await _httpClient.GetAsync($"/reports/top-expenses?month={month}&year={year}&limit={limit}");
+            var request = CreateRequest($"/reports/top-expenses?month={month}&year={year}&limit={limit}", token);
+            var response = await _httpClient.SendAsync(request);
             var body = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
@@ -101,8 +101,8 @@ namespace ExpenseWeb.Services.Api
 
         public async Task<List<TopExpenseItemDto>> GetTopExpensesRangeAsync(string token, DateTime startDate, DateTime endDate, int limit = 5)
         {
-            SetBearerToken(token);
-            var response = await _httpClient.GetAsync($"/reports/top-expenses-range?start_date={startDate:yyyy-MM-dd}&end_date={endDate:yyyy-MM-dd}&limit={limit}");
+            var request = CreateRequest($"/reports/top-expenses-range?start_date={startDate:yyyy-MM-dd}&end_date={endDate:yyyy-MM-dd}&limit={limit}", token);
+            var response = await _httpClient.SendAsync(request);
             var body = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
@@ -113,8 +113,8 @@ namespace ExpenseWeb.Services.Api
 
         public async Task<List<BudgetProgressItemDto>> GetBudgetProgressAsync(string token, int month, int year)
         {
-            SetBearerToken(token);
-            var response = await _httpClient.GetAsync($"/reports/budget-progress?month={month}&year={year}");
+            var request = CreateRequest($"/reports/budget-progress?month={month}&year={year}", token);
+            var response = await _httpClient.SendAsync(request);
             var body = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
@@ -125,9 +125,10 @@ namespace ExpenseWeb.Services.Api
 
         public async Task<CashflowAnalyticsDto> GetCashflowAnalyticsAsync(string token, DateTime startDate, DateTime endDate, string granularity)
         {
-            SetBearerToken(token);
-            var response = await _httpClient.GetAsync(
-                $"/reports/cashflow-analytics?start_date={startDate:yyyy-MM-dd}&end_date={endDate:yyyy-MM-dd}&granularity={granularity}");
+            var request = CreateRequest(
+                $"/reports/cashflow-analytics?start_date={startDate:yyyy-MM-dd}&end_date={endDate:yyyy-MM-dd}&granularity={granularity}",
+                token);
+            var response = await _httpClient.SendAsync(request);
             var body = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)

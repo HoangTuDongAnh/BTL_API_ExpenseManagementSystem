@@ -2,14 +2,13 @@ using ExpenseWeb.Services.Api;
 using System.Globalization;
 
 var builder = WebApplication.CreateBuilder(args);
-var culture = new CultureInfo("en-US");
 
+var culture = new CultureInfo("en-US");
 CultureInfo.DefaultThreadCurrentCulture = culture;
 CultureInfo.DefaultThreadCurrentUICulture = culture;
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddHttpContextAccessor();
-
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
@@ -18,35 +17,25 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
 });
 
-builder.Services.AddHttpClient<AuthApiService>(client =>
-{
-    client.BaseAddress = new Uri(builder.Configuration["ApiSettings:BaseUrl"]!);
-});
+static IHttpClientBuilder ConfigureApiClient<T>(WebApplicationBuilder b) where T : class =>
+    b.Services.AddHttpClient<T>()
+        .ConfigureHttpClient(client =>
+        {
+            client.BaseAddress = new Uri(b.Configuration["ApiSettings:BaseUrl"]!);
+            client.Timeout = TimeSpan.FromSeconds(30);
+        })
+        .ConfigureHttpClient(client =>
+        {
+            client.BaseAddress = new Uri(b.Configuration["ApiSettings:BaseUrl"]!);
+            client.Timeout = TimeSpan.FromSeconds(120); // Tăng lên 2 phút để test
+        });
 
-builder.Services.AddHttpClient<CategoryApiService>(client =>
-{
-    client.BaseAddress = new Uri(builder.Configuration["ApiSettings:BaseUrl"]!);
-});
-
-builder.Services.AddHttpClient<WalletApiService>(client =>
-{
-    client.BaseAddress = new Uri(builder.Configuration["ApiSettings:BaseUrl"]!);
-});
-
-builder.Services.AddHttpClient<TransactionApiService>(client =>
-{
-    client.BaseAddress = new Uri(builder.Configuration["ApiSettings:BaseUrl"]!);
-});
-
-builder.Services.AddHttpClient<ReportApiService>(client =>
-{
-    client.BaseAddress = new Uri(builder.Configuration["ApiSettings:BaseUrl"]!);
-});
-
-builder.Services.AddHttpClient<SupportApiService>(client =>
-{
-    client.BaseAddress = new Uri(builder.Configuration["ApiSettings:BaseUrl"]!);
-});
+ConfigureApiClient<AuthApiService>(builder);
+ConfigureApiClient<CategoryApiService>(builder);
+ConfigureApiClient<WalletApiService>(builder);
+ConfigureApiClient<TransactionApiService>(builder);
+ConfigureApiClient<ReportApiService>(builder);
+ConfigureApiClient<SupportApiService>(builder);
 
 var app = builder.Build();
 
