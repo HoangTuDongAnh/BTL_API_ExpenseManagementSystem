@@ -1,20 +1,20 @@
-﻿from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String, Unicode
+﻿from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String
 from sqlalchemy.sql import func
-
 from app.core.database import Base
 
 
 class Category(Base):
-    __tablename__ = "Categories"
+    __tablename__ = "categories"
 
-    CategoryID = Column(String(15), primary_key=True, index=True)
-    UserID = Column(String(15), ForeignKey("Users.UserID"), nullable=True, index=True)
-    CategoryName = Column(Unicode(100), nullable=False)
-    Icon = Column(String(50), nullable=True)
-    Color = Column(String(10), nullable=True)
-    IsDefault = Column(Boolean, nullable=False, default=False)
+    CategoryID = Column("categoryid", String(15), primary_key=True, index=True)
+    UserID = Column("userid", String(15), ForeignKey("users.userid"), nullable=True, index=True)
 
-    IsDeleted = Column(Boolean, nullable=False, default=False)
+    CategoryName = Column("categoryname", String(100), nullable=False)
 
-    CreatedAt = Column(DateTime, nullable=False, server_default=func.getdate())
-    UpdatedAt = Column(DateTime, nullable=False, server_default=func.getdate(), onupdate=func.getdate())
+    Icon = Column("icon", String(50), nullable=True)
+    Color = Column("color", String(10), nullable=True)
+    IsDefault = Column("isdefault", Boolean, nullable=False, default=False)
+    IsDeleted = Column("isdeleted", Boolean, nullable=False, default=False)
+
+    CreatedAt = Column("createdat", DateTime, nullable=False, server_default=func.now())
+    UpdatedAt = Column("updatedat", DateTime, nullable=False, server_default=func.now(), onupdate=func.now())

@@ -1,27 +1,26 @@
-﻿from sqlalchemy import Column, Date, DateTime, DECIMAL, ForeignKey, SmallInteger, String
-from sqlalchemy.dialects.mssql import TINYINT
+﻿from sqlalchemy import Column, Date, DateTime, Numeric, ForeignKey, SmallInteger, String
 from sqlalchemy.sql import func
-
 from app.core.database import Base
 
 
 class Budget(Base):
-    __tablename__ = "Budgets"
+    __tablename__ = "budgets"
 
-    BudgetID = Column(String(13), primary_key=True, index=True)
-    UserID = Column(String(15), ForeignKey("Users.UserID"), nullable=False, index=True)
-    CategoryID = Column(String(15), ForeignKey("Categories.CategoryID"), nullable=False, index=True)
+    BudgetID = Column("budgetid", String(13), primary_key=True, index=True)
+    UserID = Column("userid", String(15), ForeignKey("users.userid"), nullable=False, index=True)
+    CategoryID = Column("categoryid", String(15), ForeignKey("categories.categoryid"), nullable=False, index=True)
 
-    LimitAmount = Column(DECIMAL(15, 2), nullable=False)
-    SpentAmount = Column(DECIMAL(15, 2), nullable=False, default=0)
+    LimitAmount = Column("limitamount", Numeric(15, 2), nullable=False)
+    SpentAmount = Column("spentamount", Numeric(15, 2), nullable=False, default=0)
 
-    PeriodType = Column(String(10), nullable=False, index=True)   # week | month | year
-    PeriodYear = Column(SmallInteger, nullable=False, index=True)
-    PeriodMonth = Column(TINYINT, nullable=True, index=True)
-    PeriodWeek = Column(TINYINT, nullable=True, index=True)
+    PeriodType = Column("periodtype", String(10), nullable=False, index=True)
+    PeriodYear = Column("periodyear", SmallInteger, nullable=False, index=True)
 
-    StartDate = Column(Date, nullable=False, index=True)
-    EndDate = Column(Date, nullable=False, index=True)
+    PeriodMonth = Column("periodmonth", SmallInteger, nullable=True, index=True)
+    PeriodWeek = Column("periodweek", SmallInteger, nullable=True, index=True)
 
-    CreatedAt = Column(DateTime, nullable=False, server_default=func.getdate())
-    UpdatedAt = Column(DateTime, nullable=False, server_default=func.getdate(), onupdate=func.getdate())
+    StartDate = Column("startdate", Date, nullable=False, index=True)
+    EndDate = Column("enddate", Date, nullable=False, index=True)
+
+    CreatedAt = Column("createdat", DateTime, nullable=False, server_default=func.now())
+    UpdatedAt = Column("updatedat", DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
