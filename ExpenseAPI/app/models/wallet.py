@@ -1,18 +1,23 @@
-﻿from sqlalchemy import Boolean, Column, DateTime, DECIMAL, ForeignKey, String, Unicode
+﻿from sqlalchemy import Boolean, Column, DateTime, Numeric, ForeignKey, String
 from sqlalchemy.sql import func
-
 from app.core.database import Base
 
 
 class Wallet(Base):
-    __tablename__ = "Wallets"
+    __tablename__ = "wallets"
 
-    WalletID = Column(String(12), primary_key=True, index=True)
-    UserID = Column(String(15), ForeignKey("Users.UserID"), nullable=False, index=True)
-    WalletName = Column(Unicode(100), nullable=False)
-    InitialBalance = Column(DECIMAL(15, 2), nullable=False, default=0)
-    CurrentBalance = Column(DECIMAL(15, 2), nullable=False, default=0)
-    Currency = Column(String(10), nullable=False, default="VND")
-    IsDefault = Column(Boolean, nullable=False, default=False)
-    CreatedAt = Column(DateTime, nullable=False, server_default=func.getdate())
-    UpdatedAt = Column(DateTime, nullable=False, server_default=func.getdate(), onupdate=func.getdate())
+    WalletID = Column("walletid", String(12), primary_key=True, index=True)
+    UserID = Column("userid", String(15),
+                    ForeignKey("users.userid"), nullable=False, index=True)
+
+    WalletName = Column("walletname", String(100), nullable=False)
+
+    InitialBalance = Column("initialbalance", Numeric(15, 2), nullable=False, default=0)
+    CurrentBalance = Column("currentbalance", Numeric(15, 2), nullable=False, default=0)
+
+    Currency = Column("currency", String(10), nullable=False, default="VND")
+    IsDefault = Column("isdefault", Boolean, nullable=False, default=False)
+
+    CreatedAt = Column("createdat", DateTime, nullable=False, server_default=func.now())
+    UpdatedAt = Column("updatedat", DateTime, nullable=False,
+                       server_default=func.now(), onupdate=func.now())
