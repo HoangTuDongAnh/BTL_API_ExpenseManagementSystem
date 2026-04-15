@@ -1,0 +1,390 @@
+﻿@model ExpenseWeb.Models.ViewModels.Admin.AdminSupportRequestDetailViewModel
+
+@{
+    string GetStatusBadgeClass(string status) => status switch
+    {
+        "pending" => "bg-label-primary",
+        "viewed" => "bg-label-warning",
+        "replied" => "bg-label-success",
+        "closed" => "bg-label-secondary",
+        _ => "bg-label-secondary"
+    };
+}
+
+<style>
+    .admin-support-attachment-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 16px;
+    }
+
+    .admin-support-attachment-card {
+        border: 1px solid #e9ecef;
+        border-radius: 14px;
+        overflow: hidden;
+        background: #fff;
+        box-shadow: 0 2px 10px rgba(67, 89, 113, 0.08);
+    }
+
+    .admin-support-attachment-media-wrap {
+        background: #f5f5f9;
+        padding: 10px;
+    }
+
+    .admin-support-attachment-image {
+        width: 100%;
+        height: 240px;
+        object-fit: contain;
+        display: block;
+        border-radius: 10px;
+        background: #fff;
+        cursor: pointer;
+    }
+
+    .admin-support-attachment-video {
+        width: 100%;
+        height: 240px;
+        display: block;
+        border-radius: 10px;
+        background: #000;
+        cursor: pointer;
+    }
+
+    .admin-support-attachment-file {
+        width: 100%;
+        height: 240px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        background: #fff;
+        color: #8592a3;
+        font-size: 42px;
+    }
+
+    .admin-support-attachment-body {
+        padding: 12px 14px;
+    }
+
+    .admin-support-attachment-name {
+        font-size: 14px;
+        font-weight: 600;
+        color: #566a7f;
+        word-break: break-word;
+        margin-bottom: 4px;
+    }
+
+    .admin-support-attachment-meta {
+        font-size: 12px;
+        color: #8592a3;
+    }
+
+    .admin-support-reply-box {
+        white-space: pre-line;
+        word-break: break-word;
+    }
+
+    .support-preview-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.75);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 99999;
+        padding: 24px;
+    }
+
+        .support-preview-overlay.show {
+            display: flex;
+        }
+
+    .support-preview-dialog {
+        position: relative;
+        width: min(1000px, 95vw);
+        max-height: 90vh;
+        background: #fff;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .support-preview-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 18px;
+        border-bottom: 1px solid #e9ecef;
+        background: #fff;
+    }
+
+    .support-preview-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #566a7f;
+        word-break: break-word;
+        padding-right: 16px;
+    }
+
+    .support-preview-close {
+        border: none;
+        background: transparent;
+        font-size: 28px;
+        line-height: 1;
+        color: #8592a3;
+        cursor: pointer;
+    }
+
+        .support-preview-close:hover {
+            color: #233446;
+        }
+
+    .support-preview-body {
+        background: #111;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        min-height: 320px;
+    }
+
+        .support-preview-body img {
+            max-width: 100%;
+            max-height: 75vh;
+            object-fit: contain;
+            border-radius: 8px;
+            background: #fff;
+        }
+
+        .support-preview-body video {
+            max-width: 100%;
+            max-height: 75vh;
+            border-radius: 8px;
+            background: #000;
+        }
+</style>
+
+<div>
+    <div class="d-flex align-items-start justify-content-between flex-wrap gap-3 mb-3">
+        <div>
+            <div class="text-muted small mb-1">Mã yêu cầu</div>
+            <div class="fw-bold text-primary">#@Model.SupportRequestId</div>
+        </div>
+
+        <span class="badge @GetStatusBadgeClass(Model.Status) fs-6">@Model.StatusLabel</span>
+    </div>
+
+    <div class="mb-3">
+        <div class="fw-bold fs-5 text-dark">@Model.Subject</div>
+        <div class="text-muted small mt-1">
+            <span class="me-3"><i class="bx bx-user me-1"></i>@Model.UserFullName</span>
+            @if (!string.IsNullOrWhiteSpace(Model.UserEmail))
+            {
+                <span><i class="bx bx-envelope me-1"></i>@Model.UserEmail</span>
+            }
+        </div>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-md-6">
+            <div class="p-3 rounded border bg-lighter h-100">
+                <div class="text-muted small mb-1">Loại hỗ trợ</div>
+                <div class="fw-semibold">@Model.SupportTypeLabel</div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="p-3 rounded border bg-lighter h-100">
+                <div class="text-muted small mb-1">Ưu tiên</div>
+                <div class="fw-semibold">@Model.PriorityLabel</div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="p-3 rounded border bg-lighter h-100">
+                <div class="text-muted small mb-1">Ngày gửi</div>
+                <div class="fw-semibold">@Model.CreatedAt.ToString("dd/MM/yyyy HH:mm")</div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="p-3 rounded border bg-lighter h-100">
+                <div class="text-muted small mb-1">Phản hồi lúc</div>
+                <div class="fw-semibold">
+                    @(Model.RepliedAt.HasValue? Model.RepliedAt.Value.ToString("dd/MM/yyyy HH:mm") : "Chưa phản hồi")
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mb-4">
+        <label class="form-label fw-semibold">Nội dung người dùng gửi</label>
+        <div class="p-3 rounded border bg-lighter text-dark admin-support-reply-box">
+            @Model.Message
+        </div>
+    </div>
+
+    @if (Model.Attachments != null && Model.Attachments.Any())
+    {
+        <div class="mb-4">
+            <label class="form-label fw-semibold">Ảnh / video đính kèm</label>
+
+            <div class="admin-support-attachment-grid">
+                @foreach (var attachment in Model.Attachments)
+                {
+                    <div class="admin-support-attachment-card">
+                        <div class="admin-support-attachment-media-wrap">
+                            @if (attachment.IsImage)
+                            {
+                                <img src="@attachment.FileUrl"
+                                     alt="@attachment.FileName"
+                                     class="admin-support-attachment-image support-preview-trigger"
+                                     data-type="image"
+                                     data-src="@attachment.FileUrl"
+                                     data-title="@attachment.FileName" />
+                            }
+                            else if (attachment.IsVideo)
+                            {
+                                <video class="admin-support-attachment-video support-preview-trigger"
+                                       data-type="video"
+                                       data-src="@attachment.FileUrl"
+                                       data-title="@attachment.FileName">
+                                    <source src="@attachment.FileUrl" type="@attachment.FileType" />
+                                    Trình duyệt không hỗ trợ phát video.
+                                </video>
+                            }
+                            else
+                            {
+                                <div class="admin-support-attachment-file">
+                                    <i class="bx bx-file"></i>
+                                </div>
+                            }
+                        </div>
+
+                        <div class="admin-support-attachment-body">
+                            <div class="admin-support-attachment-name">@attachment.FileName</div>
+                            <div class="admin-support-attachment-meta">
+                                @if (!string.IsNullOrWhiteSpace(attachment.DisplaySize))
+                                {
+                                    <span>@attachment.DisplaySize</span>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(attachment.FileType))
+                                {
+                                    <span class="ms-2">• @attachment.FileType</span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    <form asp-action="ReplySupport" asp-controller="Admin" method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="supportRequestId" value="@Model.SupportRequestId" />
+
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Phản hồi admin</label>
+            <textarea name="adminReply"
+                      class="form-control"
+                      rows="5"
+                      placeholder="Nhập nội dung phản hồi cho người dùng...">@Model.AdminReply</textarea>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Cập nhật trạng thái</label>
+            <select name="status" class="form-select">
+                <option value="viewed" selected="@(Model.Status == "viewed")">Đang xử lý</option>
+                <option value="replied" selected="@(Model.Status == "replied")">Đã phản hồi</option>
+                <option value="closed" selected="@(Model.Status == "closed")">Đã đóng</option>
+            </select>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2">
+            <button type="submit" class="btn btn-primary">
+                <i class="bx bx-send me-1"></i> Lưu phản hồi
+            </button>
+        </div>
+    </form>
+</div>
+
+<div id="supportPreviewOverlay" class="support-preview-overlay">
+    <div class="support-preview-dialog">
+        <div class="support-preview-header">
+            <div id="supportPreviewTitle" class="support-preview-title">Xem tệp đính kèm</div>
+            <button type="button" id="supportPreviewClose" class="support-preview-close">&times;</button>
+        </div>
+
+        <div id="supportPreviewBody" class="support-preview-body"></div>
+    </div>
+</div>
+
+<script>
+    (function () {
+        const overlay = document.getElementById('supportPreviewOverlay');
+        const previewBody = document.getElementById('supportPreviewBody');
+        const previewTitle = document.getElementById('supportPreviewTitle');
+        const closeBtn = document.getElementById('supportPreviewClose');
+
+        if (!overlay || !previewBody || !previewTitle || !closeBtn) return;
+
+        function closePreview() {
+            overlay.classList.remove('show');
+            previewBody.innerHTML = '';
+            document.body.classList.remove('overflow-hidden');
+        }
+
+        function openPreview(type, src, title) {
+            previewTitle.textContent = title || 'Xem tệp đính kèm';
+            previewBody.innerHTML = '';
+
+            if (type === 'image') {
+                const img = document.createElement('img');
+                img.src = src;
+                img.alt = title || 'preview-image';
+                previewBody.appendChild(img);
+            } else if (type === 'video') {
+                const video = document.createElement('video');
+                video.src = src;
+                video.controls = true;
+                video.autoplay = true;
+                video.playsInline = true;
+                previewBody.appendChild(video);
+            }
+
+            overlay.classList.add('show');
+            document.body.classList.add('overflow-hidden');
+        }
+
+        document.querySelectorAll('.support-preview-trigger').forEach(function (el) {
+            el.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const type = el.getAttribute('data-type');
+                const src = el.getAttribute('data-src');
+                const title = el.getAttribute('data-title');
+
+                if (!src) return;
+                openPreview(type, src, title);
+            });
+        });
+
+        closeBtn.addEventListener('click', closePreview);
+
+        overlay.addEventListener('click', function (e) {
+            if (e.target === overlay) {
+                closePreview();
+            }
+        });
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && overlay.classList.contains('show')) {
+                closePreview();
+            }
+        });
+    })();
+</script>
