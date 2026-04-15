@@ -7,6 +7,7 @@ from app.models import category
 from app.models import transaction
 from app.models import budget
 from app.models import support_request
+from app.models import support_attachment  # thêm dòng này
 
 Base.metadata.create_all(bind=engine)
 

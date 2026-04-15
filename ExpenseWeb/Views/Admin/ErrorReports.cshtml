@@ -1,4 +1,4 @@
-@model ExpenseWeb.Models.ViewModels.Admin.AdminErrorReportsPageViewModel
+﻿@model ExpenseWeb.Models.ViewModels.Admin.AdminErrorReportsPageViewModel
 @{
     var lang = (Context.Request.Query["lang"].FirstOrDefault() ?? ViewBag.Lang as string ?? "vi").ToLower();
     string T(string vi, string en) => lang == "en" ? en : vi;
@@ -60,9 +60,9 @@
     <section class="dashboard-hero mb-4">
         <div class="dashboard-hero-copy hero-copy-single">
             <span class="dashboard-hero-eyebrow">@T("Quản trị hệ thống", "System Administration")</span>
-            <h1 class="dashboard-hero-title">@T("Báo cáo lỗi & Hỗ trợ", "Error Reports & Support")</h1>
+            <h1 class="dashboard-hero-title">@T("Tiếp nhận yêu cầu hỗ trợ và báo lỗi từ người dùng", "Review support requests and issue reports from users")</h1>
             <p class="dashboard-hero-text">
-                @T("Xem, lọc và phản hồi các yêu cầu hỗ trợ, báo lỗi hệ thống từ người dùng.", "View, filter, and respond to support requests and system bugs from users.")
+                @T("Sắp xếp, theo dõi và phản hồi từng phản ánh để quá trình hỗ trợ rõ ràng hơn và không bỏ lỡ các vấn đề cần xử lý sớm.", "Organize, track, and respond to each report so the support flow stays clear and urgent issues are not missed.")
             </p>
         </div>
     </section>

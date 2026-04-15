@@ -1,4 +1,4 @@
-
+﻿
 
 @{
     var lang = (Context.Request.Query["lang"].FirstOrDefault() ?? ViewBag.Lang as string ?? "vi").ToLower();
@@ -17,9 +17,9 @@
     <section class="dashboard-hero mb-4">
         <div class="dashboard-hero-copy hero-copy-single">
             <span class="dashboard-hero-eyebrow">@T("Quản trị hệ thống", "System Administration")</span>
-            <h1 class="dashboard-hero-title">@T("Bảng điều khiển Admin", "Admin Dashboard")</h1>
+            <h1 class="dashboard-hero-title">@T("Theo dõi hoạt động quản trị trong một màn hình tập trung", "Keep administration activity in one focused workspace")</h1>
             <p class="dashboard-hero-text">
-                @T("Tổng quan về tình hình hoạt động, thống kê người dùng và các báo cáo hệ thống.", "Overview of activity, user statistics, and system reports.")
+                @T("Nắm nhanh tình hình người dùng, mức độ sử dụng và các tín hiệu cần chú ý để việc vận hành hệ thống luôn liền mạch.", "Quickly review users, usage patterns, and signals that need attention to keep system operations running smoothly.")
             </p>
         </div>
     </section>

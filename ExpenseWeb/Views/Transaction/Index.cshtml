@@ -60,6 +60,7 @@
 }
 
 @section Styles {
+    <link rel="stylesheet" href="~/sneat/css/pages/report-page.css" />
     <link rel="stylesheet" href="~/sneat/css/pages/transaction-page.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
 }
@@ -69,6 +70,16 @@
     {
         <div class="alert alert-danger mb-4">@Model.ErrorMessage</div>
     }
+
+    <section class="dashboard-hero mb-4">
+        <div class="dashboard-hero-copy hero-copy-single">
+            <span class="dashboard-hero-eyebrow">@T("Dòng tiền hằng ngày", "Daily cashflow")</span>
+            <h1 class="dashboard-hero-title">@T("Theo dõi giao dịch phát sinh và nhịp chi tiêu theo từng kỳ", "Follow new transactions and spending patterns by period")</h1>
+            <p class="dashboard-hero-text">
+                @T("Lọc nhanh thu nhập, chi tiêu và lịch sử theo ví hoặc thời gian để bạn nắm được biến động tài chính mỗi ngày.", "Quickly filter income, expenses, and history by wallet or date so you can stay on top of daily financial changes.")
+            </p>
+        </div>
+    </section>
 
     <div class="card tx-toolbar-card mb-4">
         <div class="card-body">
