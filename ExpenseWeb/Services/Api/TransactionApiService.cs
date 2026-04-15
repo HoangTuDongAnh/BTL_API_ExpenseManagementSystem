@@ -22,69 +22,61 @@ namespace ExpenseWeb.Services.Api
             _baseUrl = (configuration["ApiSettings:BaseUrl"] ?? string.Empty).TrimEnd('/');
         }
 
-        private void SetBearer(string token)
+        private HttpRequestMessage CreateRequest(HttpMethod method, string url, string token, HttpContent? content = null)
         {
-            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            var request = new HttpRequestMessage(method, url);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            if (content != null) request.Content = content;
+            return request;
         }
+
+        private StringContent CreateJsonContent<T>(T payload) =>
+            new(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
 
         public async Task<List<TransactionResponseDto>> GetTransactionsAsync(string token)
         {
-            SetBearer(token);
-
-            var response = await _httpClient.GetAsync($"{_baseUrl}/transactions");
+            var request = CreateRequest(HttpMethod.Get, $"{_baseUrl}/transactions", token);
+            var response = await _httpClient.SendAsync(request);
             var body = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
-            {
                 throw new InvalidOperationException(body);
-            }
 
             return JsonSerializer.Deserialize<List<TransactionResponseDto>>(body, _jsonOptions) ?? new List<TransactionResponseDto>();
         }
 
-        public async Task<TransactionResponseDto?> CreateTransactionAsync(string token, TransactionCreateRequestDto request)
+        public async Task<TransactionResponseDto?> CreateTransactionAsync(string token, TransactionCreateRequestDto dto)
         {
-            SetBearer(token);
-
-            var content = new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
-            var response = await _httpClient.PostAsync($"{_baseUrl}/transactions", content);
+            var request = CreateRequest(HttpMethod.Post, $"{_baseUrl}/transactions", token, CreateJsonContent(dto));
+            var response = await _httpClient.SendAsync(request);
             var body = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
-            {
                 throw new InvalidOperationException(body);
-            }
 
             return JsonSerializer.Deserialize<TransactionResponseDto>(body, _jsonOptions);
         }
 
-        public async Task<TransactionResponseDto?> UpdateTransactionAsync(string token, string transactionId, TransactionUpdateRequestDto request)
+        public async Task<TransactionResponseDto?> UpdateTransactionAsync(string token, string transactionId, TransactionUpdateRequestDto dto)
         {
-            SetBearer(token);
-
-            var content = new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
-            var response = await _httpClient.PutAsync($"{_baseUrl}/transactions/{transactionId}", content);
+            var request = CreateRequest(HttpMethod.Put, $"{_baseUrl}/transactions/{transactionId}", token, CreateJsonContent(dto));
+            var response = await _httpClient.SendAsync(request);
             var body = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
-            {
                 throw new InvalidOperationException(body);
-            }
 
             return JsonSerializer.Deserialize<TransactionResponseDto>(body, _jsonOptions);
         }
 
         public async Task DeleteTransactionAsync(string token, string transactionId)
         {
-            SetBearer(token);
-
-            var response = await _httpClient.DeleteAsync($"{_baseUrl}/transactions/{transactionId}");
+            var request = CreateRequest(HttpMethod.Delete, $"{_baseUrl}/transactions/{transactionId}", token);
+            var response = await _httpClient.SendAsync(request);
             var body = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
-            {
                 throw new InvalidOperationException(body);
-            }
         }
     }
 }

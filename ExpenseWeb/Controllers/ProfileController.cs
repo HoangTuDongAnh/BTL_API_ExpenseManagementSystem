@@ -338,37 +338,52 @@ namespace ExpenseWeb.Controllers
                 SuccessMessage = TempData["SupportSuccess"]?.ToString()
             };
 
-            var historyResult = await _supportApiService.GetMyRequestsAsync(token);
-            if (!historyResult.Success)
+            try
             {
-                model.ErrorMessage = historyResult.ErrorMessage;
-                return model;
-            }
-
-            foreach (var item in historyResult.Data)
-            {
-                var viewModel = MapHistoryItem(item);
-
-                var detailResult = await _supportApiService.GetMyRequestDetailAsync(token, item.support_request_id);
-                if (detailResult.Success && detailResult.Data != null)
+                var historyResult = await _supportApiService.GetMyRequestsAsync(token);
+                if (!historyResult.Success)
                 {
-                    viewModel.Message = detailResult.Data.message ?? string.Empty;
-                    viewModel.AdminReply = detailResult.Data.admin_reply;
-                    viewModel.RepliedAt = detailResult.Data.replied_at;
-                    viewModel.Attachments = detailResult.Data.attachments.Select(a => new SupportAttachmentViewModel
-                    {
-                        AttachmentId = a.attachment_id,
-                        FileName = a.file_name,
-                        FileUrl = a.file_url,
-                        FileType = a.file_type,
-                        FileSize = a.file_size,
-                        DisplaySize = FormatFileSize(a.file_size),
-                        IsImage = IsImage(a.file_type),
-                        IsVideo = IsVideo(a.file_type)
-                    }).ToList();
+                    model.ErrorMessage = historyResult.ErrorMessage;
+                    return model;
                 }
 
-                model.HistoryItems.Add(viewModel);
+                var detailTasks = historyResult.Data.Select(item =>
+                    _supportApiService.GetMyRequestDetailAsync(token, item.support_request_id)
+                ).ToList();
+
+                var detailResults = await Task.WhenAll(detailTasks);
+
+                for (int i = 0; i < historyResult.Data.Count; i++)
+                {
+                    var item = historyResult.Data[i];
+                    var viewModel = MapHistoryItem(item);
+                    var detailResult = detailResults[i];
+
+                    if (detailResult.Success && detailResult.Data != null)
+                    {
+                        viewModel.Message = detailResult.Data.message ?? string.Empty;
+                        viewModel.AdminReply = detailResult.Data.admin_reply;
+                        viewModel.RepliedAt = detailResult.Data.replied_at;
+                        viewModel.Attachments = detailResult.Data.attachments.Select(a => new SupportAttachmentViewModel
+                        {
+                            AttachmentId = a.attachment_id,
+                            FileName = a.file_name,
+                            FileUrl = a.file_url,
+                            FileType = a.file_type,
+                            FileSize = a.file_size,
+                            DisplaySize = FormatFileSize(a.file_size),
+                            IsImage = IsImage(a.file_type),
+                            IsVideo = IsVideo(a.file_type)
+                        }).ToList();
+                    }
+
+                    model.HistoryItems.Add(viewModel);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Trang vẫn load, không crash
+                model.ErrorMessage = "Không thể tải lịch sử hỗ trợ. Vui lòng thử lại sau.";
             }
 
             return model;

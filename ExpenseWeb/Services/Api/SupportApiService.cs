@@ -20,9 +20,12 @@ namespace ExpenseWeb.Services.Api
             _baseUrl = (configuration["ApiSettings:BaseUrl"] ?? string.Empty).TrimEnd('/');
         }
 
-        private void SetBearerToken(string token)
+        private HttpRequestMessage CreateRequest(HttpMethod method, string url, string token, HttpContent? content = null)
         {
-            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            var request = new HttpRequestMessage(method, url);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            if (content != null) request.Content = content;
+            return request;
         }
 
         private StringContent CreateJsonContent<T>(T payload)
@@ -31,32 +34,26 @@ namespace ExpenseWeb.Services.Api
             return new StringContent(json, Encoding.UTF8, "application/json");
         }
 
-        private async Task<HttpResponseMessage> PatchAsync(string url, HttpContent content)
-        {
-            var request = new HttpRequestMessage(HttpMethod.Patch, url)
-            {
-                Content = content
-            };
-            return await _httpClient.SendAsync(request);
-        }
-
         public async Task<(bool Success, string ErrorMessage, List<SupportRequestListItemDto> Data)> GetMyRequestsAsync(string token)
         {
-            SetBearerToken(token);
-            var response = await _httpClient.GetAsync($"{_baseUrl}/support-requests/my");
+            var request = CreateRequest(HttpMethod.Get, $"{_baseUrl}/support-requests/my", token);
+            var response = await _httpClient.SendAsync(request);
             var responseBody = await response.Content.ReadAsStringAsync();
+
             if (!response.IsSuccessStatusCode)
                 return (false, ExtractErrorMessage(responseBody), new List<SupportRequestListItemDto>());
 
-            var data = JsonSerializer.Deserialize<List<SupportRequestListItemDto>>(responseBody, _jsonOptions) ?? new List<SupportRequestListItemDto>();
+            var data = JsonSerializer.Deserialize<List<SupportRequestListItemDto>>(responseBody, _jsonOptions)
+                       ?? new List<SupportRequestListItemDto>();
             return (true, string.Empty, data);
         }
 
         public async Task<(bool Success, string ErrorMessage, SupportRequestDetailDto? Data)> GetMyRequestDetailAsync(string token, string supportRequestId)
         {
-            SetBearerToken(token);
-            var response = await _httpClient.GetAsync($"{_baseUrl}/support-requests/my/{supportRequestId}");
+            var request = CreateRequest(HttpMethod.Get, $"{_baseUrl}/support-requests/my/{supportRequestId}", token);
+            var response = await _httpClient.SendAsync(request);
             var responseBody = await response.Content.ReadAsStringAsync();
+
             if (!response.IsSuccessStatusCode)
                 return (false, ExtractErrorMessage(responseBody), null);
 
@@ -64,11 +61,12 @@ namespace ExpenseWeb.Services.Api
             return (true, string.Empty, data);
         }
 
-        public async Task<(bool Success, string ErrorMessage, SupportRequestDetailDto? Data)> CreateRequestAsync(string token, SupportRequestCreateRequestDto request)
+        public async Task<(bool Success, string ErrorMessage, SupportRequestDetailDto? Data)> CreateRequestAsync(string token, SupportRequestCreateRequestDto dto)
         {
-            SetBearerToken(token);
-            var response = await _httpClient.PostAsync($"{_baseUrl}/support-requests", CreateJsonContent(request));
+            var request = CreateRequest(HttpMethod.Post, $"{_baseUrl}/support-requests", token, CreateJsonContent(dto));
+            var response = await _httpClient.SendAsync(request);
             var responseBody = await response.Content.ReadAsStringAsync();
+
             if (!response.IsSuccessStatusCode)
                 return (false, ExtractErrorMessage(responseBody), null);
 
@@ -78,7 +76,6 @@ namespace ExpenseWeb.Services.Api
 
         public async Task<(bool Success, string ErrorMessage, List<SupportRequestListItemDto> Data)> GetAdminRequestsAsync(string token, SupportRequestAdminQueryDto query)
         {
-            SetBearerToken(token);
             var parameters = new List<string>();
             if (!string.IsNullOrWhiteSpace(query.status)) parameters.Add($"status={Uri.EscapeDataString(query.status)}");
             if (!string.IsNullOrWhiteSpace(query.support_type)) parameters.Add($"support_type={Uri.EscapeDataString(query.support_type)}");
@@ -88,20 +85,24 @@ namespace ExpenseWeb.Services.Api
             parameters.Add($"page_size={query.page_size}");
             var qs = string.Join("&", parameters);
 
-            var response = await _httpClient.GetAsync($"{_baseUrl}/admin/support-requests?{qs}");
+            var request = CreateRequest(HttpMethod.Get, $"{_baseUrl}/admin/support-requests?{qs}", token);
+            var response = await _httpClient.SendAsync(request);
             var responseBody = await response.Content.ReadAsStringAsync();
+
             if (!response.IsSuccessStatusCode)
                 return (false, ExtractErrorMessage(responseBody), new List<SupportRequestListItemDto>());
 
-            var data = JsonSerializer.Deserialize<List<SupportRequestListItemDto>>(responseBody, _jsonOptions) ?? new List<SupportRequestListItemDto>();
+            var data = JsonSerializer.Deserialize<List<SupportRequestListItemDto>>(responseBody, _jsonOptions)
+                       ?? new List<SupportRequestListItemDto>();
             return (true, string.Empty, data);
         }
 
         public async Task<(bool Success, string ErrorMessage, SupportRequestDetailDto? Data)> GetAdminRequestDetailAsync(string token, string supportRequestId)
         {
-            SetBearerToken(token);
-            var response = await _httpClient.GetAsync($"{_baseUrl}/admin/support-requests/{supportRequestId}");
+            var request = CreateRequest(HttpMethod.Get, $"{_baseUrl}/admin/support-requests/{supportRequestId}", token);
+            var response = await _httpClient.SendAsync(request);
             var responseBody = await response.Content.ReadAsStringAsync();
+
             if (!response.IsSuccessStatusCode)
                 return (false, ExtractErrorMessage(responseBody), null);
 
@@ -109,11 +110,12 @@ namespace ExpenseWeb.Services.Api
             return (true, string.Empty, data);
         }
 
-        public async Task<(bool Success, string ErrorMessage, SupportRequestDetailDto? Data)> ReplyAsync(string token, string supportRequestId, SupportRequestAdminReplyRequestDto request)
+        public async Task<(bool Success, string ErrorMessage, SupportRequestDetailDto? Data)> ReplyAsync(string token, string supportRequestId, SupportRequestAdminReplyRequestDto dto)
         {
-            SetBearerToken(token);
-            var response = await PatchAsync($"{_baseUrl}/admin/support-requests/{supportRequestId}/reply", CreateJsonContent(request));
+            var request = CreateRequest(HttpMethod.Patch, $"{_baseUrl}/admin/support-requests/{supportRequestId}/reply", token, CreateJsonContent(dto));
+            var response = await _httpClient.SendAsync(request);
             var responseBody = await response.Content.ReadAsStringAsync();
+
             if (!response.IsSuccessStatusCode)
                 return (false, ExtractErrorMessage(responseBody), null);
 
