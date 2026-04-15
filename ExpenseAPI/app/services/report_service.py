@@ -114,45 +114,42 @@ class ReportService:
             .scalar()
         )
 
-        # Sửa filter cho monthly_income
         monthly_income = (
             db.query(func.coalesce(func.sum(Transaction.Amount), 0))
             .filter(
                 Transaction.UserID == user_id,
                 Transaction.TransactionType == "income",
-                extract('month', Transaction.TransactionDate) == month,
-                extract('year', Transaction.TransactionDate) == year,
+                Transaction.TransactionDate >= start_date,  # ✅ dùng start_date/end_date
+                Transaction.TransactionDate <= end_date,
             )
             .scalar()
         )
 
-        # Sửa filter cho monthly_expense
         monthly_expense = (
             db.query(func.coalesce(func.sum(Transaction.Amount), 0))
             .filter(
                 Transaction.UserID == user_id,
                 Transaction.TransactionType == "expense",
-                extract('month', Transaction.TransactionDate) == month,
-                extract('year', Transaction.TransactionDate) == year,
+                Transaction.TransactionDate >= start_date,  # ✅
+                Transaction.TransactionDate <= end_date,
             )
             .scalar()
         )
 
-        # Sửa filter cho transaction_count
         transaction_count = (
             db.query(func.count(Transaction.TransactionID))
             .filter(
                 Transaction.UserID == user_id,
-                extract('month', Transaction.TransactionDate) == month,
-                extract('year', Transaction.TransactionDate) == year,
+                Transaction.TransactionDate >= start_date,  # ✅
+                Transaction.TransactionDate <= end_date,
             )
             .scalar()
         )
 
         return {
             "total_balance": Decimal(total_balance or 0),
-            "monthly_income": Decimal(range_income or 0),
-            "monthly_expense": Decimal(range_expense or 0),
+            "monthly_income": Decimal(monthly_income or 0),
+            "monthly_expense": Decimal(monthly_expense or 0),
             "transaction_count": int(transaction_count or 0),
         }
 
