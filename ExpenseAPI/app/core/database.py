@@ -1,21 +1,14 @@
-﻿from urllib.parse import quote_plus
-from sqlalchemy import create_engine
+﻿from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 from app.core.config import settings
 
-connection_string = (
-    f"DRIVER={{ODBC Driver 17 for SQL Server}};"
-    f"SERVER={settings.DB_SERVER};"
-    f"DATABASE={settings.DB_NAME};"
-    "Encrypt=yes;"
-    "TrustServerCertificate=yes;"
-    "Trusted_Connection=yes;"
-)
+# Sử dụng DATABASE_URL từ config đã được tự động ghép chuỗi
+DATABASE_URL = settings.DATABASE_URL
 
-DATABASE_URL = f"mssql+pyodbc:///?odbc_connect={quote_plus(connection_string)}"
+# Tạo engine cho PostgreSQL (echo=True để bạn debug SQL trong terminal)
+engine = create_engine(DATABASE_URL, echo=True)
 
-engine = create_engine(DATABASE_URL, echo=True, future=True)
-SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
+SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 Base = declarative_base()
 

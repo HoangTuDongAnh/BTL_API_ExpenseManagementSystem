@@ -2,7 +2,7 @@ from collections import defaultdict
 from datetime import date, datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 
-from sqlalchemy import case, func
+from sqlalchemy import extract, case, func
 from sqlalchemy.orm import Session
 
 from app.models.budget import Budget
@@ -13,9 +13,13 @@ from app.models.wallet import Wallet
 
 class ReportService:
     def get_monthly_summary(self, db: Session, user_id: str, year: int):
+        # Sửa func.month/year thành extract
+        month_expr = extract('month', Transaction.TransactionDate)
+        year_expr = extract('year', Transaction.TransactionDate)
+
         results = (
             db.query(
-                func.month(Transaction.TransactionDate).label("month"),
+                month_expr.label("month"),
                 func.coalesce(
                     func.sum(
                         case((Transaction.TransactionType == "income", Transaction.Amount), else_=0)
@@ -27,9 +31,9 @@ class ReportService:
                     ), 0
                 ).label("total_expense"),
             )
-            .filter(Transaction.UserID == user_id, func.year(Transaction.TransactionDate) == year)
-            .group_by(func.month(Transaction.TransactionDate))
-            .order_by(func.month(Transaction.TransactionDate))
+            .filter(Transaction.UserID == user_id, year_expr == year)
+            .group_by(month_expr)
+            .order_by(month_expr)
             .all()
         )
 
@@ -110,23 +114,23 @@ class ReportService:
             .scalar()
         )
 
-        range_income = (
+        monthly_income = (
             db.query(func.coalesce(func.sum(Transaction.Amount), 0))
             .filter(
                 Transaction.UserID == user_id,
                 Transaction.TransactionType == "income",
-                Transaction.TransactionDate >= start_date,
+                Transaction.TransactionDate >= start_date,  # ✅ dùng start_date/end_date
                 Transaction.TransactionDate <= end_date,
             )
             .scalar()
         )
 
-        range_expense = (
+        monthly_expense = (
             db.query(func.coalesce(func.sum(Transaction.Amount), 0))
             .filter(
                 Transaction.UserID == user_id,
                 Transaction.TransactionType == "expense",
-                Transaction.TransactionDate >= start_date,
+                Transaction.TransactionDate >= start_date,  # ✅
                 Transaction.TransactionDate <= end_date,
             )
             .scalar()
@@ -136,7 +140,7 @@ class ReportService:
             db.query(func.count(Transaction.TransactionID))
             .filter(
                 Transaction.UserID == user_id,
-                Transaction.TransactionDate >= start_date,
+                Transaction.TransactionDate >= start_date,  # ✅
                 Transaction.TransactionDate <= end_date,
             )
             .scalar()
@@ -144,8 +148,8 @@ class ReportService:
 
         return {
             "total_balance": Decimal(total_balance or 0),
-            "monthly_income": Decimal(range_income or 0),
-            "monthly_expense": Decimal(range_expense or 0),
+            "monthly_income": Decimal(monthly_income or 0),
+            "monthly_expense": Decimal(monthly_expense or 0),
             "transaction_count": int(transaction_count or 0),
         }
 
@@ -168,8 +172,8 @@ class ReportService:
             .filter(
                 Transaction.UserID == user_id,
                 Transaction.TransactionType == "expense",
-                func.month(Transaction.TransactionDate) == month,
-                func.year(Transaction.TransactionDate) == year,
+                extract('month', Transaction.TransactionDate) == month,
+                extract('year', Transaction.TransactionDate) == year,
             )
             .order_by(Transaction.Amount.desc(), Transaction.TransactionDate.desc())
             .limit(limit)

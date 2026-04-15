@@ -1,4 +1,14 @@
 from fastapi import FastAPI
+from app.core.database import Base, engine
+
+from app.models import user
+from app.models import wallet
+from app.models import category
+from app.models import transaction
+from app.models import budget
+from app.models import support_request
+
+Base.metadata.create_all(bind=engine)
 
 from app.routers.admin import router as admin_router
 from app.routers.admin_support import router as admin_support_router

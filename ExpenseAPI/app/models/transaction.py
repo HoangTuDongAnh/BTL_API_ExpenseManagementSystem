@@ -1,21 +1,27 @@
-﻿from sqlalchemy import Boolean, Column, Date, DateTime, DECIMAL, ForeignKey, String, Unicode
+﻿from sqlalchemy import Boolean, Column, Date, DateTime, Numeric, ForeignKey, String
 from sqlalchemy.sql import func
-
 from app.core.database import Base
 
 
 class Transaction(Base):
-    __tablename__ = "Transactions"
+    __tablename__ = "transactions"
 
-    TransactionID = Column(String(17), primary_key=True, index=True)
-    UserID = Column(String(15), ForeignKey("Users.UserID"), nullable=False, index=True)
-    WalletID = Column(String(12), ForeignKey("Wallets.WalletID"), nullable=False, index=True)
-    CategoryID = Column(String(15), ForeignKey("Categories.CategoryID"), nullable=False, index=True)
-    TransactionType = Column(String(10), nullable=False)
-    Amount = Column(DECIMAL(15, 2), nullable=False)
-    TransactionDate = Column(Date, nullable=False)
-    Note = Column(Unicode(500), nullable=True)
-    IsRecurring = Column(Boolean, nullable=False, default=False)
-    RecurInterval = Column(String(20), nullable=True)
-    CreatedAt = Column(DateTime, nullable=False, server_default=func.getdate())
-    UpdatedAt = Column(DateTime, nullable=False, server_default=func.getdate(), onupdate=func.getdate())
+    TransactionID = Column("transactionid", String(17), primary_key=True, index=True)
+    UserID = Column("userid", String(15),
+                    ForeignKey("users.userid"), nullable=False, index=True)
+    WalletID = Column("walletid", String(12),
+                      ForeignKey("wallets.walletid"), nullable=False, index=True)
+    CategoryID = Column("categoryid", String(15),
+                        ForeignKey("categories.categoryid"), nullable=False, index=True)
+
+    TransactionType = Column("transactiontype", String(10), nullable=False)
+    Amount = Column("amount", Numeric(15, 2), nullable=False)
+    TransactionDate = Column("transactiondate", Date, nullable=False)
+    Note = Column("note", String(500), nullable=True)
+
+    IsRecurring = Column("isrecurring", Boolean, nullable=False, default=False)
+    RecurInterval = Column("recurinterval", String(20), nullable=True)
+
+    CreatedAt = Column("createdat", DateTime, nullable=False, server_default=func.now())
+    UpdatedAt = Column("updatedat", DateTime, nullable=False,
+                       server_default=func.now(), onupdate=func.now())
