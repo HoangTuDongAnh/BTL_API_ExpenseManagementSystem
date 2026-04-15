@@ -1,9 +1,13 @@
+
+
 using ExpenseWeb.Filters;
+using ExpenseWeb.Models.Dtos.Auth;
 using ExpenseWeb.Models.Dtos.Support;
 using ExpenseWeb.Models.ViewModels.Admin;
 using ExpenseWeb.Models.ViewModels.Profile;
 using ExpenseWeb.Services.Api;
 using Microsoft.AspNetCore.Mvc;
+using System.IO;
 
 namespace ExpenseWeb.Controllers
 {
@@ -11,10 +15,12 @@ namespace ExpenseWeb.Controllers
     public class AdminController : Controller
     {
         private readonly SupportApiService _supportApiService;
+        private readonly AuthApiService _authApiService;
 
-        public AdminController(SupportApiService supportApiService)
+        public AdminController(SupportApiService supportApiService, AuthApiService authApiService)
         {
             _supportApiService = supportApiService;
+            _authApiService = authApiService;
         }
 
         private string? GetAccessToken() => HttpContext.Session.GetString("AccessToken");
@@ -23,6 +29,153 @@ namespace ExpenseWeb.Controllers
         {
             ViewBag.Title = "Admin Dashboard";
             return View();
+        }
+
+     
+
+        private static (string lastName, string firstName) SplitFullName(string? fullName)
+        {
+            if (string.IsNullOrWhiteSpace(fullName))
+                return (string.Empty, string.Empty);
+
+            var parts = fullName.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 1)
+                return (string.Empty, parts[0]);
+
+            var firstName = parts[^1];
+            var lastName = string.Join(" ", parts.Take(parts.Length - 1));
+            return (lastName, firstName);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> Profile()
+        {
+            var token = GetAccessToken();
+            if (string.IsNullOrWhiteSpace(token))
+                return RedirectToAction("Login", "Auth");
+
+            var result = await _authApiService.GetMeAsync(token);
+            if (!result.Success || result.Data == null)
+            {
+                HttpContext.Session.Clear();
+                return RedirectToAction("Login", "Auth");
+            }
+
+            var (lastName, firstName) = SplitFullName(result.Data.full_name);
+            HttpContext.Session.SetString("UserFullName", result.Data.full_name ?? string.Empty);
+            HttpContext.Session.SetString("UserAvatar", result.Data.avatar ?? string.Empty);
+
+            var model = new ProfilePageViewModel
+            {
+                LastName = lastName,
+                FirstName = firstName,
+                Email = result.Data.email ?? string.Empty,
+                PhoneNumber = result.Data.phone_number,
+                Avatar = result.Data.avatar
+            };
+
+            var defaultAvatarsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "sneat", "img", "avatars", "default");
+            var defaultAvatars = new List<string>();
+            if (Directory.Exists(defaultAvatarsFolder))
+            {
+                var files = Directory.GetFiles(defaultAvatarsFolder);
+                foreach (var file in files)
+                {
+                    defaultAvatars.Add("/sneat/img/avatars/default/" + Path.GetFileName(file));
+                }
+            }
+            ViewBag.DefaultAvatars = defaultAvatars;
+
+            return View(model);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> UpdateAjax([FromForm] ProfilePageViewModel model, IFormFile? AvatarFile)
+        {
+            var token = GetAccessToken();
+            if (string.IsNullOrWhiteSpace(token))
+                return Unauthorized(new { success = false, message = "Phiên đăng nhập đã hết hạn." });
+
+            if (model == null)
+                return BadRequest(new { success = false, message = "Dữ liệu không hợp lệ." });
+
+            var fullName = string.Join(" ", new[] { model.LastName?.Trim(), model.FirstName?.Trim() }
+                .Where(x => !string.IsNullOrWhiteSpace(x)));
+
+            if (string.IsNullOrWhiteSpace(fullName))
+                return BadRequest(new { success = false, message = "Họ tên không được để trống." });
+
+            string finalAvatarUrl = string.IsNullOrWhiteSpace(model.Avatar) ? string.Empty : model.Avatar.Trim();
+
+            if (AvatarFile != null && AvatarFile.Length > 0)
+            {
+                try
+                {
+                    var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "sneat", "img", "avatars", "upload");
+                    if (!Directory.Exists(uploadsFolder))
+                    {
+                        Directory.CreateDirectory(uploadsFolder);
+                    }
+
+                    var userEmail = string.IsNullOrWhiteSpace(model.Email) ? "admin_unknown" : model.Email.Trim();
+                    var fileName = $"{userEmail}.png";
+                    var filePath = Path.Combine(uploadsFolder, fileName);
+
+                    if (System.IO.File.Exists(filePath))
+                    {
+                        System.IO.File.Delete(filePath);
+                    }
+
+                    using (var stream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await AvatarFile.CopyToAsync(stream);
+                    }
+
+                    finalAvatarUrl = "/sneat/img/avatars/upload/" + fileName;
+                }
+                catch (Exception ex)
+                {
+                    return BadRequest(new { success = false, message = "Lỗi khi lưu ảnh: " + ex.Message });
+                }
+            }
+
+            var request = new UpdateProfileRequestDto
+            {
+                full_name = fullName,
+                email = model.Email?.Trim() ?? string.Empty,
+                phone_number = string.IsNullOrWhiteSpace(model.PhoneNumber) ? null : model.PhoneNumber.Trim(),
+                avatar = string.IsNullOrWhiteSpace(finalAvatarUrl) ? null : finalAvatarUrl
+            };
+
+            var result = await _authApiService.UpdateProfileAsync(token, request);
+            if (!result.Success || result.Data == null)
+                return BadRequest(new { success = false, message = result.ErrorMessage ?? "Không thể cập nhật hồ sơ." });
+
+            HttpContext.Session.SetString("UserFullName", result.Data.full_name ?? string.Empty);
+            HttpContext.Session.SetString("UserEmail", result.Data.email ?? string.Empty);
+            HttpContext.Session.SetString("UserAvatar", finalAvatarUrl ?? string.Empty);
+
+            return Json(new { success = true, message = "Cập nhật hồ sơ thành công." });
+        }
+
+
+
+        [HttpGet]
+        public async Task<IActionResult> GetSupportDetail(string id)
+        {
+            var token = GetAccessToken();
+            if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(id))
+                return BadRequest();
+
+            var detailResult = await _supportApiService.GetAdminRequestDetailAsync(token, id);
+            if (!detailResult.Success || detailResult.Data == null)
+            {
+                return NotFound();
+            }
+
+            var model = MapAdminDetail(detailResult.Data);
+
+            return PartialView("_SupportRequestDetail", model);
         }
 
         [HttpGet]

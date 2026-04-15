@@ -1,686 +1,1128 @@
-﻿document.addEventListener("DOMContentLoaded", function () {
-    const bootstrapModal = bootstrap.Modal;
-    const bootstrapOffcanvas = bootstrap.Offcanvas;
-    const bootstrapToast = bootstrap.Toast;
+document.addEventListener('DOMContentLoaded', () => {
+  const lang = (window.transactionPageLang || 'vi').toLowerCase();
+  const locale = lang === 'en' ? 'en-US' : 'vi-VN';
+  const t = (vi, en) => (lang === 'en' ? en : vi);
+  const qs = (id) => document.getElementById(id);
+  const qsa = (selector, root = document) => Array.from(root.querySelectorAll(selector));
+  const parseJson = (id) => {
+    try {
+      return JSON.parse(qs(id)?.textContent || '[]');
+    } catch {
+      return [];
+    }
+  };
 
-    const addModalEl = document.getElementById("addTransactionModal");
-    const detailModalEl = document.getElementById("transactionDetailModal");
-    const dayOffcanvasEl = document.getElementById("transactionDayOffcanvas");
+  const transactions = parseJson('tx-transactions-json');
+  const categories = parseJson('tx-categories-json');
+  const wallets = parseJson('tx-wallets-json');
 
-    const addModal = addModalEl ? bootstrapModal.getOrCreateInstance(addModalEl) : null;
-    const detailModal = detailModalEl ? bootstrapModal.getOrCreateInstance(detailModalEl) : null;
-    const dayOffcanvas = dayOffcanvasEl ? bootstrapOffcanvas.getOrCreateInstance(dayOffcanvasEl) : null;
+  const state = {
+    type: 'all',
+    walletId: 'all',
+    keyword: '',
+    period: 'today',
+    from: null,
+    to: null,
+    anchorDate: startOfDay(findLatestDate(transactions) || new Date()),
+    calendarMonth: monthStart(findLatestDate(transactions) || new Date()),
+    filtered: [],
+    page: 1,
+    pageSize: 5,
+    charts: { income: null, expense: null },
+    detailId: null,
+    selectedCalendarDate: null,
+    reopenDayDrawerOnDetailClose: false
+  };
 
-    const toastSaved = document.getElementById("transactionToastSaved") ? bootstrapToast.getOrCreateInstance(document.getElementById("transactionToastSaved")) : null;
-    const toastUpdated = document.getElementById("transactionToastUpdated") ? bootstrapToast.getOrCreateInstance(document.getElementById("transactionToastUpdated")) : null;
-    const toastDeleted = document.getElementById("transactionToastDeleted") ? bootstrapToast.getOrCreateInstance(document.getElementById("transactionToastDeleted")) : null;
+  const addModalEl = qs('addTransactionModal');
+  const detailModalEl = qs('transactionDetailModal');
+  const dayOffcanvasEl = qs('transactionDayOffcanvas');
+  const addModal = addModalEl ? bootstrap.Modal.getOrCreateInstance(addModalEl) : null;
+  const detailModal = detailModalEl ? bootstrap.Modal.getOrCreateInstance(detailModalEl) : null;
+  const dayOffcanvas = dayOffcanvasEl ? bootstrap.Offcanvas.getOrCreateInstance(dayOffcanvasEl) : null;
 
-    const tableBody = document.getElementById("transactionTableBody");
-    const searchInput = document.getElementById("transactionSearchInput");
-    const walletFilter = document.getElementById("walletFilter");
-    const periodFilter = document.getElementById("periodFilter");
-    const fromDateFilter = document.getElementById("fromDateFilter");
-    const toDateFilter = document.getElementById("toDateFilter");
-    const fromDateWrap = document.getElementById("fromDateWrap");
-    const toDateWrap = document.getElementById("toDateWrap");
-    const incomeDonut = document.getElementById("incomeDonut");
-    const expenseDonut = document.getElementById("expenseDonut");
-    const incomeLegend = document.getElementById("incomeLegend");
-    const expenseLegend = document.getElementById("expenseLegend");
-    const incomeDonutTotal = document.getElementById("incomeDonutTotal");
-    const expenseDonutTotal = document.getElementById("expenseDonutTotal");
-    const transactionCountBadge = document.getElementById("transactionCountBadge");
-    const transactionEmptyState = document.getElementById("transactionEmptyState");
-    const transactionPagination = document.getElementById("transactionPagination");
-    const calendarGrid = document.getElementById("transactionMiniCalendarGrid");
-    const calendarTitle = document.getElementById("calendarTitle");
-    const calendarPrevBtn = document.getElementById("calendarPrevBtn");
-    const calendarNextBtn = document.getElementById("calendarNextBtn");
-    const dayStatCount = document.getElementById("dayStatCount");
-    const dayStatIncome = document.getElementById("dayStatIncome");
-    const dayStatExpense = document.getElementById("dayStatExpense");
-    const transactionDayList = document.getElementById("transactionDayList");
-    const transactionDayTitle = document.getElementById("transactionDayTitle");
-    const transactionDaySubTitle = document.getElementById("transactionDaySubTitle");
+  const fpLocale = lang === 'en' ? 'default' : flatpickr.l10ns.vn;
+  const fpBaseConfig = {
+    altInput: true,
+    altFormat: 'd/m/Y',
+    dateFormat: 'Y-m-d',
+    locale: fpLocale
+  };
 
-    const state = {
-        activeType: "all",
-        filteredTransactions: [],
-        currentPage: 1,
-        pageSize: 5,
-        currentMonth: new Date(),
-        isSubmitting: false
+  const fromPicker = qs('fromDateFilter') ? flatpickr(qs('fromDateFilter'), {
+    ...fpBaseConfig,
+    onChange: (selectedDates, dateStr) => {
+      state.from = dateStr || null;
+      if (state.period === 'custom') refresh();
+    }
+  }) : null;
+
+  const toPicker = qs('toDateFilter') ? flatpickr(qs('toDateFilter'), {
+    ...fpBaseConfig,
+    onChange: (selectedDates, dateStr) => {
+      state.to = dateStr || null;
+      if (state.period === 'custom') refresh();
+    }
+  }) : null;
+
+  const addDatePicker = qs('addTransactionDate') ? flatpickr(qs('addTransactionDate'), {
+    ...fpBaseConfig,
+    defaultDate: state.anchorDate
+  }) : null;
+
+  const detailDatePicker = qs('detailEditDate') ? flatpickr(qs('detailEditDate'), fpBaseConfig) : null;
+
+  function startOfDay(date) {
+    const value = new Date(date);
+    value.setHours(0, 0, 0, 0);
+    return value;
+  }
+
+  function monthStart(date) {
+    const value = startOfDay(date);
+    value.setDate(1);
+    return value;
+  }
+
+  function addDays(date, amount) {
+    const value = startOfDay(date);
+    value.setDate(value.getDate() + amount);
+    return value;
+  }
+
+  function addMonths(date, amount) {
+    const value = startOfDay(date);
+    value.setDate(1);
+    value.setMonth(value.getMonth() + amount);
+    return value;
+  }
+
+  function formatIso(date) {
+    const value = startOfDay(date);
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  function parseIso(value) {
+    if (!value) return null;
+    return startOfDay(new Date(`${value}T00:00:00`));
+  }
+
+  function formatDate(date) {
+    return date.toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' });
+  }
+
+  function formatLongDate(date) {
+    return date.toLocaleDateString(locale, { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
+  }
+
+  function formatMonth(date) {
+    return date.toLocaleDateString(locale, { month: 'long', year: 'numeric' });
+  }
+
+  function formatMoney(value) {
+    return `${Number(value || 0).toLocaleString(locale)} VND`;
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    }[char]));
+  }
+
+  function isImageIcon(icon) {
+    return !!icon && (icon.includes('/') || /\.(svg|png|webp|jpe?g)$/i.test(icon));
+  }
+
+  function iconMarkup(icon, alt, cls = '') {
+    const safeClass = cls ? ` ${cls}` : '';
+    if (isImageIcon(icon)) {
+      return `<img src="${escapeHtml(icon)}" alt="${escapeHtml(alt || 'icon')}" class="tx-inline-icon${safeClass}" />`;
+    }
+    return `<i class="${escapeHtml(icon || 'bx bx-category')}${safeClass}"></i>`;
+  }
+
+  function alphaColor(hex, alpha) {
+    if (!hex || !hex.startsWith('#')) return `rgba(105,108,255,${alpha})`;
+    const normalized = hex.length === 4
+      ? `#${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}`
+      : hex;
+    const raw = Number.parseInt(normalized.slice(1), 16);
+    const red = (raw >> 16) & 255;
+    const green = (raw >> 8) & 255;
+    const blue = raw & 255;
+    return `rgba(${red},${green},${blue},${alpha})`;
+  }
+
+  function recurringText(value) {
+    const map = {
+      daily: t('Hàng ngày', 'Daily'),
+      weekly: t('Hàng tuần', 'Weekly'),
+      monthly: t('Hàng tháng', 'Monthly'),
+      yearly: t('Hàng năm', 'Yearly')
+    };
+    return map[value] || t('Một lần', 'One-time');
+  }
+
+  function findLatestDate(items) {
+    if (!items.length) return null;
+    return items
+      .map((item) => parseIso(item.transactionDate))
+      .filter(Boolean)
+      .sort((a, b) => b - a)[0];
+  }
+
+  function getCategory(categoryId) {
+    return categories.find((item) => item.category_id === categoryId) || null;
+  }
+
+  function getWallet(walletId) {
+    return wallets.find((item) => item.wallet_id === walletId) || null;
+  }
+
+  function getTransaction(transactionId) {
+    return transactions.find((item) => item.id === transactionId) || null;
+  }
+
+  function buildUiTransaction(raw) {
+    const category = getCategory(raw.category_id);
+    const wallet = getWallet(raw.wallet_id);
+    const currency = wallet?.currency || 'VND';
+    const amount = Number(raw.amount || 0);
+    const signedPrefix = raw.transaction_type === 'income' ? '+' : '-';
+
+    return {
+      id: raw.transaction_id,
+      walletId: raw.wallet_id,
+      walletName: wallet?.wallet_name || raw.wallet_name || 'N/A',
+      categoryId: raw.category_id,
+      categoryName: category?.category_name || raw.category_name || t('Khác', 'Other'),
+      categoryIcon: category?.icon || raw.category_icon || 'bx bx-category',
+      categoryColor: category?.color || raw.category_color || '#8592A3',
+      transactionType: raw.transaction_type,
+      amountValue: amount,
+      amountText: `${signedPrefix}${amount.toLocaleString(locale)} ${currency}`,
+      transactionDate: String(raw.transaction_date || '').slice(0, 10),
+      transactionDateText: raw.transaction_date ? formatDate(parseIso(String(raw.transaction_date).slice(0, 10))) : '--/--/----',
+      note: raw.note && raw.note.trim() ? raw.note.trim() : t('Không có ghi chú', 'No note'),
+      recurringBadgeText: raw.is_recurring ? recurringText(raw.recur_interval) : t('Một lần', 'One-time'),
+      currency
+    };
+  }
+
+  function replaceTransaction(raw) {
+    const next = buildUiTransaction(raw);
+    const index = transactions.findIndex((item) => item.id === next.id);
+    if (index >= 0) {
+      transactions[index] = next;
+    } else {
+      transactions.unshift(next);
+    }
+  }
+
+  function removeTransaction(transactionId) {
+    const index = transactions.findIndex((item) => item.id === transactionId);
+    if (index >= 0) transactions.splice(index, 1);
+  }
+
+  function filterByBaseConditions(items) {
+    return items.filter((item) => {
+      if (state.type !== 'all' && item.transactionType !== state.type) return false;
+      if (state.walletId !== 'all' && item.walletId !== state.walletId) return false;
+      if (state.keyword) {
+        const haystack = `${item.note} ${item.categoryName} ${item.walletName}`.toLowerCase();
+        if (!haystack.includes(state.keyword)) return false;
+      }
+      return true;
+    });
+  }
+
+  function getPeriodRange() {
+    const anchor = startOfDay(state.anchorDate);
+
+    if (state.period === 'today') {
+      return { from: anchor, to: anchor };
+    }
+
+    if (state.period === 'week') {
+      return { from: addDays(anchor, -6), to: anchor };
+    }
+
+    if (state.period === 'month') {
+      const from = monthStart(anchor);
+      const to = addDays(addMonths(from, 1), -1);
+      return { from, to };
+    }
+
+    if (state.period === 'custom') {
+      const from = state.from ? parseIso(state.from) : null;
+      const to = state.to ? parseIso(state.to) : null;
+      return { from, to };
+    }
+
+    return { from: null, to: null };
+  }
+
+  function applyPeriodFilter(items) {
+    const range = getPeriodRange();
+    return items
+      .filter((item) => {
+        const date = parseIso(item.transactionDate);
+        if (!date) return false;
+        if (range.from && date < range.from) return false;
+        if (range.to && date > range.to) return false;
+        return true;
+      })
+      .sort((left, right) => `${right.transactionDate}${right.id}`.localeCompare(`${left.transactionDate}${left.id}`));
+  }
+
+  function refreshFilteredState() {
+    state.filtered = applyPeriodFilter(filterByBaseConditions(transactions));
+    const totalPages = Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
+    if (state.page > totalPages) state.page = totalPages;
+    if (state.page < 1) state.page = 1;
+  }
+
+  function renderLegend(container, groups) {
+    if (!container) return;
+    if (!groups.length) {
+      container.innerHTML = `<div class="tx-summary-empty">${t('Chưa có dữ liệu phù hợp.', 'No matching data.')}</div>`;
+      return;
+    }
+
+    const total = groups.reduce((sum, item) => sum + item.value, 0);
+    const itemsHtml = groups.map((item) => `
+      <div class="tx-summary-item">
+        <div class="tx-summary-item-left">
+          <span class="tx-summary-dot" style="background:${item.color}"></span>
+          <span class="tx-summary-name">${escapeHtml(item.name)}</span>
+        </div>
+        <div class="tx-summary-item-right">
+          <strong>${formatMoney(item.value)}</strong>
+          <span>${total > 0 ? `${((item.value / total) * 100).toFixed(1).replace('.0', '')}%` : '0%'}</span>
+        </div>
+      </div>
+    `).join('');
+
+    container.innerHTML = `${itemsHtml}
+      <div class="tx-summary-total-row">
+        <span>${t('Tổng cộng', 'Total')}</span>
+        <strong>${formatMoney(total)}</strong>
+      </div>`;
+  }
+
+  function buildCategoryGroups(type) {
+    const bucket = new Map();
+    state.filtered.filter((item) => item.transactionType === type).forEach((item) => {
+      const key = item.categoryId || item.categoryName;
+      if (!bucket.has(key)) {
+        bucket.set(key, {
+          name: item.categoryName,
+          value: 0,
+          color: item.categoryColor || '#8592A3',
+          icon: item.categoryIcon || ''
+        });
+      }
+      bucket.get(key).value += Number(item.amountValue || 0);
+    });
+    return [...bucket.values()].sort((left, right) => right.value - left.value).slice(0, 5);
+  }
+
+  async function renderChart(kind, canvasId, totalId, legendId) {
+    const canvas = qs(canvasId);
+    if (!canvas) return;
+
+    const groups = buildCategoryGroups(kind);
+    const total = groups.reduce((sum, item) => sum + item.value, 0);
+    if (qs(totalId)) qs(totalId).textContent = formatMoney(total);
+    renderLegend(qs(legendId), groups);
+
+    if (window.TransactionDonutCharts?.render) {
+      state.charts[kind] = await window.TransactionDonutCharts.render({
+        canvas,
+        chart: state.charts[kind],
+        items: groups,
+        locale
+      });
+      return;
+    }
+
+    if (state.charts[kind]) {
+      state.charts[kind].destroy();
+      state.charts[kind] = null;
+    }
+
+    state.charts[kind] = new Chart(canvas, {
+      type: 'doughnut',
+      data: {
+        labels: groups.map((item) => item.name),
+        datasets: [{
+          data: groups.map((item) => item.value),
+          backgroundColor: groups.map((item) => item.color),
+          borderColor: '#ffffff',
+          borderWidth: 4,
+          hoverOffset: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '66%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => `${ctx.label}: ${formatMoney(ctx.raw)}`
+            }
+          }
+        }
+      }
+    });
+  }
+
+  function renderPagination() {
+    const container = qs('transactionPagination');
+    if (!container) return;
+
+    const totalPages = Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
+    if (state.filtered.length <= state.pageSize) {
+      container.innerHTML = '';
+      return;
+    }
+
+    let html = '';
+    for (let page = 1; page <= totalPages; page += 1) {
+      html += `<button type="button" class="${page === state.page ? 'active' : ''}" data-page="${page}">${page}</button>`;
+    }
+    container.innerHTML = html;
+
+    qsa('button[data-page]', container).forEach((button) => {
+      button.addEventListener('click', () => {
+        state.page = Number(button.dataset.page || '1');
+        renderList();
+      });
+    });
+  }
+
+  function renderList() {
+    const shell = qs('transactionListShell');
+    const empty = qs('transactionEmptyState');
+    if (!shell || !empty) return;
+
+    if (!state.filtered.length) {
+      shell.innerHTML = '';
+      empty.classList.remove('d-none');
+      qs('transactionPagination').innerHTML = '';
+      return;
+    }
+
+    empty.classList.add('d-none');
+    const start = (state.page - 1) * state.pageSize;
+    const pageItems = state.filtered.slice(start, start + state.pageSize);
+
+    shell.innerHTML = pageItems.map((item) => `
+      <div class="tx-row-card">
+        <div class="tx-main">
+          <div class="tx-main-icon" style="background:${alphaColor(item.categoryColor, 0.15)}; color:${item.categoryColor}">
+            ${iconMarkup(item.categoryIcon, item.categoryName)}
+          </div>
+          <div class="tx-main-copy">
+            <h6>${escapeHtml(item.note)}</h6>
+          </div>
+        </div>
+        <div>
+          <span class="tx-pill" style="background:${alphaColor(item.categoryColor, 0.12)}; color:${item.categoryColor}">
+            ${iconMarkup(item.categoryIcon, item.categoryName, 'tx-inline-icon-sm')}
+            ${escapeHtml(item.categoryName)}
+          </span>
+        </div>
+        <div class="tx-meta-col">
+          <span>${escapeHtml(item.transactionDateText)}</span>
+        </div>
+        <div class="tx-meta-col">
+          <span>${escapeHtml(item.recurringBadgeText)}</span>
+        </div>
+        <div class="tx-amount ${item.transactionType === 'income' ? 'income' : 'expense'}">${escapeHtml(item.amountText)}</div>
+        <div class="tx-actions">
+          <button type="button" class="tx-action-btn view" data-action="view" data-id="${item.id}" title="${t('Xem chi tiết', 'View')}">
+            <i class="bx bx-show"></i>
+          </button>
+          <button type="button" class="tx-action-btn delete" data-action="delete" data-id="${item.id}" title="${t('Xóa', 'Delete')}">
+            <i class="bx bx-trash"></i>
+          </button>
+        </div>
+      </div>
+    `).join('');
+
+    qsa('[data-action="view"]', shell).forEach((button) => button.addEventListener('click', () => openDetail(button.dataset.id)));
+    qsa('[data-action="delete"]', shell).forEach((button) => button.addEventListener('click', () => deleteTransaction(button.dataset.id)));
+    renderPagination();
+  }
+
+  function renderPeriodAssist() {
+    const dayCard = qs('dayNavigatorCard');
+    const customCard = qs('customDateRangeWrap');
+    const pill = qs('currentDayPill');
+    const hint = qs('periodAssistText');
+    const prevButton = qs('dayPrevBtn');
+    const nextButton = qs('dayNextBtn');
+
+    if (!dayCard || !customCard || !pill || !hint || !prevButton || !nextButton) return;
+
+    dayCard.classList.toggle('is-active', state.period !== 'custom');
+    dayCard.classList.toggle('is-inactive', state.period === 'custom');
+    customCard.classList.toggle('is-active', state.period === 'custom');
+    customCard.classList.toggle('is-inactive', state.period !== 'custom');
+
+    const customDisabled = state.period !== 'custom';
+    [qs('fromDateFilter'), qs('toDateFilter')].forEach((input) => {
+      if (input) input.disabled = customDisabled;
+    });
+    prevButton.disabled = state.period === 'custom';
+    nextButton.disabled = state.period === 'custom';
+
+    if (state.period === 'today') {
+      pill.textContent = formatLongDate(state.anchorDate);
+      hint.textContent = t('Điều hướng theo ngày đang xem', 'Navigate by the current day');
+      return;
+    }
+
+    if (state.period === 'week') {
+      const range = getPeriodRange();
+      pill.textContent = `${formatDate(range.from)} - ${formatDate(range.to)}`;
+      hint.textContent = t('Mỗi lần di chuyển là 7 ngày', 'Each step moves by 7 days');
+      return;
+    }
+
+    if (state.period === 'month') {
+      pill.textContent = formatMonth(state.anchorDate);
+      hint.textContent = t('Mỗi lần di chuyển là 1 tháng', 'Each step moves by 1 month');
+      return;
+    }
+
+    const fromText = state.from ? formatDate(parseIso(state.from)) : '--/--/----';
+    const toText = state.to ? formatDate(parseIso(state.to)) : '--/--/----';
+    pill.textContent = `${fromText} - ${toText}`;
+    hint.textContent = t('Hãy chọn khoảng ngày tùy chọn', 'Choose your custom range');
+  }
+
+  function compactMoney(value) {
+    const number = Math.abs(Number(value || 0));
+    if (number >= 1000000) {
+      return `${(number / 1000000).toLocaleString(locale, { maximumFractionDigits: 1 })}M`;
+    }
+    if (number >= 1000) {
+      return `${Math.round(number / 1000)}k`;
+    }
+    return Number(number).toLocaleString(locale);
+  }
+
+  function buildCalendarDayMap() {
+    const map = new Map();
+    filterByBaseConditions(transactions).forEach((item) => {
+      if (!map.has(item.transactionDate)) {
+        map.set(item.transactionDate, {
+          count: 0,
+          incomeCount: 0,
+          expenseCount: 0,
+          incomeAmount: 0,
+          expenseAmount: 0
+        });
+      }
+      const bucket = map.get(item.transactionDate);
+      bucket.count += 1;
+      if (item.transactionType === 'income') {
+        bucket.incomeCount += 1;
+        bucket.incomeAmount += Number(item.amountValue || 0);
+      } else {
+        bucket.expenseCount += 1;
+        bucket.expenseAmount += Number(item.amountValue || 0);
+      }
+    });
+    return map;
+  }
+
+  function calendarBucketStatus(bucket) {
+    if (!bucket) return 'empty';
+    if (bucket.incomeCount && bucket.expenseCount) return 'mix';
+    if (bucket.incomeCount) return 'income';
+    if (bucket.expenseCount) return 'expense';
+    return 'empty';
+  }
+
+  function calendarStatusLabel(status) {
+    if (status === 'income') return t('Có thu', 'Income');
+    if (status === 'expense') return t('Có chi', 'Expense');
+    if (status === 'mix') return t('Cả hai', 'Both');
+    return t('Trống', 'Empty');
+  }
+
+  function renderCalendar() {
+    const grid = qs('transactionMiniCalendarGrid');
+    const title = qs('calendarTitle');
+    if (!grid || !title) return;
+
+    const currentMonth = monthStart(state.calendarMonth);
+    const firstDay = monthStart(currentMonth);
+    const startWeekDay = firstDay.getDay();
+    const gridStart = addDays(firstDay, -startWeekDay);
+    const dayMap = buildCalendarDayMap();
+    const selectedIso = state.selectedCalendarDate || formatIso(state.anchorDate);
+    const todayIso = formatIso(new Date());
+
+    title.textContent = formatMonth(currentMonth);
+
+    let html = '';
+    for (let offset = 0; offset < 42; offset += 1) {
+      const date = addDays(gridStart, offset);
+      const isoDate = formatIso(date);
+      const bucket = dayMap.get(isoDate);
+      const status = calendarBucketStatus(bucket);
+      const isCurrentMonth = date.getMonth() === currentMonth.getMonth();
+      const isSelected = isoDate === selectedIso;
+      const isToday = isoDate === todayIso;
+      const totalCount = Number(bucket?.count || 0);
+      const totalClass = status === 'mix'
+        ? 'mix'
+        : status === 'income'
+          ? 'income'
+          : status === 'expense'
+            ? 'expense'
+            : '';
+      const chips = bucket
+        ? `
+            ${bucket.incomeCount ? `<span class="tx-day-chip is-income"><i class="mini-dot" style="background:#28c76f"></i><b>${t('Thu', 'In')} ${bucket.incomeCount}</b></span>` : ''}
+            ${bucket.expenseCount ? `<span class="tx-day-chip is-expense"><i class="mini-dot" style="background:#ff5c39"></i><b>${t('Chi', 'Out')} ${bucket.expenseCount}</b></span>` : ''}
+          `
+        : `<span class="tx-day-chip empty">${t('Không có giao dịch', 'No transactions')}</span>`;
+      html += `
+        <button type="button" class="tx-calendar-day ${!isCurrentMonth ? 'is-muted' : ''} ${isSelected ? 'is-selected' : ''} ${isToday ? 'is-today' : ''} ${bucket ? 'has-data' : ''}" data-date="${isoDate}">
+          <span class="tx-calendar-day-top">
+            <span class="tx-calendar-day-number">${date.getDate()}</span>
+            <span class="tx-calendar-day-meta">
+              <span class="tx-day-count">${bucket ? `${bucket.count} ${t('gd', 'tx')}` : `0 ${t('gd', 'tx')}`}</span>
+              <span class="tx-day-status ${status !== 'empty' ? status : ''}">${status !== 'empty' ? '<i></i>' : ''}${calendarStatusLabel(status)}</span>
+            </span>
+          </span>
+          <span class="tx-calendar-day-body">
+            <span class="tx-day-chips">${chips}</span>
+          </span>
+          <span class="tx-calendar-day-footer">
+            <span class="tx-day-total ${totalClass}">${t('Tổng giao dịch', 'Transactions')}<span class="value">${bucket ? `${totalCount} ${t('giao dịch', 'transactions')}` : `0 ${t('giao dịch', 'transactions')}`}</span></span>
+          </span>
+        </button>
+      `;
+    }
+
+    grid.innerHTML = html;
+    qsa('[data-date]', grid).forEach((button) => {
+      button.addEventListener('click', () => openDay(button.dataset.date));
+    });
+  }
+
+  function renderDayDrawer(dateText) {
+    const date = parseIso(dateText);
+    const items = filterByBaseConditions(transactions)
+      .filter((item) => item.transactionDate === dateText)
+      .sort((left, right) => right.id.localeCompare(left.id));
+
+    const incomeTotal = items
+      .filter((item) => item.transactionType === 'income')
+      .reduce((sum, item) => sum + Number(item.amountValue || 0), 0);
+    const expenseTotal = items
+      .filter((item) => item.transactionType === 'expense')
+      .reduce((sum, item) => sum + Number(item.amountValue || 0), 0);
+
+    if (qs('transactionDayTitle')) qs('transactionDayTitle').textContent = t('Giao dịch trong ngày', 'Transactions of day');
+    if (qs('transactionDaySubTitle')) qs('transactionDaySubTitle').textContent = formatLongDate(date);
+    if (qs('dayStatCount')) qs('dayStatCount').textContent = String(items.length);
+    if (qs('dayStatIncome')) qs('dayStatIncome').textContent = formatMoney(incomeTotal);
+    if (qs('dayStatExpense')) qs('dayStatExpense').textContent = formatMoney(expenseTotal);
+
+    const summaryCard = qs('transactionDaySummaryCard');
+    const summaryValue = qs('transactionDaySummaryValue');
+    const hintCard = qs('transactionDayHintCard');
+    if (summaryCard && summaryValue) {
+      summaryCard.classList.toggle('is-empty', !items.length);
+      summaryValue.textContent = items.length
+        ? `${items.length} ${t('giao dịch', 'transactions')} · ${t('Thu', 'In')} ${formatMoney(incomeTotal)} · ${t('Chi', 'Out')} ${formatMoney(expenseTotal)}`
+        : t('Không có giao dịch trong ngày này.', 'No transactions for this day.');
+    }
+    if (hintCard) {
+      hintCard.classList.toggle('is-empty', !items.length);
+      hintCard.textContent = items.length
+        ? t('Chạm vào từng giao dịch để mở popup chi tiết.', 'Tap any transaction to open detail popup.')
+        : t('Bấm ra ngoài để đóng bảng này.', 'Tap outside to close this panel.');
+    }
+
+    const list = qs('transactionDayList');
+    if (!list) return;
+
+    if (!items.length) {
+      list.innerHTML = '';
+      return;
+    }
+
+    list.innerHTML = items.map((item) => {
+      const badgeText = item.transactionType === 'income' ? t('Thu nhập', 'Income') : t('Chi tiêu', 'Expense');
+      return `
+        <button type="button" class="tx-day-item" data-id="${item.id}">
+          <div class="tx-day-item-icon" style="background:${alphaColor(item.categoryColor, 0.15)}; color:${item.categoryColor}">
+            ${iconMarkup(item.categoryIcon, item.categoryName)}
+          </div>
+          <div class="tx-day-item-body">
+            <div class="tx-day-item-title">
+              <strong>${escapeHtml(item.note)}</strong>
+              <span class="tx-day-item-badge">${badgeText}</span>
+            </div>
+            <div class="tx-day-item-meta">
+              <span>${escapeHtml(item.categoryName)}</span>
+              <span>${escapeHtml(item.walletName)}</span>
+              <span>${escapeHtml(item.recurringBadgeText)}</span>
+            </div>
+          </div>
+          <div class="tx-day-item-amount ${item.transactionType === 'income' ? 'income' : 'expense'}">
+            ${escapeHtml(item.amountText)}
+            <small>${escapeHtml(item.transactionDateText)}</small>
+          </div>
+        </button>
+      `;
+    }).join('');
+
+    qsa('[data-id]', list).forEach((button) => {
+      button.addEventListener('click', () => {
+        state.reopenDayDrawerOnDetailClose = true;
+        if (dayOffcanvas) dayOffcanvas.hide();
+        openDetail(button.dataset.id);
+      });
+    });
+  }
+
+  function syncAddPreview() {
+    const wallet = getWallet(qs('addTransactionWallet')?.value);
+    const categoryId = qs('addTransactionCategoryId')?.value;
+    const category = getCategory(categoryId);
+    const amount = Number(qs('addTransactionAmount')?.value || 0);
+    const type = qs('addTransactionType')?.value || 'expense';
+    const note = (qs('addTransactionNote')?.value || '').trim();
+    const repeat = qs('addTransactionRecurrence')?.value || '';
+    const date = parseIso(qs('addTransactionDate')?.value) || state.anchorDate;
+    const sign = type === 'income' ? '+' : '-';
+
+    if (qs('addPreviewIconWrap')) {
+      const color = category?.color || '#8592A3';
+      qs('addPreviewIconWrap').style.background = alphaColor(color, 0.18);
+      qs('addPreviewIconWrap').style.color = color;
+    }
+    if (qs('addPreviewIcon')) qs('addPreviewIcon').innerHTML = iconMarkup(category?.icon, category?.category_name || 'icon');
+    if (qs('addPreviewNote')) qs('addPreviewNote').textContent = note || t('Chưa có ghi chú cho giao dịch này.', 'No note yet.');
+    if (qs('addPreviewAmount')) qs('addPreviewAmount').textContent = `${sign}${amount.toLocaleString(locale)} ${wallet?.currency || 'VND'}`;
+    if (qs('addPreviewCategory')) qs('addPreviewCategory').textContent = category?.category_name || '---';
+    if (qs('addPreviewWallet')) qs('addPreviewWallet').textContent = wallet?.wallet_name || '---';
+    if (qs('addPreviewDate')) qs('addPreviewDate').textContent = formatDate(date);
+    if (qs('addPreviewRepeat')) qs('addPreviewRepeat').textContent = repeat ? recurringText(repeat) : t('Không lặp', 'No repeat');
+  }
+
+  function syncDetailPreview() {
+    const transaction = getTransaction(state.detailId);
+    if (!transaction) return;
+
+    const wallet = getWallet(qs('detailEditWallet')?.value || transaction.walletId);
+    const categoryId = qs('detailEditCategoryId')?.value || transaction.categoryId;
+    const category = getCategory(categoryId);
+    const amount = Number(qs('detailEditAmount')?.value || transaction.amountValue || 0);
+    const type = qs('detailEditType')?.value || transaction.transactionType;
+    const note = (qs('detailEditNote')?.value || '').trim();
+    const repeat = qs('detailEditRecurrence')?.value || '';
+    const date = parseIso(qs('detailEditDate')?.value || transaction.transactionDate) || state.anchorDate;
+    const sign = type === 'income' ? '+' : '-';
+
+    if (qs('detailBadgeText')) qs('detailBadgeText').textContent = repeat ? recurringText(repeat) : t('Một lần', 'One-time');
+    if (qs('detailHeroIconWrap')) {
+      const color = category?.color || transaction.categoryColor || '#8592A3';
+      qs('detailHeroIconWrap').style.background = alphaColor(color, 0.18);
+      qs('detailHeroIconWrap').style.color = color;
+    }
+    if (qs('detailHeroIcon')) qs('detailHeroIcon').innerHTML = iconMarkup(category?.icon || transaction.categoryIcon, category?.category_name || transaction.categoryName);
+    if (qs('detailNoteText')) qs('detailNoteText').textContent = note || t('Không có ghi chú', 'No note');
+    if (qs('detailAmountText')) qs('detailAmountText').textContent = `${sign}${amount.toLocaleString(locale)} ${wallet?.currency || transaction.currency || 'VND'}`;
+    if (qs('detailCategoryText')) qs('detailCategoryText').textContent = category?.category_name || transaction.categoryName;
+    if (qs('detailWalletText')) qs('detailWalletText').textContent = wallet?.wallet_name || transaction.walletName;
+    if (qs('detailDateText')) qs('detailDateText').textContent = formatDate(date);
+    if (qs('detailTypeText')) qs('detailTypeText').textContent = type === 'income' ? t('Thu nhập', 'Income') : t('Chi tiêu', 'Expense');
+  }
+
+  function applyTypeToggle(containerId, hiddenInputId, initialValue, onChange) {
+    const container = qs(containerId);
+    const hidden = qs(hiddenInputId);
+    if (!container || !hidden) return;
+
+    const update = (value) => {
+      hidden.value = value;
+      qsa('button[data-value]', container).forEach((button) => {
+        button.classList.toggle('active', button.dataset.value === value);
+      });
+      if (typeof onChange === 'function') onChange();
     };
 
-    const transactions = Array.from(document.querySelectorAll(".transaction-row")).map(mapRowToTransaction);
-    const maxDateInData = getMaxDateInData();
-    state.currentMonth = new Date(maxDateInData.getFullYear(), maxDateInData.getMonth(), 1);
-
-    function mapRowToTransaction(row) {
-        const isoDate = row.dataset.isoDate || toISODate(row.dataset.date || "");
-        return {
-            id: row.dataset.id || "",
-            note: row.dataset.note || "Không có ghi chú",
-            category: row.dataset.category || "Khác",
-            categoryId: row.dataset.categoryId || "",
-            categoryIcon: row.dataset.categoryIcon || "bx bx-category",
-            categoryColor: row.dataset.categoryColor || "#8592A3",
-            wallet: row.dataset.wallet || "",
-            walletId: row.dataset.walletId || "",
-            type: row.dataset.type || "expense",
-            amountText: row.dataset.amount || "0 VND",
-            amountValue: Number(row.dataset.amountValue || 0),
-            date: row.dataset.date || "",
-            isoDate: isoDate,
-            noteLabel: row.dataset.note || "Không có ghi chú",
-            badge: row.dataset.badge || "Một lần",
-            currency: row.dataset.currency || "VND",
-            dateObj: isoDate ? new Date(isoDate + "T00:00:00") : null
-        };
-    }
-
-    function toISODate(vnDate) {
-        const parts = (vnDate || "").split("/");
-        if (parts.length !== 3) return "";
-        return `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
-    }
-
-    function fromISOToVNDate(isoDate) {
-        const parts = (isoDate || "").split("-");
-        if (parts.length !== 3) return "";
-        return `${parts[2]}/${parts[1]}/${parts[0]}`;
-    }
-
-    function formatCurrency(num) {
-        return `${Number(num || 0).toLocaleString("vi-VN")} VND`;
-    }
-
-    function formatDateLabel(dateObj) {
-        return dateObj.toLocaleDateString("vi-VN", {
-            weekday: "long",
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric"
-        });
-    }
-
-    function getMaxDateInData() {
-        const values = transactions.filter(x => x.dateObj).map(x => x.dateObj.getTime());
-        return values.length ? new Date(Math.max(...values)) : new Date();
-    }
-
-    function matchesPeriod(tx) {
-        if (!tx.dateObj) return true;
-        const selected = periodFilter ? periodFilter.value : "month";
-        if (selected === "month") {
-            return tx.dateObj.getMonth() === maxDateInData.getMonth() && tx.dateObj.getFullYear() === maxDateInData.getFullYear();
-        }
-        if (selected === "today") {
-            return tx.isoDate === formatISO(maxDateInData);
-        }
-        if (selected === "week") {
-            const start = new Date(maxDateInData);
-            start.setDate(maxDateInData.getDate() - 6);
-            start.setHours(0, 0, 0, 0);
-            const end = new Date(maxDateInData);
-            end.setHours(23, 59, 59, 999);
-            return tx.dateObj >= start && tx.dateObj <= end;
-        }
-        if (selected === "custom") {
-            const fromVal = fromDateFilter && fromDateFilter.value ? new Date(fromDateFilter.value + "T00:00:00") : null;
-            const toVal = toDateFilter && toDateFilter.value ? new Date(toDateFilter.value + "T23:59:59") : null;
-            if (fromVal && tx.dateObj < fromVal) return false;
-            if (toVal && tx.dateObj > toVal) return false;
-        }
-        return true;
-    }
-
-    function getFilteredTransactions() {
-        const keyword = (searchInput?.value || "").trim().toLowerCase();
-        const wallet = walletFilter?.value || "all";
-        return transactions.filter(tx => {
-            const matchKeyword = !keyword || `${tx.note} ${tx.category} ${tx.wallet} ${tx.id}`.toLowerCase().includes(keyword);
-            const matchWallet = wallet === "all" || tx.wallet === wallet;
-            const matchType = state.activeType === "all" || tx.type === state.activeType;
-            return matchKeyword && matchWallet && matchType && matchesPeriod(tx);
-        });
-    }
-
-    function renderLegend(container, list, total) {
-        if (!container) return;
-        if (!list.length || total <= 0) {
-            container.innerHTML = '<div class="transaction-summary-empty">Chưa có dữ liệu phù hợp.</div>';
-            return;
-        }
-        container.innerHTML = list.map(item => {
-            const percent = ((item.value / total) * 100).toFixed(1);
-            return `<div class="transaction-summary-item"><div class="transaction-summary-item-left"><span class="transaction-summary-dot" style="background:${item.color}"></span><span class="transaction-summary-item-name">${item.name}</span></div><div class="transaction-summary-item-right"><strong>${formatCurrency(item.value)}</strong><span>${percent}%</span></div></div>`;
-        }).join("");
-    }
-
-    function buildDonutGradient(list, total) {
-        if (!list.length || total <= 0) return "conic-gradient(#edf1f7 0 360deg)";
-        let currentDeg = 0;
-        const segments = list.map(item => {
-            const deg = (item.value / total) * 360;
-            const start = currentDeg;
-            const end = currentDeg + deg;
-            currentDeg = end;
-            return `${item.color} ${start}deg ${end}deg`;
-        });
-        return `conic-gradient(${segments.join(", ")})`;
-    }
-
-    function renderSummary() {
-        const incomeMap = {};
-        const expenseMap = {};
-        state.filteredTransactions.forEach(tx => {
-            const target = tx.type === "income" ? incomeMap : expenseMap;
-            if (!target[tx.category]) target[tx.category] = { name: tx.category, color: tx.categoryColor, value: 0 };
-            target[tx.category].value += tx.amountValue;
-        });
-        const incomeList = Object.values(incomeMap).sort((a, b) => b.value - a.value);
-        const expenseList = Object.values(expenseMap).sort((a, b) => b.value - a.value);
-        const totalIncome = incomeList.reduce((s, x) => s + x.value, 0);
-        const totalExpense = expenseList.reduce((s, x) => s + x.value, 0);
-        if (incomeDonut) incomeDonut.style.background = buildDonutGradient(incomeList, totalIncome);
-        if (expenseDonut) expenseDonut.style.background = buildDonutGradient(expenseList, totalExpense);
-        if (incomeDonutTotal) incomeDonutTotal.textContent = formatCurrency(totalIncome);
-        if (expenseDonutTotal) expenseDonutTotal.textContent = formatCurrency(totalExpense);
-        renderLegend(incomeLegend, incomeList, totalIncome);
-        renderLegend(expenseLegend, expenseList, totalExpense);
-    }
-
-    function hexToRgba(hex, alpha) {
-        const sanitized = (hex || "").replace("#", "");
-        if (sanitized.length !== 6) return `rgba(133,146,163,${alpha})`;
-        const r = parseInt(sanitized.substring(0, 2), 16);
-        const g = parseInt(sanitized.substring(2, 4), 16);
-        const b = parseInt(sanitized.substring(4, 6), 16);
-        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-    }
-
-    function buildTableRow(tx) {
-        const amountClass = tx.type === "income" ? "text-success" : "text-danger";
-        return `<tr class="transaction-row"><td><div class="transaction-main-info"><div class="transaction-icon-box" style="background:${hexToRgba(tx.categoryColor, 0.14)}; color:${tx.categoryColor};"><i class="${tx.categoryIcon}"></i></div><div class="transaction-main-text"><h6 class="mb-0">${escapeHtml(tx.noteLabel)}</h6><small class="text-body-secondary">Mã: ${escapeHtml(tx.id)}</small></div></div></td><td><span class="transaction-category-pill" style="background:${hexToRgba(tx.categoryColor, 0.12)}; color:${tx.categoryColor};"><i class="${tx.categoryIcon}"></i>${escapeHtml(tx.category)}</span></td><td>${escapeHtml(tx.wallet)}</td><td><div class="transaction-date-cell"><span>${escapeHtml(tx.date)}</span><small class="text-body-secondary">${escapeHtml(tx.badge)}</small></div></td><td class="${amountClass} fw-semibold">${escapeHtml(tx.amountText)}</td><td class="text-end"><button type="button" class="btn btn-sm btn-icon btn-outline-primary transaction-detail-trigger" data-id="${escapeAttr(tx.id)}"><i class="bx bx-show"></i></button></td></tr>`;
-    }
-
-    function renderPagination(totalItems) {
-        if (!transactionPagination) return;
-        const totalPages = Math.ceil(totalItems / state.pageSize);
-        if (totalPages <= 1) {
-            transactionPagination.innerHTML = "";
-            return;
-        }
-        let html = `<button type="button" class="transaction-page-btn" data-page="${Math.max(1, state.currentPage - 1)}"><i class="bx bx-chevron-left"></i></button>`;
-        for (let i = 1; i <= totalPages; i++) {
-            html += `<button type="button" class="transaction-page-btn ${i === state.currentPage ? "active" : ""}" data-page="${i}">${i}</button>`;
-        }
-        html += `<button type="button" class="transaction-page-btn" data-page="${Math.min(totalPages, state.currentPage + 1)}"><i class="bx bx-chevron-right"></i></button>`;
-        transactionPagination.innerHTML = html;
-        transactionPagination.querySelectorAll("[data-page]").forEach(btn => btn.addEventListener("click", function () {
-            state.currentPage = Number(this.dataset.page || 1);
-            renderTable();
-        }));
-    }
-
-    function renderTable() {
-        if (!tableBody) return;
-        const totalItems = state.filteredTransactions.length;
-        const totalPages = Math.max(1, Math.ceil(totalItems / state.pageSize));
-        if (state.currentPage > totalPages) state.currentPage = 1;
-        const start = (state.currentPage - 1) * state.pageSize;
-        const pageItems = state.filteredTransactions.slice(start, start + state.pageSize);
-        tableBody.innerHTML = pageItems.map(buildTableRow).join("");
-        if (transactionCountBadge) transactionCountBadge.textContent = `${totalItems} giao dịch`;
-        if (transactionEmptyState) transactionEmptyState.classList.toggle("show", totalItems === 0);
-        renderPagination(totalItems);
-        bindDetailButtons();
-    }
-
-    function getTransactionsByISODate(isoDate) {
-        return state.filteredTransactions.filter(tx => tx.isoDate === isoDate);
-    }
-
-    function getCellState(dayTransactions) {
-        const hasIncome = dayTransactions.some(tx => tx.type === "income");
-        const hasExpense = dayTransactions.some(tx => tx.type === "expense");
-        if (hasIncome && hasExpense) return "mix";
-        if (hasIncome) return "income";
-        if (hasExpense) return "expense";
-        return "";
-    }
-
-    function formatISO(dateObj) {
-        const y = dateObj.getFullYear();
-        const m = String(dateObj.getMonth() + 1).padStart(2, "0");
-        const d = String(dateObj.getDate()).padStart(2, "0");
-        return `${y}-${m}-${d}`;
-    }
-
-    function buildCalendarCell(dateObj, isoDate, isOtherMonth, isCurrentDataDay) {
-        const dayTransactions = getTransactionsByISODate(isoDate);
-        const income = dayTransactions.filter(tx => tx.type === "income").reduce((s, tx) => s + tx.amountValue, 0);
-        const expense = dayTransactions.filter(tx => tx.type === "expense").reduce((s, tx) => s + tx.amountValue, 0);
-        const stateType = getCellState(dayTransactions);
-        return `<button type="button" class="transaction-calendar-day ${isOtherMonth ? "is-other-month" : ""} ${isCurrentDataDay ? "is-today" : ""}" data-date="${isoDate}"><div class="transaction-calendar-day-head"><span class="transaction-calendar-day-number">${dateObj.getDate()}</span>${dayTransactions.length ? `<span class="transaction-calendar-badge">${dayTransactions.length}</span>` : ""}</div>${stateType ? `<div class="transaction-calendar-state"><span class="state-dot ${stateType}"></span></div>` : ""}<div class="transaction-calendar-day-body">${dayTransactions.length ? `<div class="transaction-calendar-mini-summary"><span>${dayTransactions.length} giao dịch</span>${income ? `<strong class="text-success">+${formatCurrency(income)}</strong>` : ""}${expense ? `<strong class="text-danger">-${formatCurrency(expense)}</strong>` : ""}</div>` : '<div class="transaction-calendar-day-empty">Không có giao dịch</div>'}</div></button>`;
-    }
-
-    function renderMiniCalendar() {
-        if (!calendarGrid || !calendarTitle) return;
-        const year = state.currentMonth.getFullYear();
-        const month = state.currentMonth.getMonth();
-        calendarTitle.textContent = `Tháng ${month + 1}/${year}`;
-        const firstDay = new Date(year, month, 1);
-        const startWeekday = firstDay.getDay();
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
-        const prevMonthDays = new Date(year, month, 0).getDate();
-        const cells = [];
-        for (let i = startWeekday - 1; i >= 0; i--) {
-            const dayNum = prevMonthDays - i;
-            const dateObj = new Date(year, month - 1, dayNum);
-            cells.push(buildCalendarCell(dateObj, formatISO(dateObj), true, formatISO(dateObj) === formatISO(maxDateInData)));
-        }
-        for (let day = 1; day <= daysInMonth; day++) {
-            const dateObj = new Date(year, month, day);
-            cells.push(buildCalendarCell(dateObj, formatISO(dateObj), false, formatISO(dateObj) === formatISO(maxDateInData)));
-        }
-        while (cells.length % 7 !== 0) {
-            const nextDay = cells.length - (startWeekday + daysInMonth) + 1;
-            const dateObj = new Date(year, month + 1, nextDay);
-            cells.push(buildCalendarCell(dateObj, formatISO(dateObj), true, formatISO(dateObj) === formatISO(maxDateInData)));
-        }
-        calendarGrid.innerHTML = cells.join("");
-        calendarGrid.querySelectorAll(".transaction-calendar-day").forEach(cell => cell.addEventListener("click", function () {
-            openDayDetails(this.dataset.date);
-        }));
-    }
-
-    function openDayDetails(isoDate) {
-        const items = getTransactionsByISODate(isoDate);
-        const dateObj = new Date(isoDate + "T00:00:00");
-        if (transactionDayTitle) transactionDayTitle.textContent = `Giao dịch ngày ${fromISOToVNDate(isoDate)}`;
-        if (transactionDaySubTitle) transactionDaySubTitle.textContent = formatDateLabel(dateObj);
-        const income = items.filter(tx => tx.type === "income").reduce((s, tx) => s + tx.amountValue, 0);
-        const expense = items.filter(tx => tx.type === "expense").reduce((s, tx) => s + tx.amountValue, 0);
-        if (dayStatCount) dayStatCount.textContent = `${items.length}`;
-        if (dayStatIncome) dayStatIncome.textContent = formatCurrency(income);
-        if (dayStatExpense) dayStatExpense.textContent = formatCurrency(expense);
-        if (transactionDayList) {
-            if (!items.length) {
-                transactionDayList.innerHTML = '<div class="transaction-summary-empty">Không có giao dịch trong ngày này.</div>';
-            } else {
-                transactionDayList.innerHTML = items.map(tx => `<div class="transaction-day-item" data-id="${escapeAttr(tx.id)}"><div class="transaction-day-item-icon" style="background:${hexToRgba(tx.categoryColor, 0.14)}; color:${tx.categoryColor};"><i class="${tx.categoryIcon}"></i></div><div class="transaction-day-item-content"><div class="transaction-day-item-head"><div><h6>${escapeHtml(tx.noteLabel)}</h6><div class="transaction-day-item-meta"><span>${escapeHtml(tx.category)}</span><span>•</span><span>${escapeHtml(tx.wallet)}</span><span>•</span><span>${escapeHtml(tx.badge)}</span></div></div><div class="transaction-day-item-amount ${tx.type}">${escapeHtml(tx.amountText)}</div></div><div class="text-body-secondary small">Mã giao dịch: ${escapeHtml(tx.id)}</div></div></div>`).join("");
-                transactionDayList.querySelectorAll(".transaction-day-item").forEach(item => item.addEventListener("click", function () {
-                    const tx = transactions.find(x => x.id === this.dataset.id);
-                    if (!tx) return;
-                    if (dayOffcanvas) dayOffcanvas.hide();
-                    openDetailModal(tx);
-                }));
-            }
-        }
-        if (dayOffcanvas) dayOffcanvas.show();
-    }
-
-    function bindDetailButtons() {
-        document.querySelectorAll(".transaction-detail-trigger").forEach(btn => btn.addEventListener("click", function () {
-            const tx = transactions.find(x => x.id === this.dataset.id);
-            if (tx) openDetailModal(tx);
-        }));
-    }
-
-    function openDetailModal(tx) {
-        fillDetailModal(tx);
-        if (detailModal) detailModal.show();
-    }
-
-    function fillDetailModal(tx) {
-        setText("detailId", tx.id);
-        setText("detailNoteText", tx.noteLabel);
-        setText("detailCategoryText", tx.category);
-        setText("detailWalletText", tx.wallet);
-        setText("detailDateText", tx.date);
-        setText("detailBadgeText", tx.badge);
-        setText("detailAmountText", tx.amountText);
-        setText("detailTypeText", tx.type === "income" ? "Thu nhập" : "Chi tiêu");
-        const heroIconWrap = document.getElementById("detailHeroIconWrap");
-        const heroIcon = document.getElementById("detailHeroIcon");
-        if (heroIconWrap && heroIcon) {
-            heroIconWrap.style.background = hexToRgba(tx.categoryColor, 0.14);
-            heroIconWrap.style.color = tx.categoryColor;
-            heroIcon.className = tx.categoryIcon;
-        }
-        setValue("detailEditAmount", tx.amountValue);
-        setValue("detailEditType", tx.type);
-        setValue("detailEditWallet", tx.walletId);
-        setValue("detailEditDate", tx.isoDate);
-        setValue("detailEditNote", tx.noteLabel === "Không có ghi chú" ? "" : tx.noteLabel);
-        setValue("detailEditCategory", tx.category);
-        setValue("detailEditCategoryId", tx.categoryId);
-        setValue("detailEditCategoryIcon", tx.categoryIcon);
-        setValue("detailEditCategoryColor", tx.categoryColor);
-        setValue("detailEditRecurrence", mapBadgeToRecurrence(tx.badge));
-        updateToggleGroup("detailTypeSwitch", tx.type);
-        updateCategorySelection("detailCategoryGrid", tx.category);
-    }
-
-    function mapBadgeToRecurrence(badge) {
-        switch ((badge || "").trim()) {
-            case "Hàng ngày": return "daily";
-            case "Hàng tuần": return "weekly";
-            case "Hàng tháng": return "monthly";
-            case "Hàng năm": return "yearly";
-            default: return "";
-        }
-    }
-
-    function setText(id, value) {
-        const el = document.getElementById(id);
-        if (el) el.textContent = value || "";
-    }
-
-    function setValue(id, value) {
-        const el = document.getElementById(id);
-        if (el) el.value = value || "";
-    }
-
-    function updateToggleGroup(groupId, value) {
-        const group = document.getElementById(groupId);
-        if (!group) return;
-        group.querySelectorAll("button").forEach(btn => btn.classList.toggle("active", btn.dataset.value === value));
-    }
-
-    function updateCategorySelection(gridId, categoryName) {
-        const grid = document.getElementById(gridId);
-        if (!grid) return;
-        grid.querySelectorAll(".transaction-category-chip").forEach(chip => chip.classList.toggle("active", chip.dataset.name === categoryName));
-    }
-
-    function wireToggleGroup(groupId, hiddenInputId, callback) {
-        const group = document.getElementById(groupId);
-        const input = document.getElementById(hiddenInputId);
-        if (!group || !input) return;
-        group.querySelectorAll("button").forEach(btn => btn.addEventListener("click", function () {
-            group.querySelectorAll("button").forEach(x => x.classList.remove("active"));
-            this.classList.add("active");
-            input.value = this.dataset.value;
-            if (callback) callback(this.dataset.value);
-        }));
-    }
-
-    function wireCategoryGrid(gridId, hiddenNameId, hiddenIdId, hiddenIconId, hiddenColorId, callback) {
-        const grid = document.getElementById(gridId);
-        const hiddenName = document.getElementById(hiddenNameId);
-        const hiddenId = document.getElementById(hiddenIdId);
-        const hiddenIcon = document.getElementById(hiddenIconId);
-        const hiddenColor = document.getElementById(hiddenColorId);
-        if (!grid) return;
-        grid.querySelectorAll(".transaction-category-chip").forEach(chip => chip.addEventListener("click", function () {
-            grid.querySelectorAll(".transaction-category-chip").forEach(x => x.classList.remove("active"));
-            this.classList.add("active");
-            if (hiddenName) hiddenName.value = this.dataset.name || "";
-            if (hiddenId) hiddenId.value = this.dataset.id || "";
-            if (hiddenIcon) hiddenIcon.value = this.dataset.icon || "";
-            if (hiddenColor) hiddenColor.value = this.dataset.color || "";
-            if (callback) callback({ name: this.dataset.name || "", icon: this.dataset.icon || "", color: this.dataset.color || "" });
-        }));
-    }
-
-    function getSelectedWalletName(selectId) {
-        const select = document.getElementById(selectId);
-        if (!select) return "---";
-        const option = select.options[select.selectedIndex];
-        return option?.dataset.name || option?.text || "---";
-    }
-
-    function mapRecurrenceLabel(value) {
-        switch ((value || "").trim()) {
-            case "daily": return "Hàng ngày";
-            case "weekly": return "Hàng tuần";
-            case "monthly": return "Hàng tháng";
-            case "yearly": return "Hàng năm";
-            default: return "Không lặp";
-        }
-    }
-
-    function syncAddPreview() {
-        const amount = Number(document.getElementById("addTransactionAmount")?.value || 0);
-        const type = document.getElementById("addTransactionType")?.value || "expense";
-        const wallet = getSelectedWalletName("addTransactionWallet");
-        const category = document.getElementById("addTransactionCategory")?.value || "Chưa chọn";
-        const icon = document.getElementById("addTransactionCategoryIcon")?.value || "bx bx-category";
-        const color = document.getElementById("addTransactionCategoryColor")?.value || "#8592A3";
-        const date = document.getElementById("addTransactionDate")?.value || "";
-        const recurrence = document.getElementById("addTransactionRecurrence")?.value || "";
-        const note = document.getElementById("addTransactionNote")?.value?.trim() || "Chưa có ghi chú cho giao dịch này.";
-        setText("addPreviewNote", note);
-        setText("addPreviewAmount", formatCurrency(amount));
-        setText("addPreviewWallet", wallet);
-        setText("addPreviewCategory", category);
-        setText("addPreviewRepeat", mapRecurrenceLabel(recurrence));
-        setText("addPreviewTypeText", type === "income" ? "Thu nhập" : "Chi tiêu");
-        setText("addPreviewDate", date ? fromISOToVNDate(date) : "--/--/----");
-        const previewIconWrap = document.getElementById("addPreviewIconWrap");
-        const previewIcon = document.getElementById("addPreviewIcon");
-        if (previewIconWrap && previewIcon) {
-            previewIconWrap.style.background = hexToRgba(color, 0.14);
-            previewIconWrap.style.color = color;
-            previewIcon.className = icon;
-        }
-    }
-
-    function bindAddPreviewInputs() {
-        ["addTransactionAmount", "addTransactionWallet", "addTransactionDate", "addTransactionRecurrence", "addTransactionNote"].forEach(id => {
-            const el = document.getElementById(id);
-            if (!el) return;
-            el.addEventListener(el.tagName === "SELECT" ? "change" : "input", syncAddPreview);
-        });
-    }
-
-    function escapeHtml(value) {
-        return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
-    }
-
-    function escapeAttr(value) {
-        return escapeHtml(value);
-    }
-
-    function refreshAll() {
-        state.filteredTransactions = getFilteredTransactions();
-        renderSummary();
-        renderTable();
-        renderMiniCalendar();
-    }
-
-    function setSubmitting(isSubmitting) {
-        state.isSubmitting = isSubmitting;
-        ["btnSaveTransactionStatic", "btnUpdateTransactionStatic", "btnDeleteTransactionStatic"].forEach(id => {
-            const btn = document.getElementById(id);
-            if (btn) btn.disabled = isSubmitting;
-        });
-    }
-
-    function getAddRequestPayload() {
-        const transactionType = document.getElementById("addTransactionType")?.value || "expense";
-        const recurInterval = document.getElementById("addTransactionRecurrence")?.value || null;
-        return {
-            wallet_id: document.getElementById("addTransactionWallet")?.value || "",
-            category_id: document.getElementById("addTransactionCategoryId")?.value || "",
-            transaction_type: transactionType,
-            amount: Number(document.getElementById("addTransactionAmount")?.value || 0),
-            transaction_date: document.getElementById("addTransactionDate")?.value || "",
-            note: normalizeNote(document.getElementById("addTransactionNote")?.value),
-            is_recurring: !!recurInterval,
-            recur_interval: recurInterval
-        };
-    }
-
-    function getUpdateRequestPayload() {
-        const transactionType = document.getElementById("detailEditType")?.value || "expense";
-        const recurInterval = document.getElementById("detailEditRecurrence")?.value || null;
-        return {
-            wallet_id: document.getElementById("detailEditWallet")?.value || "",
-            category_id: document.getElementById("detailEditCategoryId")?.value || "",
-            transaction_type: transactionType,
-            amount: Number(document.getElementById("detailEditAmount")?.value || 0),
-            transaction_date: document.getElementById("detailEditDate")?.value || "",
-            note: normalizeNote(document.getElementById("detailEditNote")?.value),
-            is_recurring: !!recurInterval,
-            recur_interval: recurInterval
-        };
-    }
-
-    function normalizeNote(value) {
-        const text = (value || "").trim();
-        return text.length ? text : null;
-    }
-
-    function validatePayload(payload) {
-        if (!payload.wallet_id) return "Vui lòng chọn ví.";
-        if (!payload.category_id) return "Vui lòng chọn danh mục.";
-        if (!["income", "expense"].includes(payload.transaction_type)) return "Loại giao dịch không hợp lệ.";
-        if (!payload.amount || Number(payload.amount) <= 0) return "Số tiền phải lớn hơn 0.";
-        if (!payload.transaction_date) return "Vui lòng chọn ngày giao dịch.";
-        if (payload.is_recurring && !payload.recur_interval) return "Vui lòng chọn chu kỳ lặp.";
-        return null;
-    }
-
-    async function sendJson(url, method, payload) {
-        const response = await fetch(url, {
-            method,
-            headers: { "Content-Type": "application/json", "X-Requested-With": "XMLHttpRequest" },
-            body: payload ? JSON.stringify(payload) : null
-        });
-
-        let result = null;
-        try {
-            result = await response.json();
-        } catch {
-            result = null;
-        }
-
-        if (!response.ok || !result?.success) {
-            throw new Error(result?.message || "Yêu cầu không thành công.");
-        }
-
-        return result;
-    }
-
-    async function createTransaction() {
-        if (state.isSubmitting) return;
-        const payload = getAddRequestPayload();
-        const error = validatePayload(payload);
-        if (error) {
-            window.alert(error);
-            return;
-        }
-
-        setSubmitting(true);
-        try {
-            await sendJson("/Transaction/CreateAjax", "POST", payload);
-            if (addModal) addModal.hide();
-            if (toastSaved) toastSaved.show();
-            window.location.reload();
-        } catch (err) {
-            window.alert(err.message || "Không thể thêm giao dịch.");
-        } finally {
-            setSubmitting(false);
-        }
-    }
-
-    async function updateTransaction() {
-        if (state.isSubmitting) return;
-        const transactionId = document.getElementById("detailId")?.textContent?.trim();
-        if (!transactionId) {
-            window.alert("Không tìm thấy mã giao dịch.");
-            return;
-        }
-
-        const payload = getUpdateRequestPayload();
-        const error = validatePayload(payload);
-        if (error) {
-            window.alert(error);
-            return;
-        }
-
-        setSubmitting(true);
-        try {
-            await sendJson(`/Transaction/UpdateAjax/${encodeURIComponent(transactionId)}`, "PUT", payload);
-            if (detailModal) detailModal.hide();
-            if (toastUpdated) toastUpdated.show();
-            window.location.reload();
-        } catch (err) {
-            window.alert(err.message || "Không thể cập nhật giao dịch.");
-        } finally {
-            setSubmitting(false);
-        }
-    }
-
-    async function deleteTransaction() {
-        if (state.isSubmitting) return;
-        const transactionId = document.getElementById("detailId")?.textContent?.trim();
-        if (!transactionId) {
-            window.alert("Không tìm thấy mã giao dịch.");
-            return;
-        }
-
-        if (!window.confirm(`Bạn có chắc muốn xóa giao dịch ${transactionId}?`)) {
-            return;
-        }
-
-        setSubmitting(true);
-        try {
-            await sendJson(`/Transaction/DeleteAjax/${encodeURIComponent(transactionId)}`, "DELETE");
-            if (detailModal) detailModal.hide();
-            if (toastDeleted) toastDeleted.show();
-            window.location.reload();
-        } catch (err) {
-            window.alert(err.message || "Không thể xóa giao dịch.");
-        } finally {
-            setSubmitting(false);
-        }
-    }
-
-    document.querySelectorAll("#transactionTypeTabs button").forEach(btn => btn.addEventListener("click", function () {
-        document.querySelectorAll("#transactionTypeTabs button").forEach(x => x.classList.remove("active"));
-        this.classList.add("active");
-        state.activeType = this.dataset.type || "all";
-        state.currentPage = 1;
-        refreshAll();
-    }));
-
-    if (searchInput) searchInput.addEventListener("input", () => { state.currentPage = 1; refreshAll(); });
-    if (walletFilter) walletFilter.addEventListener("change", () => { state.currentPage = 1; refreshAll(); });
-    if (periodFilter) periodFilter.addEventListener("change", function () {
-        const isCustom = periodFilter.value === "custom";
-        if (fromDateWrap) fromDateWrap.classList.toggle("d-none", !isCustom);
-        if (toDateWrap) toDateWrap.classList.toggle("d-none", !isCustom);
-        state.currentPage = 1;
-        refreshAll();
+    qsa('button[data-value]', container).forEach((button) => {
+      button.addEventListener('click', () => update(button.dataset.value || 'expense'));
     });
-    if (fromDateFilter) fromDateFilter.addEventListener("change", () => { state.currentPage = 1; refreshAll(); });
-    if (toDateFilter) toDateFilter.addEventListener("change", () => { state.currentPage = 1; refreshAll(); });
-    if (calendarPrevBtn) calendarPrevBtn.addEventListener("click", () => { state.currentMonth = new Date(state.currentMonth.getFullYear(), state.currentMonth.getMonth() - 1, 1); renderMiniCalendar(); });
-    if (calendarNextBtn) calendarNextBtn.addEventListener("click", () => { state.currentMonth = new Date(state.currentMonth.getFullYear(), state.currentMonth.getMonth() + 1, 1); renderMiniCalendar(); });
 
-    wireToggleGroup("addTypeSwitch", "addTransactionType", syncAddPreview);
-    wireToggleGroup("detailTypeSwitch", "detailEditType");
-    wireCategoryGrid("addCategoryGrid", "addTransactionCategory", "addTransactionCategoryId", "addTransactionCategoryIcon", "addTransactionCategoryColor", syncAddPreview);
-    wireCategoryGrid("detailCategoryGrid", "detailEditCategory", "detailEditCategoryId", "detailEditCategoryIcon", "detailEditCategoryColor");
-    bindAddPreviewInputs();
+    update(initialValue);
+  }
 
-    const defaultAddCategoryChip = document.querySelector("#addCategoryGrid .transaction-category-chip");
-    if (defaultAddCategoryChip) defaultAddCategoryChip.click();
+  function selectCategory(mode, button) {
+    const grid = qs(mode === 'add' ? 'addCategoryGrid' : 'detailCategoryGrid');
+    const idInput = qs(mode === 'add' ? 'addTransactionCategoryId' : 'detailEditCategoryId');
+    const iconInput = qs(mode === 'add' ? 'addTransactionCategoryIcon' : 'detailEditCategoryIcon');
+    const colorInput = qs(mode === 'add' ? 'addTransactionCategoryColor' : 'detailEditCategoryColor');
+    if (!grid || !idInput || !iconInput || !colorInput || !button) return;
+
+    qsa('.tx-category-chip', grid).forEach((chip) => chip.classList.remove('active'));
+    button.classList.add('active');
+    idInput.value = button.dataset.id || '';
+    iconInput.value = button.dataset.icon || '';
+    colorInput.value = button.dataset.color || '';
+    if (mode === 'add') {
+      syncAddPreview();
+    } else {
+      syncDetailPreview();
+    }
+  }
+
+  function resetAddForm() {
+    if (qs('addTransactionWallet')) qs('addTransactionWallet').selectedIndex = 0;
+    if (qs('addTransactionAmount')) qs('addTransactionAmount').value = '';
+    if (qs('addTransactionNote')) qs('addTransactionNote').value = '';
+    if (qs('addTransactionRecurrence')) qs('addTransactionRecurrence').value = '';
+    if (addDatePicker) addDatePicker.setDate(state.anchorDate, true);
+    applyTypeToggle('addTypeSwitch', 'addTransactionType', 'expense', syncAddPreview);
+
+    const firstCategory = qs('#addCategoryGrid .tx-category-chip');
+    if (firstCategory) selectCategory('add', firstCategory);
     syncAddPreview();
+  }
 
-    const btnSave = document.getElementById("btnSaveTransactionStatic");
-    if (btnSave) btnSave.addEventListener("click", createTransaction);
+  function populateDetailForm(transactionId) {
+    const transaction = getTransaction(transactionId);
+    if (!transaction) return;
 
-    const btnUpdate = document.getElementById("btnUpdateTransactionStatic");
-    if (btnUpdate) btnUpdate.addEventListener("click", updateTransaction);
+    state.detailId = transactionId;
+    if (qs('detailEditWallet')) qs('detailEditWallet').value = transaction.walletId;
+    if (qs('detailEditAmount')) qs('detailEditAmount').value = transaction.amountValue;
+    if (detailDatePicker) detailDatePicker.setDate(transaction.transactionDate, true);
+    if (qs('detailEditRecurrence')) {
+      const recurringValue = transaction.recurringBadgeText === t('Một lần', 'One-time') ? '' : reverseRecurringText(transaction.recurringBadgeText);
+      qs('detailEditRecurrence').value = recurringValue;
+    }
+    if (qs('detailEditNote')) qs('detailEditNote').value = transaction.note === t('Không có ghi chú', 'No note') ? '' : transaction.note;
+    applyTypeToggle('detailTypeSwitch', 'detailEditType', transaction.transactionType, syncDetailPreview);
 
-    const btnDelete = document.getElementById("btnDeleteTransactionStatic");
-    if (btnDelete) btnDelete.addEventListener("click", deleteTransaction);
+    const categoryButton = qsa('#detailCategoryGrid .tx-category-chip').find((button) => button.dataset.id === transaction.categoryId);
+    if (categoryButton) selectCategory('detail', categoryButton);
+    syncDetailPreview();
+  }
 
-    refreshAll();
+  function reverseRecurringText(value) {
+    const map = {
+      [t('Hàng ngày', 'Daily')]: 'daily',
+      [t('Hàng tuần', 'Weekly')]: 'weekly',
+      [t('Hàng tháng', 'Monthly')]: 'monthly',
+      [t('Hàng năm', 'Yearly')]: 'yearly'
+    };
+    return map[value] || '';
+  }
+
+  function buildCreatePayload() {
+    return {
+      wallet_id: qs('addTransactionWallet')?.value || '',
+      category_id: qs('addTransactionCategoryId')?.value || qs('#addCategoryGrid .tx-category-chip.active')?.dataset.id || '',
+      transaction_type: qs('addTransactionType')?.value || 'expense',
+      amount: Number(qs('addTransactionAmount')?.value || 0),
+      transaction_date: qs('addTransactionDate')?.value || '',
+      note: (qs('addTransactionNote')?.value || '').trim() || null,
+      is_recurring: !!qs('addTransactionRecurrence')?.value,
+      recur_interval: qs('addTransactionRecurrence')?.value || null
+    };
+  }
+
+  function buildUpdatePayload() {
+    return {
+      wallet_id: qs('detailEditWallet')?.value || null,
+      category_id: qs('detailEditCategoryId')?.value || qs('#detailCategoryGrid .tx-category-chip.active')?.dataset.id || null,
+      transaction_type: qs('detailEditType')?.value || null,
+      amount: Number(qs('detailEditAmount')?.value || 0),
+      transaction_date: qs('detailEditDate')?.value || null,
+      note: (qs('detailEditNote')?.value || '').trim(),
+      is_recurring: !!qs('detailEditRecurrence')?.value,
+      recur_interval: qs('detailEditRecurrence')?.value || null
+    };
+  }
+
+  function validatePayload(payload) {
+    if (!payload.wallet_id) return t('Vui lòng chọn ví.', 'Please choose a wallet.');
+    if (!payload.category_id) return t('Vui lòng chọn danh mục.', 'Please choose a category.');
+    if (!payload.transaction_type) return t('Vui lòng chọn loại giao dịch.', 'Please choose a transaction type.');
+    if (!payload.amount || payload.amount <= 0) return t('Số tiền phải lớn hơn 0.', 'Amount must be greater than 0.');
+    if (!payload.transaction_date) return t('Vui lòng chọn ngày giao dịch.', 'Please choose the transaction date.');
+    if (payload.is_recurring && !payload.recur_interval) return t('Vui lòng chọn chu kỳ lặp.', 'Please choose recurrence interval.');
+    return null;
+  }
+
+  async function jsonFetch(url, options = {}) {
+    const response = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      ...options
+    });
+
+    const data = await response.json().catch(() => ({ success: false, message: t('Có lỗi xảy ra.', 'Something went wrong.') }));
+    if (!response.ok || data.success === false) {
+      throw new Error(data.message || t('Có lỗi xảy ra.', 'Something went wrong.'));
+    }
+    return data;
+  }
+
+  function showToast(id) {
+    const element = qs(id);
+    if (!element) return;
+    bootstrap.Toast.getOrCreateInstance(element).show();
+  }
+
+  async function createTransaction() {
+    const payload = buildCreatePayload();
+    const validationError = validatePayload(payload);
+    if (validationError) {
+      alert(validationError);
+      return;
+    }
+
+    try {
+      const result = await jsonFetch('/Transaction/CreateAjax', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      replaceTransaction(result.data);
+      if (addModal) addModal.hide();
+      resetAddForm();
+      showToast('transactionToastSaved');
+      refresh();
+    } catch (error) {
+      alert(error.message || t('Không thể thêm giao dịch.', 'Cannot create transaction.'));
+    }
+  }
+
+  async function updateTransaction() {
+    if (!state.detailId) return;
+    const payload = buildUpdatePayload();
+    const validationError = validatePayload(payload);
+    if (validationError) {
+      alert(validationError);
+      return;
+    }
+
+    try {
+      const result = await jsonFetch(`/Transaction/UpdateAjax?id=${encodeURIComponent(state.detailId)}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      });
+      replaceTransaction(result.data);
+      if (detailModal) detailModal.hide();
+      showToast('transactionToastUpdated');
+      refresh();
+    } catch (error) {
+      alert(error.message || t('Không thể cập nhật giao dịch.', 'Cannot update transaction.'));
+    }
+  }
+
+  async function deleteTransaction(transactionId) {
+    const id = transactionId || state.detailId;
+    if (!id) return;
+    const confirmed = window.confirm(t('Bạn có chắc muốn xóa giao dịch này?', 'Are you sure you want to delete this transaction?'));
+    if (!confirmed) return;
+
+    try {
+      await jsonFetch(`/Transaction/DeleteAjax?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE'
+      });
+      removeTransaction(id);
+      if (detailModal && state.detailId === id) detailModal.hide();
+      state.detailId = null;
+      showToast('transactionToastDeleted');
+      refresh();
+    } catch (error) {
+      alert(error.message || t('Không thể xóa giao dịch.', 'Cannot delete transaction.'));
+    }
+  }
+
+  function exportVisibleTransactions() {
+    if (!state.filtered.length) {
+      alert(t('Không có dữ liệu để xuất.', 'No data to export.'));
+      return;
+    }
+
+    const rows = [
+      ['Date', 'Type', 'Category', 'Wallet', 'Amount', 'Currency', 'Note']
+    ];
+
+    state.filtered.forEach((item) => {
+      rows.push([
+        item.transactionDate,
+        item.transactionType,
+        item.categoryName,
+        item.walletName,
+        String(item.amountValue),
+        item.currency,
+        item.note === t('Không có ghi chú', 'No note') ? '' : item.note
+      ]);
+    });
+
+    const csv = rows
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `transactions-${Date.now()}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function openDay(dateText) {
+    state.selectedCalendarDate = dateText;
+    state.anchorDate = parseIso(dateText) || state.anchorDate;
+    state.calendarMonth = monthStart(state.anchorDate);
+    renderPeriodAssist();
+    renderCalendar();
+    renderDayDrawer(dateText);
+    if (dayOffcanvas) dayOffcanvas.show();
+  }
+
+  function openDetail(transactionId) {
+    populateDetailForm(transactionId);
+    if (detailModal) detailModal.show();
+  }
+
+  function moveAnchor(direction) {
+    if (state.period === 'today') {
+      state.anchorDate = addDays(state.anchorDate, direction);
+    } else if (state.period === 'week') {
+      state.anchorDate = addDays(state.anchorDate, direction * 7);
+    } else if (state.period === 'month') {
+      state.anchorDate = addMonths(state.anchorDate, direction);
+    }
+    refresh();
+  }
+
+  function refresh() {
+    refreshFilteredState();
+    renderPeriodAssist();
+    renderChart('income', 'incomeDonutChart', 'incomeDonutTotal', 'incomeLegend');
+    renderChart('expense', 'expenseDonutChart', 'expenseDonutTotal', 'expenseLegend');
+    renderList();
+    renderCalendar();
+    syncAddPreview();
+    if (state.detailId) syncDetailPreview();
+  }
+
+  function bindEvents() {
+    qsa('#transactionTypeTabs button[data-type]').forEach((button) => {
+      button.addEventListener('click', () => {
+        qsa('#transactionTypeTabs button[data-type]').forEach((item) => item.classList.remove('active'));
+        button.classList.add('active');
+        state.type = button.dataset.type || 'all';
+        refresh();
+      });
+    });
+
+    if (qs('walletFilter')) {
+      qs('walletFilter').addEventListener('change', () => {
+        state.walletId = qs('walletFilter').value || 'all';
+        refresh();
+      });
+    }
+
+    if (qs('transactionSearchInput')) {
+      qs('transactionSearchInput').addEventListener('input', () => {
+        state.keyword = (qs('transactionSearchInput').value || '').trim().toLowerCase();
+        refresh();
+      });
+    }
+
+    if (qs('periodFilter')) {
+      qs('periodFilter').addEventListener('change', () => {
+        state.period = qs('periodFilter').value || 'today';
+        if (state.period === 'custom' && !state.from && !state.to) {
+          state.from = formatIso(addDays(state.anchorDate, -6));
+          state.to = formatIso(state.anchorDate);
+          if (fromPicker) fromPicker.setDate(state.from, true);
+          if (toPicker) toPicker.setDate(state.to, true);
+        }
+        refresh();
+      });
+    }
+
+    if (qs('dayPrevBtn')) qs('dayPrevBtn').addEventListener('click', () => moveAnchor(-1));
+    if (qs('dayNextBtn')) qs('dayNextBtn').addEventListener('click', () => moveAnchor(1));
+    if (qs('calendarPrevBtn')) qs('calendarPrevBtn').addEventListener('click', () => {
+      state.calendarMonth = addMonths(state.calendarMonth, -1);
+      renderCalendar();
+    });
+    if (qs('calendarNextBtn')) qs('calendarNextBtn').addEventListener('click', () => {
+      state.calendarMonth = addMonths(state.calendarMonth, 1);
+      renderCalendar();
+    });
+
+    applyTypeToggle('addTypeSwitch', 'addTransactionType', 'expense', syncAddPreview);
+    applyTypeToggle('detailTypeSwitch', 'detailEditType', 'expense', syncDetailPreview);
+
+    ['addTransactionWallet', 'addTransactionAmount', 'addTransactionDate', 'addTransactionRecurrence', 'addTransactionNote']
+      .forEach((id) => qs(id)?.addEventListener('input', syncAddPreview));
+    ['detailEditWallet', 'detailEditAmount', 'detailEditDate', 'detailEditRecurrence', 'detailEditNote']
+      .forEach((id) => qs(id)?.addEventListener('input', syncDetailPreview));
+    ['addTransactionWallet', 'addTransactionRecurrence'].forEach((id) => qs(id)?.addEventListener('change', syncAddPreview));
+    ['detailEditWallet', 'detailEditRecurrence'].forEach((id) => qs(id)?.addEventListener('change', syncDetailPreview));
+
+    qsa('#addCategoryGrid .tx-category-chip').forEach((button) => {
+      button.addEventListener('click', () => selectCategory('add', button));
+    });
+    qsa('#detailCategoryGrid .tx-category-chip').forEach((button) => {
+      button.addEventListener('click', () => selectCategory('detail', button));
+    });
+
+    if (qs('btnSaveTransactionStatic')) qs('btnSaveTransactionStatic').addEventListener('click', createTransaction);
+    if (qs('btnUpdateTransactionStatic')) qs('btnUpdateTransactionStatic').addEventListener('click', updateTransaction);
+    if (qs('btnDeleteTransactionStatic')) qs('btnDeleteTransactionStatic').addEventListener('click', () => deleteTransaction());
+    qsa('.tx-export-btn').forEach((button) => button.addEventListener('click', exportVisibleTransactions));
+
+    detailModalEl?.addEventListener('hidden.bs.modal', () => {
+      if (state.reopenDayDrawerOnDetailClose && state.selectedCalendarDate) {
+        renderDayDrawer(state.selectedCalendarDate);
+        if (dayOffcanvas) dayOffcanvas.show();
+      }
+      state.reopenDayDrawerOnDetailClose = false;
+    });
+
+    addModalEl?.addEventListener('shown.bs.modal', syncAddPreview);
+    detailModalEl?.addEventListener('shown.bs.modal', syncDetailPreview);
+  }
+
+  resetAddForm();
+  bindEvents();
+  state.selectedCalendarDate = formatIso(state.anchorDate);
+  state.calendarMonth = monthStart(state.anchorDate);
+  refresh();
 });

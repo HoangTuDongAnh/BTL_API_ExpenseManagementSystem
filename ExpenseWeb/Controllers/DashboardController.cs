@@ -44,6 +44,8 @@ namespace ExpenseWeb.Controllers
             }
 
             var selectedGroupBy = NormalizeGroupBy(groupBy);
+            var budgetMonth = resolvedEndDate.Month;
+            var budgetYear = resolvedEndDate.Year;
 
             ViewBag.UserFullName = HttpContext.Session.GetString("UserFullName");
             ViewBag.FilterStartDate = resolvedStartDate.ToString("yyyy-MM-dd");
@@ -53,8 +55,11 @@ namespace ExpenseWeb.Controllers
 
             var model = new DashboardIndexViewModel
             {
-                SelectedMonth = selectedMonth,
-                SelectedYear = selectedYear
+                SelectedMonth = budgetMonth,
+                SelectedYear = budgetYear,
+                StartDate = resolvedStartDate,
+                EndDate = resolvedEndDate,
+                Granularity = selectedGroupBy
             };
 
             try
@@ -69,22 +74,37 @@ namespace ExpenseWeb.Controllers
 
             try
             {
-                var overview = await _reportApiService.GetDashboardOverviewAsync(token);
+                var overview = await _reportApiService.GetDashboardOverviewRangeAsync(token, resolvedStartDate, resolvedEndDate);
                 model.TotalBalance = overview.total_balance;
                 model.MonthlyIncome = overview.monthly_income;
                 model.MonthlyExpense = overview.monthly_expense;
                 model.TransactionCount = overview.transaction_count;
 
-                var monthlySummary = await _reportApiService.GetMonthlySummaryAsync(token, selectedYear);
-                model.MonthlyTrend = BuildMonthlyTrend(monthlySummary);
+                model.RangeIncome = overview.monthly_income;
+                model.RangeExpense = overview.monthly_expense;
+                model.RangeNetChange = overview.monthly_income - overview.monthly_expense;
+                model.RangeTransactionCount = overview.transaction_count;
 
-                var categorySummary = await _reportApiService.GetCategorySummaryAsync(token, selectedMonth, selectedYear);
+                var analytics = await _reportApiService.GetCashflowAnalyticsAsync(token, resolvedStartDate, resolvedEndDate, selectedGroupBy);
+                model.CashflowSeries = analytics.series.Select(MapCashflowSeries).ToList();
+                model.RangeIncome = analytics.total_income;
+                model.RangeExpense = analytics.total_expense;
+                model.RangeNetChange = analytics.net_change;
+                model.RangeTransactionCount = analytics.transaction_count;
+                model.RangeAverageExpense = analytics.average_expense;
+                model.BusiestLabel = analytics.busiest_label ?? string.Empty;
+
+                model.MonthlyIncome = analytics.total_income;
+                model.MonthlyExpense = analytics.total_expense;
+                model.TransactionCount = analytics.transaction_count;
+
+                var categorySummary = await _reportApiService.GetCategorySummaryRangeAsync(token, resolvedStartDate, resolvedEndDate);
                 model.CategoryBreakdown = categorySummary.Select(MapCategoryBreakdown).ToList();
 
-                var topExpenses = await _reportApiService.GetTopExpensesAsync(token, selectedMonth, selectedYear, 5);
+                var topExpenses = await _reportApiService.GetTopExpensesRangeAsync(token, resolvedStartDate, resolvedEndDate, 5);
                 model.TopExpenses = topExpenses.Select(MapTopExpense).ToList();
 
-                var budgetProgress = await _reportApiService.GetBudgetProgressAsync(token, selectedMonth, selectedYear);
+                var budgetProgress = await _reportApiService.GetBudgetProgressAsync(token, budgetMonth, budgetYear);
                 model.BudgetProgress = budgetProgress.Select(MapBudgetProgress).ToList();
             }
             catch (Exception ex)
@@ -239,23 +259,17 @@ namespace ExpenseWeb.Controllers
             return "\"" + escaped + "\"";
         }
 
-        private static List<DashboardReportPointViewModel> BuildMonthlyTrend(List<MonthlySummaryItemDto> items)
+        private static DashboardCashflowSeriesItemViewModel MapCashflowSeries(CashflowSeriesItemDto dto)
         {
-            var map = items.ToDictionary(x => x.month);
-            var result = new List<DashboardReportPointViewModel>();
-
-            for (var month = 1; month <= 12; month++)
+            return new DashboardCashflowSeriesItemViewModel
             {
-                map.TryGetValue(month, out var item);
-                result.Add(new DashboardReportPointViewModel
-                {
-                    Label = $"T{month}",
-                    Income = item?.total_income ?? 0,
-                    Expense = item?.total_expense ?? 0
-                });
-            }
-
-            return result;
+                Key = dto.key,
+                Label = dto.label,
+                Income = dto.income,
+                Expense = dto.expense,
+                Net = dto.net,
+                RunningBalance = dto.running_balance
+            };
         }
 
         private static DashboardWalletItemViewModel MapWallet(WalletResponseDto dto)

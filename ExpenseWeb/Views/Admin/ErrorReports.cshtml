@@ -1,216 +1,273 @@
 @model ExpenseWeb.Models.ViewModels.Admin.AdminErrorReportsPageViewModel
 @{
-    ViewData["Title"] = "User Support Requests";
+    var lang = (Context.Request.Query["lang"].FirstOrDefault() ?? ViewBag.Lang as string ?? "vi").ToLower();
+    string T(string vi, string en) => lang == "en" ? en : vi;
+
+    ViewData["Title"] = T("Quản lý yêu cầu hỗ trợ", "User Support Requests");
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/sneat/css/pages/wallet-dashboard.css" />
+    <link rel="stylesheet" href="~/sneat/css/pages/category-page.css" />
+    <link rel="stylesheet" href="~/sneat/css/pages/report-page.css" />
+    <style>
+        .table-custom-scroll {
+            min-width: 1300px;
+            table-layout: fixed;
+        }
+
+        .col-ticket {
+            width: 280px;
+        }
+
+        .col-user {
+            width: 300px;
+        }
+
+        .col-category {
+            width: 220px;
+        }
+
+        .col-date {
+            width: 200px;
+        }
+
+        .col-status {
+            width: 150px;
+        }
+
+        .col-actions {
+            width: 150px;
+        }
+
+        .selected-row {
+            background-color: #f0f2f8 !important;
+            border-left: 4px solid #696cff !important;
+        }
+
+        .table-responsive::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        .table-responsive::-webkit-scrollbar-thumb {
+            background: #dcdfe8;
+            border-radius: 10px;
+        }
+    </style>
 }
 
 <div class="container-xxl flex-grow-1 container-p-y">
-    <h4 class="fw-bold py-3 mb-4">
-        <span class="text-muted fw-light">Support Center /</span> Error Reports
-    </h4>
+    <section class="dashboard-hero mb-4">
+        <div class="dashboard-hero-copy hero-copy-single">
+            <span class="dashboard-hero-eyebrow">@T("Quản trị hệ thống", "System Administration")</span>
+            <h1 class="dashboard-hero-title">@T("Báo cáo lỗi & Hỗ trợ", "Error Reports & Support")</h1>
+            <p class="dashboard-hero-text">
+                @T("Xem, lọc và phản hồi các yêu cầu hỗ trợ, báo lỗi hệ thống từ người dùng.", "View, filter, and respond to support requests and system bugs from users.")
+            </p>
+        </div>
+    </section>
 
     @if (TempData["AdminSupportSuccess"] is string success && !string.IsNullOrWhiteSpace(success))
     {
-        <div class="alert alert-success alert-dismissible" role="alert">
-            @success
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    }
-    @if (TempData["AdminSupportError"] is string error && !string.IsNullOrWhiteSpace(error))
-    {
-        <div class="alert alert-danger alert-dismissible" role="alert">
-            @error
+        <div class="alert alert-success alert-dismissible mb-4" role="alert">
+            <i class="bx bx-check-circle me-1"></i> @success
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     }
 
-    <div class="card mb-4">
-        <div class="card-body">
+    <div class="card report-filter-card mb-4">
+        <div class="card-header border-bottom pb-3">
+            <h2 class="dashboard-section-title mb-1"><i class="bx bx-filter-alt me-2 text-primary"></i>@T("Bộ lọc tìm kiếm", "Search Filters")</h2>
+            <p class="dashboard-section-text mb-0">@T("Sử dụng các tiêu chí dưới đây để thu hẹp danh sách yêu cầu.", "Use the criteria below to narrow down the request list.")</p>
+        </div>
+        <div class="card-body pt-4">
             <form method="get" asp-action="ErrorReports" asp-controller="Admin" class="row g-3">
                 <div class="col-md-3">
-                    <label class="form-label">Trạng thái</label>
+                    <label class="form-label">@T("Trạng thái", "Status")</label>
                     <select name="status" class="form-select">
-                        <option value="">Tất cả</option>
-                        <option value="pending" selected="@(Model.CurrentStatus == "pending")">Chờ tiếp nhận</option>
-                        <option value="viewed" selected="@(Model.CurrentStatus == "viewed")">Đang xử lý</option>
-                        <option value="replied" selected="@(Model.CurrentStatus == "replied")">Đã phản hồi</option>
-                        <option value="closed" selected="@(Model.CurrentStatus == "closed")">Đã đóng</option>
+                        <option value="">@T("Tất cả", "All")</option>
+                        <option value="pending" selected="@(Model.CurrentStatus == "pending")">@T("Chờ tiếp nhận", "Pending")</option>
+                        <option value="viewed" selected="@(Model.CurrentStatus == "viewed")">@T("Đang xử lý", "Processing")</option>
+                        <option value="replied" selected="@(Model.CurrentStatus == "replied")">@T("Đã phản hồi", "Replied")</option>
+                        <option value="closed" selected="@(Model.CurrentStatus == "closed")">@T("Đã đóng", "Closed")</option>
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Loại hỗ trợ</label>
+                    <label class="form-label">@T("Loại hỗ trợ", "Support Type")</label>
                     <select name="supportType" class="form-select">
-                        <option value="">Tất cả</option>
-                        <option value="bug" selected="@(Model.CurrentSupportType == "bug")">Báo lỗi hệ thống</option>
-                        <option value="transaction" selected="@(Model.CurrentSupportType == "transaction")">Hỗ trợ giao dịch</option>
-                        <option value="account" selected="@(Model.CurrentSupportType == "account")">Hỗ trợ tài khoản</option>
-                        <option value="feature" selected="@(Model.CurrentSupportType == "feature")">Góp ý tính năng</option>
-                        <option value="other" selected="@(Model.CurrentSupportType == "other")">Khác</option>
+                        <option value="">@T("Tất cả", "All")</option>
+                        <option value="bug" selected="@(Model.CurrentSupportType == "bug")">@T("Báo lỗi hệ thống", "System Bug")</option>
+                        <option value="transaction" selected="@(Model.CurrentSupportType == "transaction")">@T("Hỗ trợ giao dịch", "Transaction Support")</option>
+                        <option value="account" selected="@(Model.CurrentSupportType == "account")">@T("Hỗ trợ tài khoản", "Account Support")</option>
                     </select>
                 </div>
                 <div class="col-md-2">
-                    <label class="form-label">Ưu tiên</label>
+                    <label class="form-label">@T("Ưu tiên", "Priority")</label>
                     <select name="priority" class="form-select">
-                        <option value="">Tất cả</option>
-                        <option value="low" selected="@(Model.CurrentPriority == "low")">Thấp</option>
-                        <option value="medium" selected="@(Model.CurrentPriority == "medium")">Trung bình</option>
-                        <option value="high" selected="@(Model.CurrentPriority == "high")">Cao</option>
-                        <option value="urgent" selected="@(Model.CurrentPriority == "urgent")">Khẩn cấp</option>
+                        <option value="">@T("Tất cả", "All")</option>
+                        <option value="low" selected="@(Model.CurrentPriority == "low")">@T("Thấp", "Low")</option>
+                        <option value="high" selected="@(Model.CurrentPriority == "high")">@T("Cao", "High")</option>
+                        <option value="urgent" selected="@(Model.CurrentPriority == "urgent")">@T("Khẩn cấp", "Urgent")</option>
                     </select>
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">Từ khóa</label>
-                    <input type="text" name="keyword" value="@Model.Keyword" class="form-control" placeholder="Tìm theo tiêu đề hoặc user" />
+                    <label class="form-label">@T("Từ khóa", "Keyword")</label>
+                    <input type="text" name="keyword" value="@Model.Keyword" class="form-control" placeholder="@T("Tìm theo tiêu đề hoặc email user...", "Search by title or user email...")" />
                 </div>
-                <div class="col-12 d-flex justify-content-end">
-                    <button type="submit" class="btn btn-primary">Lọc danh sách</button>
+                <div class="col-12 pt-2 border-top d-flex justify-content-end mt-4">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bx bx-search-alt me-1"></i> @T("Tìm kiếm", "Search")
+                    </button>
                 </div>
             </form>
         </div>
     </div>
 
     <div class="row g-4">
-        <div class="col-lg-7">
-            <div class="card">
-                <h5 class="card-header">Danh sách yêu cầu hỗ trợ</h5>
-                <div class="table-responsive text-nowrap">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Ticket & Title</th>
-                                <th>User</th>
-                                <th>Category & Priority</th>
-                                <th>Reported At</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody class="table-border-bottom-0">
-                            @if (Model.Items.Count == 0)
-                            {
+        <div class="col-lg-8">
+            <div class="card report-card h-100">
+                <div class="card-header border-bottom pb-3">
+                    <h3 class="report-title m-0"><i class="bx bx-list-ul me-2 text-primary"></i>@T("Danh sách yêu cầu", "Request List")</h3>
+                </div>
+                <div class="card-body p-0 text-nowrap">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-custom-scroll mb-0">
+                            <thead class="table-light">
                                 <tr>
-                                    <td colspan="6" class="text-center text-muted py-4">Chưa có dữ liệu hỗ trợ.</td>
+                                    <th class="col-ticket">@T("Mã & Tiêu đề", "Ticket & Title")</th>
+                                    <th class="col-user">@T("Người dùng", "User")</th>
+                                    <th class="col-category">@T("Danh mục & Ưu tiên", "Category & Priority")</th>
+                                    <th class="col-date">@T("Ngày gửi", "Reported At")</th>
+                                    <th class="col-status">@T("Trạng thái", "Status")</th>
+                                    <th class="col-actions">@T("Thao tác", "Actions")</th>
                                 </tr>
-                            }
-                            else
-                            {
-                                foreach (var item in Model.Items)
+                            </thead>
+                            <tbody class="table-border-bottom-0">
+                                @if (Model.Items.Count == 0)
                                 {
                                     <tr>
-                                        <td>
-                                            <span class="text-primary fw-medium">@item.SupportRequestId</span><br />
-                                            <span class="fw-bold">@item.Subject</span>
-                                        </td>
-                                        <td>
-                                            <div class="fw-medium">@item.UserFullName</div>
-                                            <small class="text-muted">@item.UserEmail</small>
-                                        </td>
-                                        <td>
-                                            <span class="badge @item.SupportTypeBadgeClass mb-1">@item.SupportTypeLabel</span><br />
-                                            <span class="badge @item.PriorityBadgeClass">Ưu tiên: @item.PriorityLabel</span>
-                                        </td>
-                                        <td>@item.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td>
-                                        <td><span class="badge @item.StatusBadgeClass">@item.StatusLabel</span></td>
-                                        <td>
-                                            <a class="btn btn-sm btn-outline-primary"
-                                               asp-action="ErrorReports"
-                                               asp-controller="Admin"
-                                               asp-route-status="@Model.CurrentStatus"
-                                               asp-route-supportType="@Model.CurrentSupportType"
-                                               asp-route-priority="@Model.CurrentPriority"
-                                               asp-route-keyword="@Model.Keyword"
-                                               asp-route-selectedId="@item.SupportRequestId">
-                                                Chi tiết
-                                            </a>
+                                        <td colspan="6" class="text-center text-muted py-5">
+                                            <div class="report-empty">
+                                                <i class="bx bx-folder-open fs-1 mb-2"></i>
+                                                <p>@T("Chưa có dữ liệu hỗ trợ phù hợp.", "No matching support requests found.")</p>
+                                            </div>
                                         </td>
                                     </tr>
                                 }
-                            }
-                        </tbody>
-                    </table>
+                                else
+                                {
+                                    @foreach (var item in Model.Items)
+                                    {
+                                        var isSelected = Model.SelectedItem != null && Model.SelectedItem.SupportRequestId == item.SupportRequestId;
+                                        var rowClass = isSelected ? "selected-row" : "";
+
+                                        <tr class="support-item-row @rowClass" style="cursor: pointer;" data-id="@item.SupportRequestId">
+                                            <td class="text-wrap">
+                                                <span class="text-primary fw-medium small">@item.SupportRequestId</span><br />
+                                                <span class="fw-bold text-dark">@item.Subject</span>
+                                            </td>
+                                            <td>
+                                                <div class="fw-medium text-heading">@item.UserFullName</div>
+                                                <small class="text-muted">@item.UserEmail</small>
+                                            </td>
+                                            <td>
+                                                <span class="badge @item.SupportTypeBadgeClass mb-1">
+                                                    @(lang == "en" ?
+                                                                                                (item.SupportTypeLabel == "Báo lỗi hệ thống" ? "System Bug" :
+                                                                                                item.SupportTypeLabel == "Hỗ trợ giao dịch" ? "Transaction Support" :
+                                                                                                item.SupportTypeLabel == "Hỗ trợ tài khoản" ? "Account Support" : "Other")
+                                                                                                : item.SupportTypeLabel)
+                                                                                                                    </span><br />
+                                                                                                                    <span class="badge @item.PriorityBadgeClass">
+                                                                                                                        @T("Ưu tiên:", "Priority:")
+                                                    @(lang == "en" ?
+                                                                                                (item.PriorityLabel == "Thấp" ? "Low" :
+                                                                                                item.PriorityLabel == "Cao" ? "High" :
+                                                                                                item.PriorityLabel == "Khẩn cấp" ? "Urgent" : "Medium")
+                                                                                                : item.PriorityLabel)
+                                                                                                                 </span>
+                                                                                                             </td>
+                                                                                                             <td>@item.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td>
+                                                                                                             <td>
+                                                                                                                 <span class="badge @item.StatusBadgeClass">
+                                                    @(lang == "en" ?
+                                                                                                (item.StatusLabel == "Chờ tiếp nhận" ? "Pending" :
+                                                                                                item.StatusLabel == "Đang xử lý" ? "Processing" :
+                                                                                                item.StatusLabel == "Đã phản hồi" ? "Replied" : "Closed")
+                                                                                                : item.StatusLabel)
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <button type="button" class="btn btn-sm btn-outline-primary">
+                                            <i class="bx bx-show me-1"></i> @T("Xem", "View")
+                                        </button>
+                                    </td>
+                                </tr>
+                                                                }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-lg-5">
-            <div class="card h-100">
-                <div class="card-header">
-                    <h5 class="mb-0">Chi tiết yêu cầu</h5>
+        <div class="col-lg-4">
+            <div class="card report-card h-100">
+                <div class="card-header border-bottom pb-3">
+                    <h3 class="report-title m-0"><i class="bx bx-detail me-2 text-primary"></i>@T("Chi tiết yêu cầu", "Request Details")</h3>
                 </div>
-                <div class="card-body">
+                <div class="card-body pt-4" id="detailContainer">
                     @if (Model.SelectedItem == null)
                     {
-                        <div class="text-muted">Chọn một yêu cầu ở danh sách bên trái để xem chi tiết.</div>
+                        <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted py-5 report-empty">
+                            <i class="bx bx-pointer fs-1 mb-2"></i>
+                            <p>@T("Chọn một yêu cầu bên trái để xem chi tiết.", "Select a request on the left to view details.")</p>
+                        </div>
                     }
                     else
                     {
-                        <div class="mb-3">
-                            <div class="d-flex justify-content-between gap-2">
-                                <div>
-                                    <h5 class="mb-1">@Model.SelectedItem.Subject</h5>
-                                    <div class="d-flex flex-wrap gap-2">
-                                        <span class="badge bg-label-secondary">@Model.SelectedItem.SupportRequestId</span>
-                                        <span class="badge bg-label-info">@Model.SelectedItem.SupportTypeLabel</span>
-                                        <span class="badge bg-label-warning">@Model.SelectedItem.PriorityLabel</span>
-                                    </div>
-                                </div>
-                                <span class="badge bg-label-primary">@Model.SelectedItem.StatusLabel</span>
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <div class="fw-semibold">Người gửi</div>
-                            <div>@Model.SelectedItem.UserFullName</div>
-                            <small class="text-muted">@Model.SelectedItem.UserEmail</small>
-                        </div>
-
-                        <div class="mb-3">
-                            <div class="fw-semibold">Nội dung</div>
-                            <p class="mb-0 text-muted">@Model.SelectedItem.Message</p>
-                        </div>
-
-                        <div class="mb-4">
-                            <div class="fw-semibold mb-2">Tệp đính kèm</div>
-                            @if (Model.SelectedItem.Attachments.Count == 0)
-                            {
-                                <div class="text-muted small">Chưa có tệp đính kèm.</div>
-                            }
-                            else
-                            {
-                                <ul class="list-group list-group-flush">
-                                    @foreach (var attachment in Model.SelectedItem.Attachments)
-                                    {
-                                        <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
-                                            <div>
-                                                <div class="fw-medium">@attachment.FileName</div>
-                                                <small class="text-muted">@attachment.DisplaySize</small>
-                                            </div>
-                                            <a class="btn btn-sm btn-outline-secondary" href="@attachment.FileUrl" target="_blank">Mở</a>
-                                        </li>
-                                    }
-                                </ul>
-                            }
-                        </div>
-
-                        <form method="post" asp-action="ReplySupport" asp-controller="Admin">
-                            @Html.AntiForgeryToken()
-                            <input type="hidden" name="supportRequestId" value="@Model.SelectedItem.SupportRequestId" />
-                            <div class="mb-3">
-                                <label class="form-label">Trạng thái mới</label>
-                                <select class="form-select" name="status">
-                                    <option value="viewed">Đang xử lý</option>
-                                    <option value="replied" selected>Đã phản hồi</option>
-                                    <option value="closed">Đã đóng</option>
-                                </select>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Phản hồi admin</label>
-                                <textarea class="form-control" name="adminReply" rows="5" placeholder="Nhập phản hồi gửi lại cho người dùng...">@Model.SelectedItem.AdminReply</textarea>
-                            </div>
-                            <button type="submit" class="btn btn-primary w-100">Lưu phản hồi</button>
-                        </form>
+                        <partial name="_SupportRequestDetail" model="Model.SelectedItem" />
                     }
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            $('.support-item-row').on('click', function () {
+                const requestId = $(this).data('id');
+                const $container = $('#detailContainer');
+
+                $('.support-item-row').removeClass('selected-row');
+                $(this).addClass('selected-row');
+
+                $container.html(`
+                    <div class="d-flex flex-column align-items-center justify-content-center h-100 py-5 report-empty">
+                        <div class="spinner-border text-primary mb-2" role="status"></div>
+                        <span class="text-muted">@T("Đang tải chi tiết...", "Loading details...")</span>
+                    </div>
+                `);
+
+                $.ajax({
+                    url: '@Url.Action("GetSupportDetail", "Admin")',
+                    type: 'GET',
+                    data: { id: requestId },
+                    success: function (html) {
+                        $container.hide().html(html).fadeIn(200);
+
+                        const currentUrl = new URL(window.location);
+                        currentUrl.searchParams.set('selectedId', requestId);
+                        window.history.pushState({}, '', currentUrl);
+                    },
+                    error: function () {
+                        $container.html('<div class="alert alert-danger mt-3">@T("Không thể tải dữ liệu. Vui lòng thử lại.", "Failed to load data. Please try again.")</div>');
+                    }
+                });
+            });
+        });
+    </script>
+}

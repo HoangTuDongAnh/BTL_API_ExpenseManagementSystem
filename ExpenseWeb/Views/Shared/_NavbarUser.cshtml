@@ -1,18 +1,27 @@
+
 @{
     var lang = (ViewBag.Lang as string ?? "vi").ToLower();
     string T(string vi, string en) => lang == "en" ? en : vi;
 
     var userFullName = Context.Session.GetString("UserFullName") ?? T("Người dùng", "User");
     var userEmail = Context.Session.GetString("UserEmail") ?? "user@example.com";
+
+    var userAvatar = Context.Session.GetString("UserAvatar");
+    if (string.IsNullOrWhiteSpace(userAvatar))
+    {
+        userAvatar = Url.Content("~/sneat/img/avatars/1.png");
+    }
+
     var currentController = ViewContext.RouteData.Values["controller"]?.ToString() ?? "Dashboard";
+    var currentAction = ViewContext.RouteData.Values["action"]?.ToString() ?? "Index";
 
     var navItems = new[]
     {
         new { Controller = "Dashboard", Action = "Index", LabelVi = "Tổng quan", LabelEn = "Dashboard", Icon = "bx-home-smile" },
         new { Controller = "Category", Action = "Index", LabelVi = "Danh mục", LabelEn = "Categories", Icon = "bx-category" },
-        new { Controller = "Transaction", Action = "Index", LabelVi = "Giao dịch", LabelEn = "Transactions", Icon = "bx-transfer" }
+        new { Controller = "Transaction", Action = "Index", LabelVi = "Giao dịch", LabelEn = "Transactions", Icon = "bx-transfer" },
+        new { Controller = "Profile", Action = "Support", LabelVi = "Hỗ trợ", LabelEn = "Support", Icon = "bx-help-circle" }
     };
-
     var currentPath = Context.Request.Path.Value ?? "/";
     var query = new Dictionary<string, string?>();
     foreach (var item in Context.Request.Query) { query[item.Key] = item.Value.ToString(); }
@@ -40,7 +49,8 @@
             <ul class="navbar-nav mx-auto mimo-nav-list">
                 @foreach (var item in navItems)
                 {
-                    var active = string.Equals(currentController, item.Controller, StringComparison.OrdinalIgnoreCase);
+                    var active = string.Equals(currentController, item.Controller, StringComparison.OrdinalIgnoreCase)
+                    && (item.Controller != "Profile" || string.Equals(currentAction, item.Action, StringComparison.OrdinalIgnoreCase));
                     <li class="nav-item">
                         <a class="nav-link mimo-nav-link @(active ? "active" : "")"
                            asp-controller="@item.Controller"
@@ -62,7 +72,7 @@
                 <div class="dropdown">
                     <a class="nav-link dropdown-toggle hide-arrow p-0 d-flex align-items-center gap-2" href="javascript:void(0);" data-bs-toggle="dropdown" aria-expanded="false">
                         <div class="avatar avatar-online">
-                            <img src="~/sneat/img/avatars/1.png" alt="avatar" class="w-px-40 h-auto rounded-circle" />
+                            <img src="@userAvatar" alt="avatar" class="w-px-40 h-px-40 rounded-circle" style="object-fit: cover;" />
                         </div>
                         <div class="d-none d-lg-flex flex-column text-start lh-sm">
                             <strong class="text-heading">@userFullName</strong>

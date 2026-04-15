@@ -8,7 +8,10 @@
     const email = document.getElementById('email');
     const phoneNumber = document.getElementById('phoneNumber');
     const avatarUrl = document.getElementById('avatarUrl');
+
     const uploadedAvatar = document.getElementById('uploadedAvatar');
+    const uploadAvatarFile = document.getElementById('uploadAvatarFile');
+
     const btnResetAvatar = document.getElementById('btnResetAvatar');
     const btnResetProfile = document.getElementById('btnResetProfile');
     const btnDeleteAccount = document.getElementById('btnDeleteAccount');
@@ -26,46 +29,67 @@
         uploadedAvatar.src = avatarUrl.value.trim() || defaultAvatar;
     }
 
+    uploadAvatarFile?.addEventListener('change', function (e) {
+        if (e.target.files && e.target.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                uploadedAvatar.src = event.target.result;
+            };
+            reader.readAsDataURL(e.target.files[0]);
+            if (avatarUrl) avatarUrl.value = ''; 
+        }
+    });
+
     function restoreInitialState() {
         lastName.value = initialState.lastName;
         firstName.value = initialState.firstName;
         email.value = initialState.email;
         phoneNumber.value = initialState.phoneNumber;
-        avatarUrl.value = initialState.avatar;
+        if (avatarUrl) avatarUrl.value = initialState.avatar;
+        if (uploadAvatarFile) uploadAvatarFile.value = '';
         updateAvatarPreview();
     }
 
-    avatarUrl?.addEventListener('input', updateAvatarPreview);
-    btnResetAvatar?.addEventListener('click', function () {
-        avatarUrl.value = '';
+    avatarUrl?.addEventListener('input', function () {
+        if (uploadAvatarFile) uploadAvatarFile.value = ''; 
         updateAvatarPreview();
     });
+
+    btnResetAvatar?.addEventListener('click', function () {
+        if (avatarUrl) avatarUrl.value = '';
+        if (uploadAvatarFile) uploadAvatarFile.value = '';
+        updateAvatarPreview();
+    });
+
     btnResetProfile?.addEventListener('click', restoreInitialState);
 
-    form.addEventListener('submit', async function () {
-        const payload = {
-            lastName: lastName.value.trim(),
-            firstName: firstName.value.trim(),
-            email: email.value.trim(),
-            phoneNumber: phoneNumber.value.trim(),
-            avatar: avatarUrl.value.trim()
-        };
+    form.addEventListener('submit', async function (e) {
+        e.preventDefault();
 
-        if (!payload.lastName && !payload.firstName) {
+        if (!lastName.value.trim() && !firstName.value.trim()) {
             alert('Vui lòng nhập họ tên.');
             return;
         }
-
-        if (!payload.email) {
+        if (!email.value.trim()) {
             alert('Vui lòng nhập email.');
             return;
+        }
+
+        const formData = new FormData();
+        formData.append('LastName', lastName.value.trim());
+        formData.append('FirstName', firstName.value.trim());
+        formData.append('Email', email.value.trim());
+        formData.append('PhoneNumber', phoneNumber.value.trim());
+        formData.append('Avatar', avatarUrl?.value.trim() || '');
+
+        if (uploadAvatarFile && uploadAvatarFile.files.length > 0) {
+            formData.append('AvatarFile', uploadAvatarFile.files[0]);
         }
 
         try {
             const response = await fetch('/Profile/UpdateAjax', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                body: formData 
             });
 
             const data = await response.json();
@@ -95,12 +119,13 @@
                 alert(data.message || 'Không thể xóa tài khoản.');
                 return;
             }
-
             window.location.href = data.redirectUrl || '/Auth/Login';
         } catch (error) {
             alert('Đã xảy ra lỗi khi xóa tài khoản.');
         }
     });
 
-    updateAvatarPreview();
+    if (!uploadAvatarFile || uploadAvatarFile.files.length === 0) {
+        updateAvatarPreview();
+    }
 })();

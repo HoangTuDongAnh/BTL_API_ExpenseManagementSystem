@@ -38,6 +38,19 @@ namespace ExpenseWeb.Services.Api
                    ?? throw new InvalidOperationException("Dashboard overview response is empty.");
         }
 
+        public async Task<DashboardOverviewDto> GetDashboardOverviewRangeAsync(string token, DateTime startDate, DateTime endDate)
+        {
+            SetBearerToken(token);
+            var response = await _httpClient.GetAsync($"/reports/dashboard-range?start_date={startDate:yyyy-MM-dd}&end_date={endDate:yyyy-MM-dd}");
+            var body = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+                throw new InvalidOperationException(body);
+
+            return JsonSerializer.Deserialize<DashboardOverviewDto>(body, _jsonOptions)
+                   ?? throw new InvalidOperationException("Dashboard range overview response is empty.");
+        }
+
         public async Task<List<MonthlySummaryItemDto>> GetMonthlySummaryAsync(string token, int year)
         {
             SetBearerToken(token);
@@ -62,10 +75,34 @@ namespace ExpenseWeb.Services.Api
             return JsonSerializer.Deserialize<List<CategorySummaryItemDto>>(body, _jsonOptions) ?? new();
         }
 
+        public async Task<List<CategorySummaryItemDto>> GetCategorySummaryRangeAsync(string token, DateTime startDate, DateTime endDate)
+        {
+            SetBearerToken(token);
+            var response = await _httpClient.GetAsync($"/reports/by-category-range?start_date={startDate:yyyy-MM-dd}&end_date={endDate:yyyy-MM-dd}");
+            var body = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+                throw new InvalidOperationException(body);
+
+            return JsonSerializer.Deserialize<List<CategorySummaryItemDto>>(body, _jsonOptions) ?? new();
+        }
+
         public async Task<List<TopExpenseItemDto>> GetTopExpensesAsync(string token, int month, int year, int limit = 5)
         {
             SetBearerToken(token);
             var response = await _httpClient.GetAsync($"/reports/top-expenses?month={month}&year={year}&limit={limit}");
+            var body = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+                throw new InvalidOperationException(body);
+
+            return JsonSerializer.Deserialize<List<TopExpenseItemDto>>(body, _jsonOptions) ?? new();
+        }
+
+        public async Task<List<TopExpenseItemDto>> GetTopExpensesRangeAsync(string token, DateTime startDate, DateTime endDate, int limit = 5)
+        {
+            SetBearerToken(token);
+            var response = await _httpClient.GetAsync($"/reports/top-expenses-range?start_date={startDate:yyyy-MM-dd}&end_date={endDate:yyyy-MM-dd}&limit={limit}");
             var body = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
@@ -86,17 +123,18 @@ namespace ExpenseWeb.Services.Api
             return JsonSerializer.Deserialize<List<BudgetProgressItemDto>>(body, _jsonOptions) ?? new();
         }
 
-        public async Task<ReportAnalyticsDto> GetReportAnalyticsAsync(string token, DateTime dateFrom, DateTime dateTo, string groupBy)
+        public async Task<CashflowAnalyticsDto> GetCashflowAnalyticsAsync(string token, DateTime startDate, DateTime endDate, string granularity)
         {
             SetBearerToken(token);
-            var response = await _httpClient.GetAsync($"/reports/analytics?date_from={dateFrom:yyyy-MM-dd}&date_to={dateTo:yyyy-MM-dd}&group_by={groupBy}");
+            var response = await _httpClient.GetAsync(
+                $"/reports/cashflow-analytics?start_date={startDate:yyyy-MM-dd}&end_date={endDate:yyyy-MM-dd}&granularity={granularity}");
             var body = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
                 throw new InvalidOperationException(body);
 
-            return JsonSerializer.Deserialize<ReportAnalyticsDto>(body, _jsonOptions)
-                   ?? throw new InvalidOperationException("Report analytics response is empty.");
+            return JsonSerializer.Deserialize<CashflowAnalyticsDto>(body, _jsonOptions)
+                   ?? throw new InvalidOperationException("Cashflow analytics response is empty.");
         }
     }
 }

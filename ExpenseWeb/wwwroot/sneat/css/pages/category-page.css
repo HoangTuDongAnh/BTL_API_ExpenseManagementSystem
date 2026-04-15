@@ -1269,11 +1269,16 @@
 
 /* ===== Final compact refinement ===== */
 .category-modal-create__content {
-    min-height: min(760px, calc(100vh - 3rem));
+    min-height: min(82vh, 820px);
+    height: min(82vh, 820px);
 }
 
 .category-create-modal__body {
-    padding: 1rem 1.25rem 1.25rem;
+    padding: 1rem 1.25rem 1rem;
+    display: flex;
+    overflow: hidden;
+    min-height: 0;
+    flex: 1 1 auto;
 }
 
 .category-create-grid {
@@ -1294,7 +1299,7 @@
 }
 
 .category-detail-redesign__content {
-    min-height: min(860px, calc(100vh - 2rem));
+    min-height: min(82vh, 820px);
 }
 
 .category-detail-redesign__body {
@@ -1416,7 +1421,7 @@
 
 @media (min-width: 1200px) {
     .category-detail-redesign__content {
-        height: min(860px, calc(100vh - 2rem));
+        height: min(82vh, 820px);
     }
 }
 

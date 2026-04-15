@@ -1,4 +1,4 @@
-@model ExpenseWeb.Models.ViewModels.Dashboard.DashboardIndexViewModel
+﻿@model ExpenseWeb.Models.ViewModels.Dashboard.DashboardIndexViewModel
 @using System.Linq
 @using System.Text.Json
 
@@ -14,12 +14,23 @@
         .ThenBy(x => x.WalletName)
         .ToList();
 
-    var trendLabels = JsonSerializer.Serialize(Model.MonthlyTrend.Select(x => x.Label));
-    var trendIncome = JsonSerializer.Serialize(Model.MonthlyTrend.Select(x => x.Income));
-    var trendExpense = JsonSerializer.Serialize(Model.MonthlyTrend.Select(x => x.Expense));
+    var trendLabels = JsonSerializer.Serialize(Model.CashflowSeries.Select(x => x.Label));
+    var trendIncome = JsonSerializer.Serialize(Model.CashflowSeries.Select(x => x.Income));
+    var trendExpense = JsonSerializer.Serialize(Model.CashflowSeries.Select(x => x.Expense));
+    var trendNet = JsonSerializer.Serialize(Model.CashflowSeries.Select(x => x.Net));
+    var trendRunningBalance = JsonSerializer.Serialize(Model.CashflowSeries.Select(x => x.RunningBalance));
+
     var donutLabels = JsonSerializer.Serialize(Model.CategoryBreakdown.Select(x => x.CategoryName));
     var donutSeries = JsonSerializer.Serialize(Model.CategoryBreakdown.Select(x => x.TotalAmount));
-    var donutColors = JsonSerializer.Serialize(Model.CategoryBreakdown.Select(x => x.Color));
+    var donutColors = JsonSerializer.Serialize(
+        Model.CategoryBreakdown.Select(x => string.IsNullOrWhiteSpace(x.Color) ? "#696cff" : x.Color)
+    );
+    var donutIcons = JsonSerializer.Serialize(
+        Model.CategoryBreakdown.Select(x => string.IsNullOrWhiteSpace(x.Icon) ? "" : x.Icon)
+    );
+
+    var topCategory = Model.CategoryBreakdown.FirstOrDefault();
+    var overBudgetCount = Model.BudgetProgress.Count(x => x.Status == "over" || x.Status == "reached");
 }
 
 @section Styles {
@@ -36,8 +47,8 @@
             </h1>
             <p class="dashboard-hero-text">
                 @T(
-                    "Xem nhanh số dư hiện có, tình hình thu chi trong kỳ và các báo cáo quan trọng để biết tiền đang đi đâu.",
-                    "Quickly review current balances, period cashflow, and the key reports that show where your money is going.")
+                "Xem nhanh số dư hiện có, tình hình thu chi trong kỳ và các báo cáo quan trọng để biết tiền đang đi đâu.",
+                                "Quickly review current balances, period cashflow, and the key reports that show where your money is going.")
             </p>
         </div>
     </section>
@@ -191,20 +202,64 @@
                 </div>
                 <div class="dashboard-kpi-card">
                     <div class="dashboard-kpi-label">@T("Thu trong kỳ", "Income in period")</div>
-                    <h3 class="dashboard-kpi-value positive">@Model.MonthlyIncome.ToString("N0") VND</h3>
-                    <div class="dashboard-kpi-helper">@T("Thu nhập của tháng đang được chọn để xem báo cáo.", "Income for the month currently selected in the report filter.")</div>
+                    <h3 class="dashboard-kpi-value positive">@Model.RangeIncome.ToString("N0") VND</h3>
+                    <div class="dashboard-kpi-helper">@T("Tổng thu trong khoảng thời gian đang lọc.", "Income in the selected date range.")</div>
                 </div>
                 <div class="dashboard-kpi-card">
                     <div class="dashboard-kpi-label">@T("Chi trong kỳ", "Expense in period")</div>
-                    <h3 class="dashboard-kpi-value negative">@Model.MonthlyExpense.ToString("N0") VND</h3>
-                    <div class="dashboard-kpi-helper">@T("Tổng chi tiêu của tháng đang được chọn để xem báo cáo.", "Expenses for the month currently selected in the report filter.")</div>
+                    <h3 class="dashboard-kpi-value negative">@Model.RangeExpense.ToString("N0") VND</h3>
+                    <div class="dashboard-kpi-helper">@T("Tổng chi trong khoảng thời gian đang lọc.", "Expense in the selected date range.")</div>
                 </div>
                 <div class="dashboard-kpi-card">
                     <div class="dashboard-kpi-label">@T("Dòng tiền ròng", "Net cashflow")</div>
-                    <h3 class="dashboard-kpi-value @(Model.NetCashflow >= 0 ? "positive" : "negative")">@Model.NetCashflow.ToString("N0") VND</h3>
-                    <div class="dashboard-kpi-helper">@Model.TransactionCount @T("giao dịch trong tháng hiện tại của dashboard.", "transactions in the current dashboard month.")</div>
+                    <h3 class="dashboard-kpi-value @(Model.NetCashflow >= 0 ? "positive" : "negative")">@Model.RangeNetChange.ToString("N0") VND</h3>
+                    <div class="dashboard-kpi-helper">@Model.RangeTransactionCount @T("giao dịch trong khoảng thời gian đang lọc.", "transactions in the selected date range.")</div>
                 </div>
             </div>
+        </div>
+    </section>
+
+    <section class="report-overview-band mb-4">
+        <div class="report-overview-head">
+            <div>
+                <h2 class="dashboard-section-title">@T("Tổng quan báo cáo nên xem", "Most useful report overview")</h2>
+                <p class="dashboard-section-text">@T("Đây là các chỉ dấu chung nhất để dashboard cho biết tình hình hiện tại: danh mục chi chính, mức chi trung bình, nhịp giao dịch và cảnh báo ngân sách.", "These are the broadest signals a dashboard should surface: main spending category, average expense, transaction rhythm, and budget warnings.")</p>
+            </div>
+        </div>
+        <div class="report-overview-grid">
+            <article class="report-overview-card">
+                <span class="report-overview-icon"><i class="bx bx-pie-chart-alt-2"></i></span>
+                <div class="report-overview-label">@T("Danh mục chi lớn nhất", "Top spending category")</div>
+                <div class="report-overview-value">@(topCategory?.CategoryName ?? T("Chưa có dữ liệu", "No data yet"))</div>
+                <div class="report-overview-helper">
+                    @if (topCategory is not null)
+                    {
+                        <span>@topCategory.TotalAmount.ToString("N0") VND • @topCategory.Percentage.ToString("0.##")%</span>
+                    }
+                    else
+                    {
+                        <span>@T("Sẽ hiển thị khi có giao dịch chi tiêu.", "Will appear when expense transactions are available.")</span>
+                    }
+                </div>
+            </article>
+            <article class="report-overview-card">
+                <span class="report-overview-icon"><i class="bx bx-receipt"></i></span>
+                <div class="report-overview-label">@T("Chi trung bình / giao dịch", "Average expense / transaction")</div>
+                <div class="report-overview-value">@Model.RangeAverageExpense.ToString("N0") VND</div>
+                <div class="report-overview-helper">@Model.RangeTransactionCount @T("giao dịch trong kỳ đang lọc.", "transactions in the selected period.")</div>
+            </article>
+            <article class="report-overview-card">
+                <span class="report-overview-icon"><i class="bx bx-line-chart"></i></span>
+                <div class="report-overview-label">@T("Mốc sôi động nhất", "Busiest point")</div>
+                <div class="report-overview-value">@(string.IsNullOrWhiteSpace(Model.BusiestLabel) ? T("Chưa xác định", "Not available") : Model.BusiestLabel)</div>
+                <div class="report-overview-helper">@T("Mốc có tổng hoạt động mạnh nhất theo bộ lọc hiện tại.", "The point with the highest overall activity under the current filter.")</div>
+            </article>
+            <article class="report-overview-card @(overBudgetCount > 0 ? "has-alert" : "")">
+                <span class="report-overview-icon"><i class="bx bx-shield-quarter"></i></span>
+                <div class="report-overview-label">@T("Cảnh báo ngân sách", "Budget alerts")</div>
+                <div class="report-overview-value">@overBudgetCount @T("danh mục", "categories")</div>
+                <div class="report-overview-helper">@(overBudgetCount > 0 ? T("Đã chạm ngưỡng hoặc vượt hạn mức trong tháng ngân sách đang xem.", "Already reached or exceeded the budget limit in the viewed budget month.") : T("Chưa có danh mục nào chạm ngưỡng ngân sách.", "No category has reached the budget threshold yet."))</div>
+            </article>
         </div>
     </section>
 
@@ -219,18 +274,30 @@
         <div class="card report-card">
             <div class="card-header d-flex justify-content-between align-items-start gap-3">
                 <div>
-                    <h3 class="report-title">@T("Xu hướng thu và chi theo tháng", "Monthly income and expense trend")</h3>
-                    <p class="report-text">@T("Giúp bạn nhìn nhanh tháng nào thu tốt, tháng nào chi tăng cao để so sánh trong cả năm.", "See which months earned well and which months had heavier spending across the year.")</p>
+                    <h3 class="report-title">@T("Biến động và số dư lũy kế", "Changes and running balance")</h3>
+                    <p class="report-text">@T("Cột thể hiện biến động từng mốc, đường thể hiện số dư lũy kế theo bộ lọc và cách nhóm dữ liệu phía trên.", "Bars show change per point while the line shows running balance based on the selected filter and grouping.")</p>
                 </div>
-                <a class="btn btn-sm btn-outline-primary report-export-btn" asp-controller="Dashboard" asp-action="ExportMonthlySummaryCsv" asp-route-year="@Model.SelectedYear">CSV</a>
+                <a class="btn btn-sm btn-outline-primary report-export-btn"
+                   asp-controller="Dashboard"
+                   asp-action="ExportMonthlySummaryCsv"
+                   asp-route-year="@Model.SelectedYear">CSV</a>
             </div>
             <div class="card-body">
-                <div id="dashboardCashflowChart"
-                     data-labels='@Html.Raw(trendLabels)'
-                     data-income='@Html.Raw(trendIncome)'
-                     data-expense='@Html.Raw(trendExpense)'></div>
+                <div class="chartjs-shell">
+                    <canvas id="dashboardCashflowChart"
+                            class="chartjs-canvas"
+                            data-labels='@Html.Raw(trendLabels)'
+                            data-income='@Html.Raw(trendIncome)'
+                            data-expense='@Html.Raw(trendExpense)'
+                            data-net='@Html.Raw(trendNet)'
+                            data-running-balance='@Html.Raw(trendRunningBalance)'></canvas>
+                </div>
+
                 <div class="report-period-bar report-period-bar-static">
-                    <p class="report-period-note mb-0">@T("Biểu đồ này dùng kỳ năm để so sánh các tháng, còn bộ lọc phía trên áp dụng cho các thẻ tổng quan và các phần báo cáo chi tiết.", "This chart keeps a yearly view for month-to-month comparison, while the filter above refreshes the summary cards and detailed reports.")</p>
+                    <p class="report-period-note mb-0">
+                        @T("Biểu đồ này dùng dữ liệu xu hướng để so sánh thu và chi theo các mốc thời gian, hiển thị bằng Chart.js.",
+                        "This chart uses trend data to compare income and expenses over time, rendered with Chart.js.")
+                    </p>
                 </div>
             </div>
         </div>
@@ -239,19 +306,28 @@
             <div class="card-header d-flex justify-content-between align-items-start gap-3">
                 <div>
                     <h3 class="report-title">@T("Cơ cấu chi tiêu theo danh mục", "Expense breakdown by category")</h3>
-                    <p class="report-text">@T("Cho biết tiền trong kỳ lọc đang tập trung vào nhóm nào nhiều nhất.", "Shows which categories take the largest share of spending in the filtered period.")</p>
+                    <p class="report-text">@T("Cho biết tiền trong kỳ lọc đang tập trung vào nhóm nào nhiều nhất, kèm đường nối trực quan tới từng danh mục chính.", "Shows which categories take the largest share of spending in the filtered period, with visual leader lines to the main categories.")</p>
                 </div>
-                <a class="btn btn-sm btn-outline-primary report-export-btn" asp-controller="Dashboard" asp-action="ExportCategorySummaryCsv" asp-route-month="@Model.SelectedMonth" asp-route-year="@Model.SelectedYear">CSV</a>
+                <a class="btn btn-sm btn-outline-primary report-export-btn"
+                   asp-controller="Dashboard"
+                   asp-action="ExportCategorySummaryCsv"
+                   asp-route-month="@Model.SelectedMonth"
+                   asp-route-year="@Model.SelectedYear">CSV</a>
             </div>
             <div class="card-body">
                 @if (Model.CategoryBreakdown.Any())
                 {
                     <div class="category-chart-shell">
-                        <div id="dashboardExpenseDonutChart"
-                             data-labels='@Html.Raw(donutLabels)'
-                             data-series='@Html.Raw(donutSeries)'
-                             data-colors='@Html.Raw(donutColors)'></div>
+                        <div class="chartjs-shell chartjs-shell-sm">
+                            <canvas id="dashboardExpenseDonutChart"
+                                    class="chartjs-canvas chartjs-canvas-sm"
+                                    data-labels='@Html.Raw(donutLabels)'
+                                    data-series='@Html.Raw(donutSeries)'
+                                    data-colors='@Html.Raw(donutColors)'
+                                    data-icons='@Html.Raw(donutIcons)'></canvas>
+                        </div>
                     </div>
+
                     <div class="category-ring-wrap">
                         @foreach (var item in Model.CategoryBreakdown.Take(5))
                         {
@@ -278,7 +354,11 @@
                     <h3 class="report-title">@T("Khoản chi đáng chú ý", "Notable expenses")</h3>
                     <p class="report-text">@T("Các giao dịch chi lớn nhất trong kỳ để bạn phát hiện ngay những khoản cần xem lại.", "The largest expenses in the selected period so you can quickly review what deserves attention.")</p>
                 </div>
-                <a class="btn btn-sm btn-outline-primary report-export-btn" asp-controller="Dashboard" asp-action="ExportTopExpensesCsv" asp-route-month="@Model.SelectedMonth" asp-route-year="@Model.SelectedYear">CSV</a>
+                <a class="btn btn-sm btn-outline-primary report-export-btn"
+                   asp-controller="Dashboard"
+                   asp-action="ExportTopExpensesCsv"
+                   asp-route-month="@Model.SelectedMonth"
+                   asp-route-year="@Model.SelectedYear">CSV</a>
             </div>
             <div class="card-body">
                 @if (Model.TopExpenses.Any())
@@ -315,10 +395,10 @@
                     {
                         var statusClass = item.Status == "over" ? "over" : item.Status == "reached" ? "reached" : "normal";
                         var statusText = item.Status == "over"
-                            ? T("Vượt mức", "Over")
-                            : item.Status == "reached"
-                                ? T("Chạm ngưỡng", "Reached")
-                                : T("Ổn", "On track");
+                        ? T("Vượt mức", "Over")
+                        : item.Status == "reached"
+                        ? T("Chạm ngưỡng", "Reached")
+                        : T("Ổn", "On track");
                         var fillColor = item.Status == "over" ? "#ff5c39" : item.Status == "reached" ? "#ffb400" : "#76b947";
                         var remaining = item.RemainingAmount;
                         var progressWidth = $"{Math.Min(item.PercentageUsed, 100).ToString(System.Globalization.CultureInfo.InvariantCulture)}%";
@@ -347,110 +427,154 @@
     </div>
 </div>
 
-<div class="modal fade wallet-modal" id="addWalletModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg wallet-modal-smaller">
-        <div class="modal-content">
-            <div class="modal-header">
+<div class="modal fade wallet-modal wallet-modal-unified mimo-popup" id="addWalletModal" tabindex="-1" aria-hidden="true" data-popup-base="true" data-popup-source-header=".wallet-modal-hero" data-popup-source-close=".wallet-modal-close" data-popup-title=".wallet-modal-title" data-popup-subtitle=".wallet-modal-subtitle">
+    <div class="modal-dialog modal-dialog-centered modal-xl wallet-modal-dialog">
+        <div class="modal-content wallet-modal-content-shell">
+            <button type="button" class="wallet-modal-close" data-bs-dismiss="modal" aria-label="Close">
+                <i class="bx bx-x"></i>
+            </button>
+            <div class="wallet-modal-hero">
                 <div>
-                    <h4 class="modal-title mb-1">@T("Thêm ví mới", "Add New Wallet")</h4>
-                    <p class="text-body-secondary mb-0">@T("Tạo một ví để theo dõi riêng tiền mặt, tài khoản ngân hàng hoặc quỹ cá nhân.", "Create a wallet to separately track cash, bank accounts, or personal funds.")</p>
+                    <h4 class="wallet-modal-title">@T("Thêm ví mới", "Add new wallet")</h4>
+                    <p class="wallet-modal-subtitle mb-0">@T("Tạo một ví để theo dõi tiền mặt, tài khoản ngân hàng hoặc quỹ cá nhân. Biểu mẫu được giữ gọn và đồng nhất với popup các trang khác.", "Create a wallet to track cash, bank accounts, or personal funds. The form stays compact and visually aligned with other popups.")</p>
                 </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body wallet-modal-body-shell">
                 <div id="walletActionAlert" class="alert alert-danger d-none"></div>
-                <div class="row g-4">
-                    <div class="col-md-6">
-                        <label class="form-label">@T("Tên ví", "Wallet name")</label>
-                        <input type="text" id="addWalletName" class="form-control" />
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">@T("Số dư ban đầu", "Initial balance")</label>
-                        <input type="number" id="addInitialBalance" class="form-control" value="0" min="0" step="0.01" />
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">@T("Loại tiền", "Currency")</label>
-                        <select id="addWalletCurrencyCode" class="form-select">
-                            <option value="VND">VND</option>
-                            <option value="USD">USD</option>
-                            <option value="EUR">EUR</option>
-                            <option value="JPY">JPY</option>
-                            <option value="KRW">KRW</option>
-                        </select>
-                    </div>
-                    <div class="col-md-6 d-flex align-items-end">
-                        <div class="form-check form-switch mb-2">
-                            <input class="form-check-input" type="checkbox" id="addWalletDefault" />
-                            <label class="form-check-label" for="addWalletDefault">@T("Đặt làm ví mặc định", "Set as default wallet")</label>
+                <section class="wallet-form-card">
+                    <div class="wallet-form-card-head">
+                        <span class="wallet-form-card-icon"><i class="bx bx-wallet"></i></span>
+                        <div>
+                            <h5 class="wallet-form-card-title">@T("Thông tin ví", "Wallet information")</h5>
+                            <p class="wallet-form-card-text mb-0">@T("Nhập các thông tin cơ bản để tạo ví và thiết lập ví mặc định nếu cần.", "Enter the basic wallet details and set it as default if needed.")</p>
                         </div>
                     </div>
-                </div>
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <label class="form-label">@T("Tên ví", "Wallet name")</label>
+                            <input type="text" id="addWalletName" class="form-control wallet-input" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">@T("Số dư ban đầu", "Initial balance")</label>
+                            <input type="number" id="addInitialBalance" class="form-control wallet-input" value="0" min="0" step="0.01" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">@T("Loại tiền", "Currency")</label>
+                            <select id="addWalletCurrencyCode" class="form-select wallet-input">
+                                <option value="VND">VND</option>
+                                <option value="USD">USD</option>
+                                <option value="EUR">EUR</option>
+                                <option value="JPY">JPY</option>
+                                <option value="KRW">KRW</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="wallet-switch-card h-100">
+                                <div class="form-check form-switch wallet-form-switch mb-0">
+                                    <input class="form-check-input" type="checkbox" id="addWalletDefault" />
+                                    <label class="form-check-label" for="addWalletDefault">@T("Đặt làm ví mặc định", "Set as default wallet")</label>
+                                </div>
+                                <div class="wallet-switch-helper">@T("Ví này sẽ được chọn sẵn khi tạo giao dịch mới.", "This wallet will be preselected when you create a new transaction.")</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">@T("Hủy", "Cancel")</button>
-                <button type="button" class="btn btn-primary" id="btnSaveWalletApi">@T("Lưu ví", "Save wallet")</button>
+            <div class="modal-footer wallet-modal-footer-shell">
+                <button type="button" class="btn btn-label-secondary wallet-btn-secondary" data-bs-dismiss="modal">@T("Hủy", "Cancel")</button>
+                <button type="button" class="btn btn-primary wallet-btn-primary" id="btnSaveWalletApi">@T("Lưu ví", "Save wallet")</button>
             </div>
         </div>
     </div>
 </div>
 
-<div class="modal fade wallet-modal" id="walletDetailModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg wallet-modal-smaller">
-        <div class="modal-content">
-            <div class="modal-header">
+<div class="modal fade wallet-modal wallet-modal-unified mimo-popup" id="walletDetailModal" tabindex="-1" aria-hidden="true" data-popup-base="true" data-popup-source-header=".wallet-modal-hero" data-popup-source-close=".wallet-modal-close" data-popup-title=".wallet-modal-title" data-popup-subtitle=".wallet-modal-subtitle" data-popup-extra=".wallet-hero-badge">
+    <div class="modal-dialog modal-dialog-centered modal-xl wallet-modal-dialog">
+        <div class="modal-content wallet-modal-content-shell">
+            <button type="button" class="wallet-modal-close" data-bs-dismiss="modal" aria-label="Close">
+                <i class="bx bx-x"></i>
+            </button>
+            <div class="wallet-modal-hero wallet-modal-hero-with-badge">
                 <div>
-                    <h4 class="modal-title mb-1" id="detailWalletTitle">@T("Chi tiết ví", "Wallet detail")</h4>
-                    <p class="text-body-secondary mb-0"><span id="detailWalletId">-</span></p>
+                    <h4 class="wallet-modal-title" id="detailWalletTitle">@T("Chi tiết ví", "Wallet details")</h4>
+                    <p class="wallet-modal-subtitle mb-0"><span id="detailWalletId">-</span></p>
                 </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <span class="wallet-hero-badge" id="detailWalletBadge">@T("Ví thường", "Standard wallet")</span>
             </div>
-            <div class="modal-body">
+            <div class="modal-body wallet-modal-body-shell">
                 <div id="detailWalletActionAlert" class="alert alert-danger d-none"></div>
                 <input type="hidden" id="detailWalletIdValue" />
-                <div class="row g-4">
-                    <div class="col-md-6">
-                        <label class="form-label">@T("Tên ví", "Wallet name")</label>
-                        <input type="text" id="detailWalletName" class="form-control" />
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">@T("Loại tiền", "Currency")</label>
-                        <select id="detailWalletCurrencySelect" class="form-select">
-                            <option value="VND">VND</option>
-                            <option value="USD">USD</option>
-                            <option value="EUR">EUR</option>
-                            <option value="JPY">JPY</option>
-                            <option value="KRW">KRW</option>
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">@T("Số dư hiện tại", "Current balance")</label>
-                        <input type="text" id="detailCurrentBalanceInput" class="form-control" readonly />
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">@T("Số dư ban đầu", "Initial balance")</label>
-                        <input type="text" id="detailInitialBalance" class="form-control" readonly />
-                    </div>
-                    <div class="col-md-12">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="detailWalletDefault" />
-                            <label class="form-check-label" for="detailWalletDefault">@T("Ví mặc định", "Default wallet")</label>
+
+                <section class="wallet-form-card mb-4">
+                    <div class="wallet-form-card-head">
+                        <span class="wallet-form-card-icon"><i class="bx bx-detail"></i></span>
+                        <div>
+                            <h5 class="wallet-form-card-title">@T("Thông tin ví", "Wallet information")</h5>
+                            <p class="wallet-form-card-text mb-0">@T("Cập nhật tên ví, loại tiền, trạng thái mặc định và theo dõi số dư hiện tại của ví này.", "Update the wallet name, currency, default status, and review its current balance.")</p>
                         </div>
                     </div>
-                </div>
-                <hr class="my-4" />
-                <div>
-                    <h6 class="mb-3 text-danger">@T("Xóa ví", "Delete wallet")</h6>
-                    <div class="form-check mb-2">
-                        <input class="form-check-input" type="radio" name="deleteWalletMode" id="deleteWalletModeDeleteAll" value="delete_all" checked />
-                        <label class="form-check-label" for="deleteWalletModeDeleteAll">@T("Xóa ví và các giao dịch liên quan", "Delete wallet and related transactions")</label>
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <label class="form-label">@T("Tên ví", "Wallet name")</label>
+                            <input type="text" id="detailWalletName" class="form-control wallet-input" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">@T("Loại tiền", "Currency")</label>
+                            <select id="detailWalletCurrencySelect" class="form-select wallet-input">
+                                <option value="VND">VND</option>
+                                <option value="USD">USD</option>
+                                <option value="EUR">EUR</option>
+                                <option value="JPY">JPY</option>
+                                <option value="KRW">KRW</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">@T("Số dư hiện tại", "Current balance")</label>
+                            <input type="text" id="detailCurrentBalanceInput" class="form-control wallet-input" readonly />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">@T("Số dư ban đầu", "Initial balance")</label>
+                            <input type="text" id="detailInitialBalance" class="form-control wallet-input" readonly />
+                        </div>
+                        <div class="col-md-12">
+                            <div class="wallet-switch-card">
+                                <div class="form-check form-switch wallet-form-switch mb-0">
+                                    <input class="form-check-input" type="checkbox" id="detailWalletDefault" />
+                                    <label class="form-check-label" for="detailWalletDefault">@T("Ví mặc định", "Default wallet")</label>
+                                </div>
+                                <div class="wallet-switch-helper">@T("Ví này sẽ được chọn sẵn khi tạo giao dịch mới.", "This wallet will be preselected when you create a new transaction.")</div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="radio" name="deleteWalletMode" id="deleteWalletModeMove" value="move_transactions" />
-                        <label class="form-check-label" for="deleteWalletModeMove">@T("Chuyển giao dịch sang ví khác", "Move transactions to another wallet")</label>
+                </section>
+
+                <section class="wallet-form-card wallet-delete-card">
+                    <div class="wallet-form-card-head wallet-form-card-head-danger">
+                        <span class="wallet-form-card-icon wallet-form-card-icon-danger"><i class="bx bx-trash"></i></span>
+                        <div>
+                            <h5 class="wallet-form-card-title text-danger">@T("Xóa ví", "Delete wallet")</h5>
+                            <p class="wallet-form-card-text mb-0">@T("Chọn cách xử lý các giao dịch liên quan trước khi xóa ví này.", "Choose how related transactions should be handled before deleting this wallet.")</p>
+                        </div>
                     </div>
-                    <div id="replacementWalletGroup" class="d-none">
+                    <div class="wallet-delete-options">
+                        <label class="wallet-radio-card">
+                            <input class="form-check-input" type="radio" name="deleteWalletMode" id="deleteWalletModeDeleteAll" value="delete_all" checked />
+                            <span>
+                                <strong>@T("Xóa ví và các giao dịch liên quan", "Delete wallet and related transactions")</strong>
+                                <small>@T("Phù hợp khi ví này không còn cần lưu lịch sử.", "Use this when the wallet history is no longer needed.")</small>
+                            </span>
+                        </label>
+                        <label class="wallet-radio-card">
+                            <input class="form-check-input" type="radio" name="deleteWalletMode" id="deleteWalletModeMove" value="move_transactions" />
+                            <span>
+                                <strong>@T("Chuyển giao dịch sang ví khác", "Move transactions to another wallet")</strong>
+                                <small>@T("Giữ lại lịch sử giao dịch bằng cách chuyển sang ví thay thế.", "Keep the transaction history by moving it to a replacement wallet.")</small>
+                            </span>
+                        </label>
+                    </div>
+                    <div id="replacementWalletGroup" class="d-none mt-3">
                         <label class="form-label">@T("Ví nhận giao dịch", "Replacement wallet")</label>
-                        <select id="replacementWalletId" class="form-select">
+                        <select id="replacementWalletId" class="form-select wallet-input">
                             <option value="">@T("Chọn ví", "Select wallet")</option>
                             @foreach (var wallet in orderedWallets)
                             {
@@ -458,26 +582,38 @@
                             }
                         </select>
                     </div>
-                </div>
+                </section>
             </div>
-            <div class="modal-footer d-flex justify-content-between">
-                <button type="button" class="btn btn-danger" id="btnDeleteWalletApi">@T("Xóa ví", "Delete wallet")</button>
-                <div>
-                    <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">@T("Đóng", "Close")</button>
-                    <button type="button" class="btn btn-primary" id="btnUpdateWalletApi">@T("Lưu thay đổi", "Save changes")</button>
+            <div class="modal-footer wallet-modal-footer-shell wallet-modal-footer-shell-split">
+                <button type="button" class="btn btn-danger wallet-btn-danger" id="btnDeleteWalletApi">@T("Xóa ví", "Delete wallet")</button>
+                <div class="wallet-footer-actions">
+                    <button type="button" class="btn btn-label-secondary wallet-btn-secondary" data-bs-dismiss="modal">@T("Đóng", "Close")</button>
+                    <button type="button" class="btn btn-primary wallet-btn-primary" id="btnUpdateWalletApi">@T("Lưu thay đổi", "Save changes")</button>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<div class="toast-container position-fixed bottom-0 end-0 p-3">
-    <div id="walletSavedToast" class="toast text-bg-success border-0" role="alert"><div class="d-flex"><div class="toast-body">@T("Tạo ví thành công.", "Wallet created successfully.")</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div></div>
-    <div id="walletUpdatedToast" class="toast text-bg-success border-0" role="alert"><div class="d-flex"><div class="toast-body">@T("Cập nhật ví thành công.", "Wallet updated successfully.")</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div></div>
-    <div id="walletDeletedToast" class="toast text-bg-success border-0" role="alert"><div class="d-flex"><div class="toast-body">@T("Xóa ví thành công.", "Wallet deleted successfully.")</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div></div>
+<div class="modal fade wallet-confirm-modal" id="walletDeleteConfirmModal" tabindex="-1" aria-hidden="true" data-popup-base="true" data-popup-source-header=".modal-header" data-popup-title=".modal-title" data-popup-head-compact="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title">@T("Xác nhận xóa ví", "Confirm wallet deletion")</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body pt-2">
+                <p class="mb-0 text-body-secondary">@T("Bạn có chắc muốn xóa ví này không? Hành động này có thể ảnh hưởng đến giao dịch liên quan.", "Are you sure you want to delete this wallet? This action can affect related transactions.")</p>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">@T("Hủy", "Cancel")</button>
+                <button type="button" class="btn btn-danger" id="btnConfirmDeleteWallet">@T("Xóa ví", "Delete wallet")</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 @section Scripts {
-    <script src="~/sneat/libs/apex-charts/apexcharts.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="~/sneat/js/pages/wallet-dashboard.js"></script>
 }

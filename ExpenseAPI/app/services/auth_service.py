@@ -66,11 +66,7 @@ class AuthService:
 
     def login(self, db: Session, data: LoginRequest):
         user = self.user_repo.get_by_email(db, data.email)
-        if not user:
-            raise ValueError("Invalid email or password")
-        if user.Status != "active":
-            raise ValueError("Account is not active")
-        if not verify_password(data.password, user.PasswordHash):
+        if not user or user.Status != "active" or not verify_password(data.password, user.PasswordHash):
             raise ValueError("Invalid email or password")
 
         token = create_access_token({"sub": user.UserID, "email": user.Email, "role": user.Role})

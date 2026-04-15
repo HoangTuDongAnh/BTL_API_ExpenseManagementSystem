@@ -1,524 +1,437 @@
 ﻿@model ExpenseWeb.Models.ViewModels.Transaction.TransactionPageViewModel
 @using System.Globalization
+@using System.Text.Json
+@using System.Text.Encodings.Web
+@using Microsoft.AspNetCore.Html
 @{
     ViewBag.Title = "Giao dịch";
     Layout = "~/Views/Shared/_Layout.cshtml";
 
-    string GetMainText(ExpenseWeb.Models.ViewModels.Transaction.TransactionItemViewModel item)
-        => string.IsNullOrWhiteSpace(item.Note) ? "Không có ghi chú" : item.Note;
+    var lang = (Context.Request.Query["lang"].FirstOrDefault() ?? "vi").ToLower();
+    string T(string vi, string en) => lang == "en" ? en : vi;
+
+    string DefaultNote(string? note) => string.IsNullOrWhiteSpace(note) ? T("Không có ghi chú", "No note") : note!;
+
+    bool IsImageIcon(string? icon)
+        => !string.IsNullOrWhiteSpace(icon)
+           && (icon.Contains("/", StringComparison.Ordinal)
+               || icon.EndsWith(".svg", StringComparison.OrdinalIgnoreCase)
+               || icon.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
+               || icon.EndsWith(".webp", StringComparison.OrdinalIgnoreCase));
+
+    IHtmlContent RenderCategoryIcon(string? icon, string alt, string? cssClass = null)
+    {
+        var safeAlt = HtmlEncoder.Default.Encode(alt);
+        var extraClass = string.IsNullOrWhiteSpace(cssClass) ? string.Empty : $" {HtmlEncoder.Default.Encode(cssClass)}";
+        if (IsImageIcon(icon))
+        {
+            var safeSrc = HtmlEncoder.Default.Encode(icon ?? string.Empty);
+            return new HtmlString($"<img src='{safeSrc}' alt='{safeAlt}' class='tx-inline-icon{extraClass}' />");
+        }
+        var safeClass = HtmlEncoder.Default.Encode(string.IsNullOrWhiteSpace(icon) ? "bx bx-category" : icon);
+        return new HtmlString($"<i class='{safeClass}{extraClass}'></i>");
+    }
+
+    var txData = Model.Transactions.Select(item => new
+    {
+        id = item.TransactionId,
+        walletId = item.WalletId,
+        walletName = item.WalletName,
+        categoryId = item.CategoryId,
+        categoryName = item.CategoryName,
+        categoryIcon = item.CategoryIcon,
+        categoryColor = item.CategoryColor,
+        transactionType = item.TransactionType,
+        amountValue = item.AmountValue,
+        amountText = item.AmountText,
+        transactionDate = item.TransactionDate.ToString("yyyy-MM-dd"),
+        transactionDateText = item.TransactionDateText,
+        note = DefaultNote(item.Note),
+        recurringBadgeText = item.RecurringBadgeText,
+        currency = item.Currency
+    }).ToList();
+
+    var categoryData = Model.Categories.Select(c => new { c.category_id, c.category_name, c.icon, c.color }).ToList();
+    var walletData = Model.Wallets.Select(w => new { w.wallet_id, w.wallet_name, w.currency }).ToList();
+
+    var transactionsJson = JsonSerializer.Serialize(txData);
+    var categoriesJson = JsonSerializer.Serialize(categoryData);
+    var walletsJson = JsonSerializer.Serialize(walletData);
 }
 
 @section Styles {
     <link rel="stylesheet" href="~/sneat/css/pages/transaction-page.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
 }
 
-<div class="container-xxl flex-grow-1 container-p-y transaction-page">
+<div class="container-xxl flex-grow-1 container-p-y tx-page">
     @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
     {
-        <div class="alert alert-danger mb-4" role="alert">
-            @Model.ErrorMessage
-        </div>
+        <div class="alert alert-danger mb-4">@Model.ErrorMessage</div>
     }
 
-    <div class="row g-4 mb-4 transaction-summary-row">
-        <div class="col-md-6">
-            <div class="card transaction-summary-card h-100">
-                <div class="card-body">
-                    <div class="transaction-summary-wrap">
-                        <div class="transaction-donut donut-income" id="incomeDonut">
-                            <div class="transaction-donut-inner">
-                                <span>Thu nhập</span>
-                                <strong id="incomeDonutTotal">0 VND</strong>
-                            </div>
-                        </div>
-                        <div class="transaction-summary-content">
-                            <div class="transaction-summary-head">
-                                <h5 class="mb-1">Cơ cấu thu nhập</h5>
-                                <small class="text-body-secondary">Theo tập giao dịch đang hiển thị</small>
-                            </div>
-                            <div class="transaction-summary-legend" id="incomeLegend"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-6">
-            <div class="card transaction-summary-card h-100">
-                <div class="card-body">
-                    <div class="transaction-summary-wrap">
-                        <div class="transaction-donut donut-expense" id="expenseDonut">
-                            <div class="transaction-donut-inner">
-                                <span>Chi tiêu</span>
-                                <strong id="expenseDonutTotal">0 VND</strong>
-                            </div>
-                        </div>
-                        <div class="transaction-summary-content">
-                            <div class="transaction-summary-head">
-                                <h5 class="mb-1">Cơ cấu chi tiêu</h5>
-                                <small class="text-body-secondary">Theo tập giao dịch đang hiển thị</small>
-                            </div>
-                            <div class="transaction-summary-legend" id="expenseLegend"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="card transaction-toolbar-card mb-4">
+    <div class="card tx-toolbar-card mb-4">
         <div class="card-body">
-            <div class="transaction-toolbar-grid">
-                <div class="transaction-toolbar-primary">
-                    <button type="button" class="btn btn-primary transaction-add-btn" data-bs-toggle="modal" data-bs-target="#addTransactionModal">
-                        <i class="bx bx-plus me-1"></i> Thêm giao dịch mới
-                    </button>
-
-                    <div class="transaction-segmented" id="transactionTypeTabs">
-                        <button type="button" class="active" data-type="all">Tất cả</button>
-                        <button type="button" data-type="expense">Chi tiêu</button>
-                        <button type="button" data-type="income">Thu nhập</button>
+            <div class="tx-filter-grid tx-filter-grid-top">
+                <div class="tx-filter-block tx-filter-block-type">
+                    <label class="tx-label">@T("Loại giao dịch", "Transaction type")</label>
+                    <div class="tx-segmented" id="transactionTypeTabs">
+                        <button type="button" class="active" data-type="all">@T("Tất cả", "All")</button>
+                        <button type="button" data-type="expense">@T("Chi tiêu", "Expense")</button>
+                        <button type="button" data-type="income">@T("Thu nhập", "Income")</button>
                     </div>
                 </div>
 
-                <div class="transaction-toolbar-search">
-                    <label class="transaction-field-label">Tìm kiếm</label>
-                    <div class="transaction-searchbox">
-                        <i class="bx bx-search"></i>
-                        <input type="text" id="transactionSearchInput" placeholder="Tìm theo ghi chú, danh mục, ví..." />
-                    </div>
-                </div>
-
-                <div class="transaction-toolbar-filter">
-                    <label class="transaction-field-label">Ví</label>
+                <div class="tx-filter-block">
+                    <label class="tx-label">@T("Ví", "Wallet")</label>
                     <select class="form-select" id="walletFilter">
-                        <option value="all">Tất cả ví</option>
+                        <option value="all">@T("Tất cả ví", "All wallets")</option>
                         @foreach (var wallet in Model.Wallets)
                         {
-                            <option value="@wallet.wallet_name">@wallet.wallet_name</option>
+                            <option value="@wallet.wallet_id">@wallet.wallet_name</option>
                         }
                     </select>
                 </div>
 
-                <div class="transaction-toolbar-filter">
-                    <label class="transaction-field-label">Khoảng thời gian</label>
+                <div class="tx-filter-block tx-filter-period">
+                    <label class="tx-label">@T("Khoảng thời gian", "Period")</label>
                     <select class="form-select" id="periodFilter">
-                        <option value="today">Hôm nay</option>
-                        <option value="week">7 ngày gần nhất</option>
-                        <option value="month" selected>Tháng gần nhất có dữ liệu</option>
-                        <option value="custom">Tùy chọn</option>
+                        <option value="today" selected>@T("Hôm nay", "Today")</option>
+                        <option value="week">@T("7 ngày gần nhất", "Last 7 days")</option>
+                        <option value="month">@T("Tháng hiện tại", "Current month")</option>
+                        <option value="custom">@T("Tùy chọn", "Custom")</option>
                     </select>
                 </div>
 
-                <div class="transaction-toolbar-filter d-none" id="fromDateWrap">
-                    <label class="transaction-field-label">Từ ngày</label>
-                    <input type="date" class="form-control" id="fromDateFilter" />
-                </div>
-
-                <div class="transaction-toolbar-filter d-none" id="toDateWrap">
-                    <label class="transaction-field-label">Đến ngày</label>
-                    <input type="date" class="form-control" id="toDateFilter" />
-                </div>
-
-                <div class="transaction-toolbar-action">
-                    <button type="button" class="btn btn-outline-secondary w-100 transaction-export-btn">
-                        <i class="bx bx-download me-1"></i> Xuất dữ liệu
+                <div class="tx-filter-block tx-filter-add">
+                    <label class="tx-label tx-label-ghost">@T("Thao tác", "Action")</label>
+                    <button type="button" class="btn btn-primary tx-add-btn" data-bs-toggle="modal" data-bs-target="#addTransactionModal">
+                        <i class="bx bx-plus me-1"></i>@T("Thêm giao dịch mới", "Add transaction")
                     </button>
+                </div>
+            </div>
+
+            <div class="tx-filter-secondary-row">
+                <div class="tx-filter-secondary-card is-active" id="dayNavigatorCard">
+                    <div class="tx-filter-secondary-head">
+                        <label class="tx-label mb-0">@T("Điều hướng theo kỳ", "Period navigator")</label>
+                        <span class="tx-filter-hint" id="periodAssistText">@T("Điều hướng theo ngày đang xem", "Navigate by the current view")</span>
+                    </div>
+                    <div class="tx-daynav-row">
+                        <button type="button" class="btn tx-icon-btn" id="dayPrevBtn" aria-label="prev"><span class="tx-nav-arrow" aria-hidden="true">&#8249;</span></button>
+                        <button type="button" class="tx-day-pill" id="currentDayPill">--/--/----</button>
+                        <button type="button" class="btn tx-icon-btn" id="dayNextBtn" aria-label="next"><span class="tx-nav-arrow" aria-hidden="true">&#8250;</span></button>
+                    </div>
+                </div>
+
+                <div class="tx-filter-secondary-card is-inactive" id="customDateRangeWrap">
+                    <div class="tx-filter-secondary-head">
+                        <label class="tx-label mb-0">@T("Khoảng ngày tùy chọn", "Custom date range")</label>
+                        <span class="tx-filter-hint">@T("Chỉ dùng khi chọn chế độ tùy chọn", "Used only in custom mode")</span>
+                    </div>
+                    <div class="tx-period-custom tx-period-custom-inline">
+                        <div class="tx-period-date" id="fromDateWrap">
+                            <input type="text" class="form-control tx-date-input" id="fromDateFilter" placeholder="@T("Từ ngày", "From date")" />
+                        </div>
+                        <div class="tx-period-date" id="toDateWrap">
+                            <input type="text" class="form-control tx-date-input" id="toDateFilter" placeholder="@T("Đến ngày", "To date")" />
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="card transaction-list-card mb-4">
-        <div class="card-header border-0 pb-0">
-            <div class="transaction-section-head">
-                <div>
-                    <h5 class="mb-1">Danh sách giao dịch</h5>
-                    <small class="text-body-secondary">Hiển thị các giao dịch sau khi áp dụng bộ lọc, có phân trang để dễ theo dõi.</small>
-                </div>
-                <div class="transaction-section-meta">
-                    <span class="badge bg-label-primary" id="transactionCountBadge">0 giao dịch</span>
+    <div class="row g-4 mb-4 tx-summary-row">
+        <div class="col-12 col-xl-6">
+            <div class="card tx-summary-card h-100">
+                <div class="card-body">
+                    <div class="tx-summary-layout tx-summary-layout-vertical">
+                        <div class="tx-summary-head">
+                            <h4>@T("Cơ cấu thu nhập", "Income breakdown")</h4>
+                            <p>@T("Theo tập giao dịch đang hiển thị", "Based on visible transactions")</p>
+                        </div>
+                        <div class="tx-summary-canvas-wrap">
+                            <canvas id="incomeDonutChart" class="tx-summary-chart"></canvas>
+</div>
+                        <div class="tx-summary-legend" id="incomeLegend"></div>
+                    </div>
                 </div>
             </div>
         </div>
+        <div class="col-12 col-xl-6">
+            <div class="card tx-summary-card h-100">
+                <div class="card-body">
+                    <div class="tx-summary-layout tx-summary-layout-vertical">
+                        <div class="tx-summary-head">
+                            <h4>@T("Cơ cấu chi tiêu", "Expense breakdown")</h4>
+                            <p>@T("Theo tập giao dịch đang hiển thị", "Based on visible transactions")</p>
+                        </div>
+                        <div class="tx-summary-canvas-wrap">
+                            <canvas id="expenseDonutChart" class="tx-summary-chart"></canvas>
+</div>
+                        <div class="tx-summary-legend" id="expenseLegend"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
+    <div class="card tx-list-card mb-4">
+        <div class="card-header border-0 pb-0">
+            <div class="tx-list-toolbar">
+                <h3>@T("Danh sách giao dịch", "Transactions")</h3>
+                <div class="tx-list-head-actions">
+                    <div class="tx-searchbox tx-searchbox-list">
+                        <i class="bx bx-search"></i>
+                        <input type="text" id="transactionSearchInput" placeholder="@T("Tìm theo danh mục, ghi chú, ví", "Search category, note, wallet")" />
+                    </div>
+                    <button type="button" class="btn btn-outline-secondary tx-export-btn">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" class="tx-btn-svg"><path d="M12 3v10m0 0l-4-4m4 4l4-4M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        @T("Xuất dữ liệu", "Export")
+                    </button>
+                </div>
+            </div>
+        </div>
         <div class="card-body">
-            <div class="table-responsive" id="transactionTableWrapper">
-                <table class="table align-middle transaction-table">
-                    <thead>
-                        <tr>
-                            <th>Giao dịch</th>
-                            <th>Danh mục</th>
-                            <th>Ví</th>
-                            <th>Ngày</th>
-                            <th>Số tiền</th>
-                            <th class="text-end">Thao tác</th>
-                        </tr>
-                    </thead>
-                    <tbody id="transactionTableBody">
-                        @foreach (var item in Model.Transactions)
-                        {
-                            var amountClass = item.TransactionType == "income" ? "text-success" : "text-danger";
-                            var mainText = GetMainText(item);
-                            <tr class="transaction-row"
-                                data-id="@item.TransactionId"
-                                data-note="@mainText"
-                                data-category="@item.CategoryName"
-                                data-category-icon="@item.CategoryIcon"
-                                data-category-color="@item.CategoryColor"
-                                data-wallet="@item.WalletName"
-                                data-wallet-id="@item.WalletId"
-                                data-category-id="@item.CategoryId"
-                                data-type="@item.TransactionType"
-                                data-amount="@item.AmountText"
-                                data-amount-value="@item.AmountValue.ToString(CultureInfo.InvariantCulture)"
-                                data-date="@item.TransactionDateText"
-                                data-iso-date="@item.TransactionDate.ToString("yyyy-MM-dd")"
-                                data-badge="@item.RecurringBadgeText"
-                                data-currency="@item.Currency">
-                                <td>
-                                    <div class="transaction-main-info">
-                                        <div class="transaction-icon-box" style="background:@($"{item.CategoryColor}18"); color:@item.CategoryColor;">
-                                            <i class="@item.CategoryIcon"></i>
-                                        </div>
-                                        <div class="transaction-main-text">
-                                            <h6 class="mb-0">@mainText</h6>
-                                            <small class="text-body-secondary">Mã: @item.TransactionId</small>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>
-                                    <span class="transaction-category-pill" style="background:@($"{item.CategoryColor}14"); color:@item.CategoryColor;">
-                                        <i class="@item.CategoryIcon"></i>
-                                        @item.CategoryName
-                                    </span>
-                                </td>
-                                <td>@item.WalletName</td>
-                                <td>
-                                    <div class="transaction-date-cell">
-                                        <span>@item.TransactionDateText</span>
-                                        <small class="text-body-secondary">@item.RecurringBadgeText</small>
-                                    </div>
-                                </td>
-                                <td class="@amountClass fw-semibold">@item.AmountText</td>
-                                <td class="text-end">
-                                    <button type="button"
-                                            class="btn btn-sm btn-icon btn-outline-primary transaction-detail-trigger"
-                                            data-id="@item.TransactionId"
-                                            data-note="@mainText"
-                                            data-category="@item.CategoryName"
-                                            data-category-icon="@item.CategoryIcon"
-                                            data-category-color="@item.CategoryColor"
-                                            data-wallet="@item.WalletName"
-                                            data-wallet-id="@item.WalletId"
-                                            data-category-id="@item.CategoryId"
-                                            data-type="@item.TransactionType"
-                                            data-amount="@item.AmountText"
-                                            data-amount-value="@item.AmountValue.ToString(CultureInfo.InvariantCulture)"
-                                            data-date="@item.TransactionDateText"
-                                            data-iso-date="@item.TransactionDate.ToString("yyyy-MM-dd")"
-                                            data-badge="@item.RecurringBadgeText"
-                                            data-currency="@item.Currency">
-                                        <i class="bx bx-show"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
+            <div class="tx-table-shell">
+                <div class="tx-table-head">
+                    <div>@T("Giao dịch", "Transaction")</div>
+                    <div>@T("Danh mục", "Category")</div>
+                    <div>@T("Ngày", "Date")</div>
+                    <div>@T("Chu kỳ", "Repeat")</div>
+                    <div class="text-end">@T("Số tiền", "Amount")</div>
+                    <div class="text-end">@T("Thao tác", "Actions")</div>
+                </div>
+                <div class="tx-list-shell" id="transactionListShell"></div>
             </div>
-
-            <div class="transaction-empty-state" id="transactionEmptyState">
-                <div class="transaction-empty-icon"><i class="bx bx-folder-open"></i></div>
-                <h6 class="mb-1">Không có giao dịch phù hợp</h6>
-                <p class="mb-0 text-body-secondary">Hãy thử đổi bộ lọc hoặc từ khóa tìm kiếm.</p>
+            <div class="tx-empty-state d-none" id="transactionEmptyState">
+                <div class="tx-empty-icon"><i class="bx bx-folder-open"></i></div>
+                <h6>@T("Không có giao dịch phù hợp", "No matching transactions")</h6>
+                <p>@T("Thử thay đổi bộ lọc hoặc khoảng thời gian.", "Try changing filters or the date range.")</p>
             </div>
-
             <div class="transaction-pagination" id="transactionPagination"></div>
         </div>
     </div>
 
-    <div class="card transaction-calendar-card">
+    <div class="card tx-calendar-card">
         <div class="card-header border-0 pb-0">
-            <div class="transaction-section-head transaction-calendar-top">
-                <div>
-                    <h5 class="mb-1">Lịch giao dịch</h5>
-                    <small class="text-body-secondary">Mỗi ngày hiển thị số lượng giao dịch và tổng quan nhanh. Bấm vào ô ngày để xem chi tiết.</small>
+            <div class="tx-card-head tx-calendar-head tx-calendar-head-redesign">
+                <div class="tx-calendar-heading">
+                    <h3>@T("Lịch giao dịch", "Transaction calendar")</h3>
+                    <p>@T("Mỗi ô ngày hiển thị nhanh trạng thái, số giao dịch và tổng phát sinh. Bấm vào để mở chi tiết.", "Each day tile shows quick status, count and totals. Click to open details.")</p>
                 </div>
-                <div class="transaction-calendar-top-right">
-                    <div class="transaction-calendar-legend">
-                        <span><i class="legend-dot income"></i> Có thu nhập</span>
-                        <span><i class="legend-dot expense"></i> Có chi tiêu</span>
-                        <span><i class="legend-dot mix"></i> Có cả hai</span>
+                <div class="tx-calendar-toolbar">
+                    <div class="tx-calendar-legend tx-calendar-legend-pill">
+                        <span><i class="legend-dot income"></i>@T("Có thu nhập", "Income")</span>
+                        <span><i class="legend-dot expense"></i>@T("Có chi tiêu", "Expense")</span>
+                        <span><i class="legend-dot mix"></i>@T("Có cả hai", "Both")</span>
                     </div>
-                    <div class="transaction-calendar-nav">
-                        <button type="button" class="btn btn-sm btn-outline-secondary" id="calendarPrevBtn"><i class="bx bx-chevron-left"></i></button>
-                        <div class="transaction-calendar-title" id="calendarTitle">Tháng</div>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" id="calendarNextBtn"><i class="bx bx-chevron-right"></i></button>
+                    <div class="tx-calendar-nav tx-calendar-nav-card">
+                        <button type="button" class="btn tx-icon-btn" id="calendarPrevBtn"><span class="tx-nav-arrow" aria-hidden="true">&#8249;</span></button>
+                        <div class="tx-calendar-title" id="calendarTitle">--</div>
+                        <button type="button" class="btn tx-icon-btn" id="calendarNextBtn"><span class="tx-nav-arrow" aria-hidden="true">&#8250;</span></button>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="card-body">
-            <div class="transaction-mini-calendar">
-                <div class="transaction-mini-calendar-weekdays">
-                    <span>CN</span><span>T2</span><span>T3</span><span>T4</span><span>T5</span><span>T6</span><span>T7</span>
-                </div>
-                <div class="transaction-mini-calendar-grid" id="transactionMiniCalendarGrid"></div>
+        <div class="card-body pt-3">
+            <div class="tx-weekdays tx-weekdays-redesign">
+                <span>@T("CN", "Su")</span><span>@T("T2", "Mo")</span><span>@T("T3", "Tu")</span><span>@T("T4", "We")</span><span>@T("T5", "Th")</span><span>@T("T6", "Fr")</span><span>@T("T7", "Sa")</span>
             </div>
+            <div class="tx-calendar-grid tx-calendar-grid-redesign" id="transactionMiniCalendarGrid"></div>
         </div>
     </div>
 </div>
 
-<div class="offcanvas offcanvas-end transaction-day-offcanvas" tabindex="-1" id="transactionDayOffcanvas">
-    <div class="offcanvas-header border-0">
+<div class="offcanvas offcanvas-end tx-day-offcanvas" tabindex="-1" id="transactionDayOffcanvas" data-bs-scroll="true" data-bs-backdrop="true">
+    <div class="offcanvas-header border-0 pb-0 tx-day-offcanvas-header">
         <div>
-            <h5 class="offcanvas-title mb-1" id="transactionDayTitle">Chi tiết trong ngày</h5>
-            <small class="text-body-secondary" id="transactionDaySubTitle">Tổng hợp giao dịch theo ngày</small>
+            <h5 class="offcanvas-title" id="transactionDayTitle">@T("Giao dịch trong ngày", "Day transactions")</h5>
+            <small class="text-body-secondary" id="transactionDaySubTitle"></small>
         </div>
-        <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas"></button>
     </div>
-    <div class="offcanvas-body">
-        <div class="transaction-day-stats">
-            <div class="transaction-day-stat"><span>Số giao dịch</span><strong id="dayStatCount">0</strong></div>
-            <div class="transaction-day-stat income"><span>Thu nhập</span><strong id="dayStatIncome">0 VND</strong></div>
-            <div class="transaction-day-stat expense"><span>Chi tiêu</span><strong id="dayStatExpense">0 VND</strong></div>
+    <div class="offcanvas-body pt-3">
+        <div class="tx-day-stats tx-day-stats-redesign">
+            <div class="tx-day-stat tx-day-stat-count"><span>@T("Số giao dịch", "Count")</span><strong id="dayStatCount">0</strong></div>
+            <div class="tx-day-stat income"><span>@T("Thu nhập", "Income")</span><strong id="dayStatIncome">0 VND</strong></div>
+            <div class="tx-day-stat expense"><span>@T("Chi tiêu", "Expense")</span><strong id="dayStatExpense">0 VND</strong></div>
         </div>
-        <div class="transaction-day-list" id="transactionDayList"></div>
+        <div class="tx-day-summary-card" id="transactionDaySummaryCard">
+            <span class="tx-day-summary-card-label">@T("Tổng ngày", "Daily summary")</span>
+            <strong id="transactionDaySummaryValue">0 @T("giao dịch", "transactions")</strong>
+        </div>
+        <div class="tx-day-hint-card" id="transactionDayHintCard">@T("Chạm vào từng giao dịch để mở popup chi tiết.", "Tap any transaction to open detail popup.")</div>
+        <div class="tx-day-list" id="transactionDayList"></div>
     </div>
 </div>
 
-<div class="modal fade transaction-modal" id="transactionDetailModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header border-0 pb-0">
-                <div>
-                    <h5 class="modal-title">Chi tiết giao dịch</h5>
-                    <small class="text-body-secondary">Bản này đã bỏ title và time, dùng ghi chú + ngày giao dịch theo API hiện tại.</small>
+<div class="modal fade tx-modal tx-detail-modal mimo-popup-shell" id="transactionDetailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered tx-modal-dialog tx-detail-modal-dialog">
+        <div class="modal-content mimo-popup-content">
+            <button type="button" class="mimo-popup-close" data-bs-dismiss="modal" aria-label="Close"><i class="bx bx-x"></i></button>
+            <div class="mimo-popup-header">
+                <div class="mimo-popup-hero mimo-popup-hero--simple">
+                    <div class="mimo-popup-header-copy">
+                        <h4 class="mimo-popup-title mb-1">@T("Chi tiết giao dịch", "Transaction details")</h4>
+                        <p class="mimo-popup-subtitle mb-0">@T("Xem nhanh, chỉnh sửa thông tin và cập nhật giao dịch hiện tại.", "Quickly review, edit, and update this transaction.")</p>
+                    </div>
                 </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body pt-3">
-                <div class="transaction-modal-layout">
-                    <div class="transaction-modal-side">
-                        <div class="transaction-detail-hero">
-                            <div class="transaction-detail-hero-top">
-                                <span class="badge bg-label-primary" id="detailId">---</span>
-                                <span class="badge bg-label-secondary" id="detailBadgeText">Một lần</span>
-                            </div>
-                            <div class="transaction-detail-hero-icon" id="detailHeroIconWrap">
-                                <i class="bx bx-category" id="detailHeroIcon"></i>
-                            </div>
-                            <h4 class="mb-1" id="detailNoteText">Không có ghi chú</h4>
-                            <div class="transaction-modal-amount" id="detailAmountText">0 VND</div>
-                            <div class="transaction-modal-side-info">
-                                <div class="transaction-side-info-item"><span>Loại</span><strong id="detailTypeText">Chi tiêu</strong></div>
-                                <div class="transaction-side-info-item"><span>Danh mục</span><strong id="detailCategoryText">---</strong></div>
-                                <div class="transaction-side-info-item"><span>Ví</span><strong id="detailWalletText">---</strong></div>
-                                <div class="transaction-side-info-item"><span>Ngày giao dịch</span><strong id="detailDateText">--/--/----</strong></div>
+            <div class="modal-body tx-detail-modal-body mimo-popup-body">
+                <div class="tx-modal-layout tx-detail-layout">
+                    <div class="tx-modal-preview tx-detail-preview">
+                        <div class="tx-preview-top">
+                            <span class="badge bg-label-primary" id="detailBadgeText">@T("Một lần", "One-time")</span>
+                        </div>
+                        <div class="tx-preview-main">
+                            <div class="tx-preview-icon" id="detailHeroIconWrap"><span id="detailHeroIcon">@RenderCategoryIcon("bx bx-category", "icon")</span></div>
+                            <div class="tx-preview-copy">
+                                <h4 id="detailNoteText">@T("Không có ghi chú", "No note")</h4>
+                                <div class="tx-preview-amount" id="detailAmountText">0 VND</div>
                             </div>
                         </div>
+                        <div class="tx-preview-meta tx-preview-meta-compact">
+                            <div><span>@T("Danh mục", "Category")</span><strong id="detailCategoryText">---</strong></div>
+                            <div><span>@T("Ví", "Wallet")</span><strong id="detailWalletText">---</strong></div>
+                            <div><span>@T("Ngày", "Date")</span><strong id="detailDateText">--/--/----</strong></div>
+                            <div><span>@T("Loại", "Type")</span><strong id="detailTypeText">---</strong></div>
+                        </div>
                     </div>
-
-                    <div class="transaction-modal-form">
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label class="form-label">Loại giao dịch</label>
-                                <div class="transaction-toggle-group" id="detailTypeSwitch">
-                                    <button type="button" class="active" data-value="expense">Chi tiêu</button>
-                                    <button type="button" data-value="income">Thu nhập</button>
+                    <div class="tx-modal-form tx-detail-form">
+                        <div class="tx-form-card tx-form-fields-card">
+                            <div class="row g-3 align-items-start tx-detail-fields-grid">
+                                <div class="col-lg-6 col-md-6">
+                                    <label class="form-label">@T("Ví", "Wallet")</label>
+                                    <select class="form-select" id="detailEditWallet">
+                                        @foreach (var wallet in Model.Wallets)
+                                        {
+                                            <option value="@wallet.wallet_id">@wallet.wallet_name</option>
+                                        }
+                                    </select>
                                 </div>
-                                <input type="hidden" id="detailEditType" value="expense" />
-                            </div>
-
-                            <div class="col-md-6">
-                                <label class="form-label">Số tiền</label>
-                                <input type="number" class="form-control" id="detailEditAmount" />
-                            </div>
-
-                            <div class="col-md-6">
-                                <label class="form-label">Ví</label>
-                                <select class="form-select" id="detailEditWallet">
-                                    @foreach (var wallet in Model.Wallets)
-                                    {
-                                        <option value="@wallet.wallet_id">@wallet.wallet_name</option>
-                                    }
-                                </select>
-                            </div>
-
-                            <div class="col-md-6">
-                                <label class="form-label">Ngày</label>
-                                <input type="date" class="form-control" id="detailEditDate" />
-                            </div>
-
-                            <div class="col-md-6">
-                                <label class="form-label">Lặp lại</label>
-                                <select class="form-select" id="detailEditRecurrence">
-                                    <option value="">Không lặp</option>
-                                    <option value="daily">Hàng ngày</option>
-                                    <option value="weekly">Hàng tuần</option>
-                                    <option value="monthly">Hàng tháng</option>
-                                    <option value="yearly">Hàng năm</option>
-                                </select>
-                            </div>
-
-                            <div class="col-md-12">
-                                <label class="form-label">Danh mục</label>
-                                <div class="transaction-category-grid" id="detailCategoryGrid">
-                                    @foreach (var category in Model.Categories)
-                                    {
-                                        var categoryColor = string.IsNullOrWhiteSpace(category.color) ? "#8592A3" : category.color;
-                                        var categoryIcon = string.IsNullOrWhiteSpace(category.icon) ? "bx bx-category" : category.icon;
-                                        <button type="button" class="transaction-category-chip" data-id="@category.category_id" data-name="@category.category_name" data-icon="@categoryIcon" data-color="@categoryColor">
-                                            <span class="transaction-category-icon" style="background:@($"{categoryColor}18"); color:@categoryColor;">
-                                                <i class="@categoryIcon"></i>
-                                            </span>
-                                            <span>@category.category_name</span>
-                                        </button>
-                                    }
+                                <div class="col-lg-6 col-md-6">
+                                    <label class="form-label">@T("Số tiền", "Amount")</label>
+                                    <input type="number" class="form-control" id="detailEditAmount" />
                                 </div>
-                                <input type="hidden" id="detailEditCategory" />
-                                <input type="hidden" id="detailEditCategoryId" />
-                                <input type="hidden" id="detailEditCategoryIcon" />
-                                <input type="hidden" id="detailEditCategoryColor" />
+                                <div class="col-lg-6 col-md-6">
+                                    <label class="form-label">@T("Ngày", "Date")</label>
+                                    <input type="text" class="form-control tx-date-input" id="detailEditDate" />
+                                </div>
+                                <div class="col-lg-6 col-md-6">
+                                    <label class="form-label">@T("Lặp lại", "Repeat")</label>
+                                    <select class="form-select" id="detailEditRecurrence"><option value="">@T("Không lặp", "No repeat")</option><option value="daily">@T("Hàng ngày", "Daily")</option><option value="weekly">@T("Hàng tuần", "Weekly")</option><option value="monthly">@T("Hàng tháng", "Monthly")</option><option value="yearly">@T("Hàng năm", "Yearly")</option></select>
+                                </div>
+                                <div class="col-12 tx-type-row">
+                                    <label class="form-label">@T("Loại giao dịch", "Transaction type")</label>
+                                    <div class="tx-toggle-group tx-toggle-group-compact tx-toggle-group-detail" id="detailTypeSwitch"><button type="button" class="active" data-value="expense">@T("Chi tiêu", "Expense")</button><button type="button" data-value="income">@T("Thu nhập", "Income")</button></div>
+                                    <input type="hidden" id="detailEditType" value="expense" />
+                                </div>
                             </div>
-
-                            <div class="col-md-12">
-                                <label class="form-label">Ghi chú</label>
-                                <textarea class="form-control" rows="5" id="detailEditNote" placeholder="Ghi chú ngắn cho giao dịch..."></textarea>
+                        </div>
+                        <div class="tx-form-card tx-form-category-card">
+                            <label class="form-label mb-2">@T("Danh mục", "Category")</label>
+                            <div class="tx-category-grid" id="detailCategoryGrid">
+                                @foreach (var category in Model.Categories)
+                                {
+                                    var categoryColor = string.IsNullOrWhiteSpace(category.color) ? "#8592A3" : category.color;
+                                    var categoryIcon = string.IsNullOrWhiteSpace(category.icon) ? "bx bx-category" : category.icon;
+                                    <button type="button" class="tx-category-chip" data-id="@category.category_id" data-name="@category.category_name" data-icon="@categoryIcon" data-color="@categoryColor">
+                                        <span class="tx-category-icon" style="background:@($"{categoryColor}18"); color:@categoryColor;">@RenderCategoryIcon(categoryIcon, category.category_name, "tx-inline-icon")</span>
+                                        <span>@category.category_name</span>
+                                    </button>
+                                }
                             </div>
+                            <input type="hidden" id="detailEditCategoryId" />
+                            <input type="hidden" id="detailEditCategoryIcon" />
+                            <input type="hidden" id="detailEditCategoryColor" />
+                        </div>
+                        <div class="tx-form-card tx-form-note-card">
+                            <label class="form-label mb-2">@T("Ghi chú", "Note")</label>
+                            <textarea class="form-control tx-note-control tx-note-control-compact" rows="2" id="detailEditNote"></textarea>
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="modal-footer border-0 pt-0 justify-content-between">
-                <button type="button" class="btn btn-outline-danger" id="btnDeleteTransactionStatic"><i class="bx bx-trash me-1"></i> Xóa giao dịch</button>
-                <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Đóng</button>
-                    <button type="button" class="btn btn-primary" id="btnUpdateTransactionStatic">Lưu thay đổi</button>
-                </div>
+            <div class="modal-footer border-0 pt-0 justify-content-between tx-detail-footer">
+                <button type="button" class="btn btn-outline-danger" id="btnDeleteTransactionStatic"><i class="bx bx-trash me-1"></i>@T("Xóa giao dịch", "Delete")</button>
+                <div class="d-flex gap-2"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">@T("Đóng", "Close")</button><button type="button" class="btn btn-primary" id="btnUpdateTransactionStatic">@T("Lưu thay đổi", "Save")</button></div>
             </div>
         </div>
     </div>
 </div>
 
-<div class="modal fade transaction-modal" id="addTransactionModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header border-0 pb-0">
-                <div>
-                    <h5 class="modal-title">Thêm giao dịch mới</h5>
-                    <small class="text-body-secondary">Bản chuẩn hóa theo API: không title, không time.</small>
-                </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body pt-3">
-                <div class="transaction-modal-layout">
-                    <div class="transaction-modal-side">
-                        <div class="transaction-add-preview">
-                            <div class="transaction-preview-top">
-                                <span class="badge bg-label-primary">Xem trước</span>
-                                <span class="transaction-preview-type" id="addPreviewTypeText">Chi tiêu</span>
-                            </div>
-                            <div class="transaction-preview-icon" id="addPreviewIconWrap">
-                                <i class="bx bx-category" id="addPreviewIcon"></i>
-                            </div>
-                            <h4 class="mb-1" id="addPreviewNote">Chưa có ghi chú cho giao dịch này.</h4>
-                            <div class="transaction-modal-amount" id="addPreviewAmount">0 VND</div>
-                            <div class="transaction-modal-side-info">
-                                <div class="transaction-side-info-item"><span>Danh mục</span><strong id="addPreviewCategory">Chưa chọn</strong></div>
-                                <div class="transaction-side-info-item"><span>Ví</span><strong id="addPreviewWallet">---</strong></div>
-                                <div class="transaction-side-info-item"><span>Ngày</span><strong id="addPreviewDate">--/--/----</strong></div>
-                                <div class="transaction-side-info-item"><span>Chu kỳ</span><strong id="addPreviewRepeat">Không lặp</strong></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="transaction-modal-form">
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label class="form-label">Số tiền</label>
-                                <input type="number" class="form-control" id="addTransactionAmount" placeholder="0" />
-                            </div>
-
-                            <div class="col-md-6">
-                                <label class="form-label">Loại giao dịch</label>
-                                <div class="transaction-toggle-group" id="addTypeSwitch">
-                                    <button type="button" class="active" data-value="expense">Chi tiêu</button>
-                                    <button type="button" data-value="income">Thu nhập</button>
-                                </div>
-                                <input type="hidden" id="addTransactionType" value="expense" />
-                            </div>
-
-                            <div class="col-md-6">
-                                <label class="form-label">Ví</label>
-                                <select class="form-select" id="addTransactionWallet">
-                                    @foreach (var wallet in Model.Wallets)
-                                    {
-                                        <option value="@wallet.wallet_id" data-name="@wallet.wallet_name">@wallet.wallet_name</option>
-                                    }
-                                </select>
-                            </div>
-
-                            <div class="col-md-6">
-                                <label class="form-label">Lặp lại</label>
-                                <select class="form-select" id="addTransactionRecurrence">
-                                    <option value="">Không lặp</option>
-                                    <option value="daily">Hàng ngày</option>
-                                    <option value="weekly">Hàng tuần</option>
-                                    <option value="monthly">Hàng tháng</option>
-                                    <option value="yearly">Hàng năm</option>
-                                </select>
-                            </div>
-
-                            <div class="col-md-12">
-                                <label class="form-label">Danh mục</label>
-                                <div class="transaction-category-grid" id="addCategoryGrid">
-                                    @foreach (var category in Model.Categories)
-                                    {
-                                        var categoryColor = string.IsNullOrWhiteSpace(category.color) ? "#8592A3" : category.color;
-                                        var categoryIcon = string.IsNullOrWhiteSpace(category.icon) ? "bx bx-category" : category.icon;
-                                        <button type="button" class="transaction-category-chip" data-id="@category.category_id" data-name="@category.category_name" data-icon="@categoryIcon" data-color="@categoryColor">
-                                            <span class="transaction-category-icon" style="background:@($"{categoryColor}18"); color:@categoryColor;">
-                                                <i class="@categoryIcon"></i>
-                                            </span>
-                                            <span>@category.category_name</span>
-                                        </button>
-                                    }
-                                </div>
-                                <input type="hidden" id="addTransactionCategory" />
-                                <input type="hidden" id="addTransactionCategoryId" />
-                                <input type="hidden" id="addTransactionCategoryIcon" />
-                                <input type="hidden" id="addTransactionCategoryColor" />
-                            </div>
-
-                            <div class="col-md-6">
-                                <label class="form-label">Ngày</label>
-                                <input type="date" class="form-control" id="addTransactionDate" value="@DateTime.Now.ToString("yyyy-MM-dd")" />
-                            </div>
-
-                            <div class="col-md-12">
-                                <label class="form-label">Ghi chú</label>
-                                <textarea class="form-control" rows="5" id="addTransactionNote" placeholder="Ví dụ: ăn tối cùng nhóm, nhận lương, mua đồ dùng..."></textarea>
-                            </div>
-                        </div>
+<div class="modal fade tx-modal mimo-popup-shell" id="addTransactionModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered tx-modal-dialog">
+        <div class="modal-content mimo-popup-content">
+            <button type="button" class="mimo-popup-close" data-bs-dismiss="modal" aria-label="Close"><i class="bx bx-x"></i></button>
+            <div class="mimo-popup-header">
+                <div class="mimo-popup-hero mimo-popup-hero--simple">
+                    <div class="mimo-popup-header-copy">
+                        <h4 class="mimo-popup-title mb-1">@T("Thêm giao dịch mới", "Add transaction")</h4>
+                        <p class="mimo-popup-subtitle mb-0">@T("Tạo giao dịch mới với bố cục thống nhất, dễ nhập liệu và theo dõi trước khi lưu.", "Create a new transaction with a consistent layout that stays easy to fill and review before saving.")</p>
                     </div>
                 </div>
             </div>
-            <div class="modal-footer border-0 pt-0">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
-                <button type="button" class="btn btn-primary" id="btnSaveTransactionStatic">Lưu giao dịch</button>
+            <div class="modal-body tx-detail-modal-body mimo-popup-body">
+                <div class="tx-modal-layout tx-detail-layout">
+                    <div class="tx-modal-preview tx-detail-preview">
+                        <div class="tx-preview-top"><span class="badge bg-label-primary">@T("Xem trước", "Preview")</span></div>
+                        <div class="tx-preview-main">
+                            <div class="tx-preview-icon" id="addPreviewIconWrap"><span id="addPreviewIcon">@RenderCategoryIcon("bx bx-category", "icon")</span></div>
+                            <div class="tx-preview-copy">
+                                <h4 id="addPreviewNote">@T("Chưa có ghi chú cho giao dịch này.", "No note yet.")</h4>
+                                <div class="tx-preview-amount" id="addPreviewAmount">0 VND</div>
+                            </div>
+                        </div>
+                        <div class="tx-preview-meta tx-preview-meta-compact">
+                            <div><span>@T("Danh mục", "Category")</span><strong id="addPreviewCategory">---</strong></div>
+                            <div><span>@T("Ví", "Wallet")</span><strong id="addPreviewWallet">---</strong></div>
+                            <div><span>@T("Ngày", "Date")</span><strong id="addPreviewDate">--/--/----</strong></div>
+                            <div><span>@T("Chu kỳ", "Repeat")</span><strong id="addPreviewRepeat">@T("Không lặp", "No repeat")</strong></div>
+                        </div>
+                    </div>
+                    <div class="tx-modal-form tx-detail-form">
+                        <div class="tx-form-card tx-form-fields-card">
+                            <div class="row g-3 align-items-start tx-detail-fields-grid">
+                                <div class="col-lg-6 col-md-6"><label class="form-label">@T("Ví", "Wallet")</label><select class="form-select" id="addTransactionWallet">@foreach (var wallet in Model.Wallets){
+                            <option value="@wallet.wallet_id" data-name="@wallet.wallet_name">@wallet.wallet_name</option>
+                                                        }
+</select></div>
+                                <div class="col-lg-6 col-md-6"><label class="form-label">@T("Số tiền", "Amount")</label><input type="number" class="form-control" id="addTransactionAmount" /></div>
+                                <div class="col-lg-6 col-md-6"><label class="form-label">@T("Ngày", "Date")</label><input type="text" class="form-control tx-date-input" id="addTransactionDate" /></div>
+                                <div class="col-lg-6 col-md-6"><label class="form-label">@T("Lặp lại", "Repeat")</label><select class="form-select" id="addTransactionRecurrence"><option value="">@T("Không lặp", "No repeat")</option><option value="daily">@T("Hàng ngày", "Daily")</option><option value="weekly">@T("Hàng tuần", "Weekly")</option><option value="monthly">@T("Hàng tháng", "Monthly")</option><option value="yearly">@T("Hàng năm", "Yearly")</option></select></div>
+                                <div class="col-12 tx-type-row"><label class="form-label">@T("Loại giao dịch", "Transaction type")</label><div class="tx-toggle-group tx-toggle-group-compact tx-toggle-group-detail" id="addTypeSwitch"><button type="button" class="active" data-value="expense">@T("Chi tiêu", "Expense")</button><button type="button" data-value="income">@T("Thu nhập", "Income")</button></div><input type="hidden" id="addTransactionType" value="expense" /></div>
+                            </div>
+                        </div><div class="tx-form-card tx-form-category-card"><label class="form-label mb-2">@T("Danh mục", "Category")</label><div class="tx-category-grid" id="addCategoryGrid">@foreach (var category in Model.Categories){ var categoryColor = string.IsNullOrWhiteSpace(category.color) ? "#8592A3" : category.color; var categoryIcon = string.IsNullOrWhiteSpace(category.icon) ? "bx bx-category" : category.icon;
+                            <button type="button" class="tx-category-chip" data-id="@category.category_id" data-name="@category.category_name" data-icon="@categoryIcon" data-color="@categoryColor"><span class="tx-category-icon" style="background:@($"{categoryColor}18"); color:@categoryColor;">@RenderCategoryIcon(categoryIcon, category.category_name, "tx-inline-icon")</span><span>@category.category_name</span></button>
+                                                        }
+</div><input type="hidden" id="addTransactionCategoryId" /><input type="hidden" id="addTransactionCategoryIcon" /><input type="hidden" id="addTransactionCategoryColor" /></div><div class="tx-form-card tx-form-note-card"><label class="form-label mb-2">@T("Ghi chú", "Note")</label><textarea class="form-control tx-note-control tx-note-control-compact" rows="2" id="addTransactionNote"></textarea></div>
+                    </div>
+                </div>
             </div>
+            <div class="modal-footer border-0 pt-0"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">@T("Hủy", "Cancel")</button><button type="button" class="btn btn-primary" id="btnSaveTransactionStatic">@T("Lưu giao dịch", "Save")</button></div>
         </div>
     </div>
 </div>
 
-<div class="position-fixed top-0 end-0 p-3 transaction-toast-stack">
-    <div id="transactionToastSaved" class="toast align-items-center text-bg-success border-0" role="alert"><div class="d-flex"><div class="toast-body">Đã sẵn sàng cho bước nối API tạo mới.</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div></div>
-    <div id="transactionToastUpdated" class="toast align-items-center text-bg-primary border-0" role="alert"><div class="d-flex"><div class="toast-body">Đã sẵn sàng cho bước nối API cập nhật.</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div></div>
-    <div id="transactionToastDeleted" class="toast align-items-center text-bg-danger border-0" role="alert"><div class="d-flex"><div class="toast-body">Đã sẵn sàng cho bước nối API xóa.</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div></div>
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="transactionToastSaved" class="toast align-items-center text-bg-success border-0" role="alert"><div class="d-flex"><div class="toast-body">@T("Thêm giao dịch thành công.", "Transaction created.")</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div></div>
+    <div id="transactionToastUpdated" class="toast align-items-center text-bg-primary border-0" role="alert"><div class="d-flex"><div class="toast-body">@T("Cập nhật giao dịch thành công.", "Transaction updated.")</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div></div>
+    <div id="transactionToastDeleted" class="toast align-items-center text-bg-danger border-0" role="alert"><div class="d-flex"><div class="toast-body">@T("Xóa giao dịch thành công.", "Transaction deleted.")</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div></div>
 </div>
+
+<script id="tx-transactions-json" type="application/json">@Html.Raw(transactionsJson)</script>
+<script id="tx-categories-json" type="application/json">@Html.Raw(categoriesJson)</script>
+<script id="tx-wallets-json" type="application/json">@Html.Raw(walletsJson)</script>
+<script>
+    window.transactionPageLang = '@lang';
+</script>
 
 @section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/vn.js"></script>
+    <script src="~/sneat/js/chart/transaction-donut-chart.js"></script>
     <script src="~/sneat/js/pages/transaction-page.js"></script>
 }

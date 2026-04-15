@@ -55,6 +55,8 @@ class ReportService:
         )
 
     def get_category_summary_range(self, db: Session, user_id: str, start_date: date, end_date: date):
+        start_date, end_date = self._normalize_dates(start_date, end_date)
+
         results = (
             db.query(
                 Category.CategoryID.label("category_id"),
@@ -95,9 +97,16 @@ class ReportService:
         return output
 
     def get_dashboard_overview(self, db: Session, user_id: str):
-        now = datetime.now()
-        month = now.month
-        year = now.year
+        now = datetime.now().date()
+        return self.get_dashboard_overview_range(
+            db=db,
+            user_id=user_id,
+            start_date=date(now.year, now.month, 1),
+            end_date=self._month_end(date(now.year, now.month, 1)),
+        )
+
+    def get_dashboard_overview_range(self, db: Session, user_id: str, start_date: date, end_date: date):
+        start_date, end_date = self._normalize_dates(start_date, end_date)
 
         total_balance = (
             db.query(func.coalesce(func.sum(Wallet.CurrentBalance), 0))
@@ -141,9 +150,9 @@ class ReportService:
         )
 
         return {
-            "total_balance": Decimal(total_balance),
-            "monthly_income": Decimal(monthly_income),
-            "monthly_expense": Decimal(monthly_expense),
+            "total_balance": Decimal(total_balance or 0),
+            "monthly_income": Decimal(range_income or 0),
+            "monthly_expense": Decimal(range_expense or 0),
             "transaction_count": int(transaction_count or 0),
         }
 
@@ -190,10 +199,8 @@ class ReportService:
             for r in results
         ]
 
-
     def get_top_expenses_range(self, db: Session, user_id: str, start_date: date, end_date: date, limit: int = 5):
-        if end_date < start_date:
-            start_date, end_date = end_date, start_date
+        start_date, end_date = self._normalize_dates(start_date, end_date)
 
         results = (
             db.query(
@@ -297,8 +304,7 @@ class ReportService:
         return output
 
     def get_cashflow_analytics(self, db: Session, user_id: str, start_date: date, end_date: date, granularity: str):
-        if end_date < start_date:
-            start_date, end_date = end_date, start_date
+        start_date, end_date = self._normalize_dates(start_date, end_date)
 
         granularity = (granularity or "day").lower()
         if granularity not in {"day", "week", "month", "year"}:
@@ -326,130 +332,111 @@ class ReportService:
             or 0
         )
 
-        future_transactions = (
-            db.query(Transaction.TransactionType.label("transaction_type"), Transaction.Amount.label("amount"))
-            .filter(Transaction.UserID == user_id, Transaction.TransactionDate > end_date)
-            .all()
-        )
-        future_net = sum(
-            Decimal(row.amount) if row.transaction_type == "income" else -Decimal(row.amount)
-            for row in future_transactions
-        )
-        balance_at_end = current_total_balance - future_net
-
-        grouped: dict[str, dict] = {}
-        for key, label, sort_value in self._iterate_buckets(start_date, end_date, granularity):
-            grouped[key] = {
-                "label": label,
-                "sort_value": sort_value,
-                "income": Decimal("0"),
-                "expense": Decimal("0"),
-            }
-
-        day_counts: dict[date, int] = defaultdict(int)
-        total_income = Decimal("0")
-        total_expense = Decimal("0")
-        transaction_count = len(transactions)
-        expense_count = 0
+        period_income = Decimal("0")
+        period_expense = Decimal("0")
+        grouped = defaultdict(lambda: {"income": Decimal("0"), "expense": Decimal("0")})
 
         for tx in transactions:
-            tx_date = tx.transaction_date
-            key, label, sort_value = self._bucket_for_date(tx_date, granularity)
-            bucket = grouped.setdefault(
-                key,
-                {"label": label, "sort_value": sort_value, "income": Decimal("0"), "expense": Decimal("0")},
-            )
-            amount = Decimal(tx.amount)
+            amount = Decimal(tx.amount or 0)
             if tx.transaction_type == "income":
-                bucket["income"] += amount
-                total_income += amount
-            else:
-                bucket["expense"] += amount
-                total_expense += amount
-                expense_count += 1
-            day_counts[tx_date] += 1
+                period_income += amount
+            elif tx.transaction_type == "expense":
+                period_expense += amount
 
-        series = []
-        net_change = total_income - total_expense
-        starting_balance = balance_at_end - net_change
-        running_balance = starting_balance
+            key, label = self._bucket_for_date(tx.transaction_date, granularity)
+            grouped[(key, label)][tx.transaction_type] += amount
 
-        for _, bucket in sorted(grouped.items(), key=lambda item: item[1]["sort_value"]):
-            net = bucket["income"] - bucket["expense"]
+        series_items = []
+        running_balance = current_total_balance - (period_income - period_expense)
+        for key, label in self._generate_buckets(start_date, end_date, granularity):
+            income = grouped[(key, label)]["income"]
+            expense = grouped[(key, label)]["expense"]
+            net = income - expense
             running_balance += net
-            series.append(
+            series_items.append(
                 {
-                    "key": str(bucket["sort_value"]),
-                    "label": bucket["label"],
-                    "income": bucket["income"],
-                    "expense": bucket["expense"],
+                    "key": key,
+                    "label": label,
+                    "income": income,
+                    "expense": expense,
                     "net": net,
                     "running_balance": running_balance,
                 }
             )
 
-        average_expense = Decimal("0.00")
-        if expense_count > 0:
-            average_expense = (total_expense / Decimal(expense_count)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        transaction_count = len(transactions)
+        expense_transactions = sum(1 for tx in transactions if tx.transaction_type == "expense")
+        average_expense = (
+            (period_expense / Decimal(expense_transactions)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            if expense_transactions > 0 else Decimal("0.00")
+        )
 
         busiest_label = None
-        if day_counts:
-            busiest_date = max(day_counts.items(), key=lambda item: (item[1], item[0]))[0]
-            busiest_label = busiest_date.strftime("%d/%m/%Y")
+        if series_items:
+            busiest = max(series_items, key=lambda item: (item["income"] + item["expense"]))
+            if (busiest["income"] + busiest["expense"]) > 0:
+                busiest_label = busiest["label"]
 
         return {
             "start_date": start_date,
             "end_date": end_date,
             "granularity": granularity,
-            "total_income": total_income,
-            "total_expense": total_expense,
-            "net_change": net_change,
+            "total_income": period_income,
+            "total_expense": period_expense,
+            "net_change": period_income - period_expense,
             "transaction_count": transaction_count,
             "average_expense": average_expense,
             "busiest_label": busiest_label,
-            "series": series,
+            "series": series_items,
         }
-
-    def _bucket_for_date(self, value: date, granularity: str):
-        if granularity == "year":
-            first_day = date(value.year, 1, 1)
-            return first_day.isoformat(), str(value.year), first_day
-        if granularity == "month":
-            first_day = date(value.year, value.month, 1)
-            return first_day.isoformat(), first_day.strftime("T%m/%Y"), first_day
-        if granularity == "week":
-            week_start = value - timedelta(days=value.weekday())
-            week_end = week_start + timedelta(days=6)
-            return week_start.isoformat(), f"{week_start.strftime('%d/%m')} - {week_end.strftime('%d/%m')}", week_start
-        return value.isoformat(), value.strftime("%d/%m"), value
-
-    def _iterate_buckets(self, start_date: date, end_date: date, granularity: str):
-        current = start_date
-        if granularity == "year":
-            current = date(start_date.year, 1, 1)
-            while current <= end_date:
-                yield self._bucket_for_date(current, granularity)
-                current = date(current.year + 1, 1, 1)
-            return
-        if granularity == "month":
-            current = date(start_date.year, start_date.month, 1)
-            while current <= end_date:
-                yield self._bucket_for_date(current, granularity)
-                if current.month == 12:
-                    current = date(current.year + 1, 1, 1)
-                else:
-                    current = date(current.year, current.month + 1, 1)
-            return
-        if granularity == "week":
-            current = start_date - timedelta(days=start_date.weekday())
-            while current <= end_date:
-                yield self._bucket_for_date(current, granularity)
-                current = current + timedelta(days=7)
-            return
-        while current <= end_date:
-            yield self._bucket_for_date(current, granularity)
-            current = current + timedelta(days=1)
 
     def _month_end(self, value: date) -> date:
         next_month = (value.replace(day=28) + timedelta(days=4)).replace(day=1)
         return next_month - timedelta(days=1)
+
+    def _normalize_dates(self, start_date: date, end_date: date) -> tuple[date, date]:
+        if end_date < start_date:
+            return end_date, start_date
+        return start_date, end_date
+
+    def _bucket_for_date(self, value: date, granularity: str):
+        if granularity == "year":
+            return str(value.year), str(value.year)
+        if granularity == "month":
+            return value.strftime("%Y-%m"), value.strftime("%m/%Y")
+        if granularity == "week":
+            iso_year, iso_week, _ = value.isocalendar()
+            return f"{iso_year}-W{iso_week:02d}", f"W{iso_week:02d}/{iso_year}"
+        return value.isoformat(), value.strftime("%d/%m")
+
+    def _generate_buckets(self, start_date: date, end_date: date, granularity: str):
+        buckets = []
+        current = start_date
+
+        if granularity == "year":
+            for year in range(start_date.year, end_date.year + 1):
+                buckets.append((str(year), str(year)))
+            return buckets
+
+        if granularity == "month":
+            current = date(start_date.year, start_date.month, 1)
+            while current <= end_date:
+                buckets.append((current.strftime("%Y-%m"), current.strftime("%m/%Y")))
+                if current.month == 12:
+                    current = date(current.year + 1, 1, 1)
+                else:
+                    current = date(current.year, current.month + 1, 1)
+            return buckets
+
+        if granularity == "week":
+            current = start_date - timedelta(days=start_date.weekday())
+            while current <= end_date:
+                iso_year, iso_week, _ = current.isocalendar()
+                buckets.append((f"{iso_year}-W{iso_week:02d}", f"W{iso_week:02d}/{iso_year}"))
+                current += timedelta(days=7)
+            return buckets
+
+        while current <= end_date:
+            buckets.append((current.isoformat(), current.strftime("%d/%m")))
+            current += timedelta(days=1)
+        return buckets

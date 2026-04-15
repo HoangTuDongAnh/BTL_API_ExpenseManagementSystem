@@ -1,4 +1,4 @@
-@{
+﻿@{
     var lang = (Context.Request.Query["lang"].FirstOrDefault() ?? "vi").ToLower();
     if (lang != "en") lang = "vi";
 
@@ -26,6 +26,7 @@
     <link rel="stylesheet" href="~/sneat/vendor/libs/perfect-scrollbar/perfect-scrollbar.css" />
     <link rel="stylesheet" href="~/sneat/vendor/libs/apex-charts/apex-charts.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/popup.base.css" asp-append-version="true" />
 
     @RenderSection("Styles", required: false)
 
@@ -54,6 +55,8 @@
         </div>
     </div>
 
+    <div id="appToastStack" class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:1095;"></div>
+
     <script src="~/sneat/vendor/libs/jquery/jquery.js"></script>
     <script src="~/sneat/vendor/libs/popper/popper.js"></script>
     <script src="~/sneat/vendor/js/bootstrap.js"></script>
@@ -62,6 +65,7 @@
     <script src="~/sneat/vendor/libs/apex-charts/apexcharts.js"></script>
     <script src="~/sneat/js/main.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="~/js/app.ui.js" asp-append-version="true"></script>
 
     @RenderSection("Scripts", required: false)
 </body>

@@ -1,6 +1,8 @@
 ﻿@model ExpenseWeb.Models.ViewModels.Category.CategoryPageViewModel
 @using System.IO
 @using System.Linq
+@using System.Text.RegularExpressions
+@using System.Collections.Generic
 @using ExpenseWeb.Models.Dtos.Category
 @inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment WebHostEnvironment
 
@@ -20,6 +22,21 @@
             .ToList()
         : new List<string>();
 
+    string normalizeIconKey(string fileName)
+    {
+        var key = System.IO.Path.GetFileNameWithoutExtension(fileName).ToLowerInvariant();
+        key = Regex.Replace(key, @"\s*\(\d+\)$", "");
+        return key.Trim();
+    }
+
+    string iconDisplayName(string fileName)
+    {
+        var key = normalizeIconKey(fileName);
+        return System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(
+            key.Replace("-", " ")
+        );
+    }
+
     var presetColors = new[]
     {
         "#FFAB00", "#696CFF", "#03C3EC", "#71DD37",
@@ -29,6 +46,102 @@
     string iconAt(int index) => categoryIconFiles.Count > 0
         ? $"/sneat/img/icons/categories/{categoryIconFiles[index % categoryIconFiles.Count]}"
         : "";
+
+    var uniqueCategoryIconFiles = categoryIconFiles
+        .GroupBy(normalizeIconKey)
+        .Select(g => g.First())
+        .OrderBy(x => x)
+        .ToList();
+
+    var iconGroups = new List<(string Key, string TitleVi, string TitleEn, string DescVi, string DescEn, string[] Keywords)>
+    {
+        (
+            "food",
+            "Ăn uống",
+            "Food & Drinks",
+            "Đồ ăn, đồ uống, quán xá, tiệc tùng",
+            "Food, drinks, restaurants, party items",
+            new[] { "apple-whole", "cake-birthday", "glass-cheers", "hamburger", "hamburger-soda", "mug-hot-alt", "pizza-slice", "popcorn", "restaurant" }
+        ),
+        (
+            "transport",
+            "Di chuyển & du lịch",
+            "Transport & Travel",
+            "Phương tiện, xăng xe, chuyến đi",
+            "Vehicles, fuel, travel",
+            new[] { "biking", "car-side", "gas-pump-alt", "marker", "motorcycle", "plane", "ship", "truck-side" }
+        ),
+        (
+            "home",
+            "Nhà cửa & tiện ích",
+            "Home & Utilities",
+            "Nhà ở, điện nước, sửa chữa, sinh hoạt",
+            "Housing, utilities, maintenance, living costs",
+            new[] { "apartment", "bolt", "building", "home", "key", "raindrops", "wrench-simple" }
+        ),
+        (
+            "health",
+            "Sức khỏe",
+            "Health",
+            "Y tế, khám chữa bệnh, chăm sóc sức khỏe",
+            "Medical, treatment, healthcare",
+            new[] { "ambulance", "doctor", "medicine", "stethoscope", "syringe", "tooth", "wheelchair" }
+        ),
+        (
+            "shopping",
+            "Mua sắm & đời sống",
+            "Shopping & Lifestyle",
+            "Mua sắm, quà tặng, vật dụng, thú cưng",
+            "Shopping, gifts, lifestyle, pets",
+            new[] { "flower-tulip", "gift", "lipstick", "paw", "shop", "shopping-bag", "shopping-basket", "shopping-cart", "store-alt", "vest" }
+        ),
+        (
+            "entertainment",
+            "Thể thao & giải trí",
+            "Sports & Entertainment",
+            "Giải trí, phim, game, vận động",
+            "Entertainment, movies, gaming, sports",
+            new[] { "basketball", "bowling", "chess-knight-alt", "film", "football", "gamepad", "gym", "ping-pong", "shuttlecock", "volleyball" }
+        ),
+        (
+            "finance",
+            "Tài chính & thu nhập",
+            "Finance & Income",
+            "Tiền bạc, tiết kiệm, đầu tư, quyên góp",
+            "Money, savings, income, donation",
+            new[] { "chart-histogram", "coins", "dollar", "donate", "money-bill-wave", "piggy-bank", "sack-dollar", "usd-circle" }
+        )
+    };
+
+    var groupedIcons = iconGroups
+        .Select(group => new
+        {
+            group.Key,
+            Title = T(group.TitleVi, group.TitleEn),
+            Description = T(group.DescVi, group.DescEn),
+            Icons = uniqueCategoryIconFiles
+                .Where(file => group.Keywords.Contains(normalizeIconKey(file)))
+                .ToList()
+        })
+        .Where(x => x.Icons.Any())
+        .ToList();
+
+    var ungroupedIcons = uniqueCategoryIconFiles
+        .Where(file => !iconGroups.SelectMany(g => g.Keywords).Contains(normalizeIconKey(file)))
+        .ToList();
+
+    if (ungroupedIcons.Any())
+    {
+        groupedIcons.Add(new
+        {
+            Key = "other",
+            Title = T("Khác", "Other"),
+            Description = T("Biểu tượng chưa được gán nhóm cố định.", "Icons not assigned to a fixed group."),
+            Icons = ungroupedIcons
+        });
+    }
+
+    var groupedIconFirst = groupedIcons.SelectMany(x => x.Icons).FirstOrDefault();
 
     string resolveIcon(CategoryOverviewResponseDto item, int index)
     {
@@ -71,6 +184,7 @@
 
 @section Styles {
     <link rel="stylesheet" href="~/sneat/css/pages/category-page.css" />
+    <link rel="stylesheet" href="~/sneat/css/pages/report-page.css" />
     <style>
         .category-card.has-budget {
             background-color: #fff;
@@ -148,6 +262,64 @@
         .category-section-title i {
             font-size: 1rem;
             color: #696cff;
+        }
+
+
+        .category-icon-group-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.875rem;
+        }
+
+        .category-icon-group-block {
+            border: 1px solid rgba(67, 89, 113, 0.10);
+            border-radius: 1rem;
+            background: #fff;
+            padding: 0.85rem;
+        }
+
+        .category-icon-group-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .category-icon-group-title {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #233446;
+            line-height: 1.2;
+        }
+
+        .category-icon-group-desc {
+            margin-top: 0.2rem;
+            font-size: 0.78rem;
+            color: #8592a3;
+            line-height: 1.35;
+        }
+
+        .category-icon-picker-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(54px, 1fr));
+            gap: 0.55rem;
+        }
+
+        .category-icon-picker--create,
+        .category-icon-picker--tall {
+            max-height: 320px;
+        }
+
+        @@media (max-width: 767.98px) {
+            .category-icon-picker-grid {
+                grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
+            }
+
+            .category-icon-group-head {
+                flex-direction: column;
+                align-items: flex-start;
+            }
         }
     </style>
 }
@@ -355,10 +527,11 @@
     </div>
 </div>
 
-<div class="modal fade category-modal" id="addCategoryModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade category-modal mimo-popup-shell" id="addCategoryModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg category-modal-smaller">
-        <div class="modal-content category-detail-redesign__content category-modal-create__content">
-            <div class="modal-header category-modal-header border-bottom-0">
+        <div class="modal-content category-detail-redesign__content category-modal-create__content mimo-popup-content">
+            <button type="button" class="mimo-popup-close" data-bs-dismiss="modal" aria-label="Close"><i class="bx bx-x"></i></button>
+            <div class="modal-header category-modal-header mimo-popup-header border-bottom-0">
                 <div class="category-modal-hero w-100 category-modal-hero--compact">
                     <div class="category-modal-hero__icon is-accent">
                         <i class="bx bx-category-alt"></i>
@@ -368,10 +541,10 @@
                         <p class="text-body-secondary mb-0 small">@T("Tạo danh mục mới với bố cục ngắn gọn, đồng bộ cùng popup chi tiết.", "Create a new category with a compact layout that matches the detail popup.")</p>
                     </div>
                 </div>
-                <button type="button" class="btn category-modal-close-solid" data-bs-dismiss="modal" aria-label="Close">&times;</button>
+                
             </div>
 
-            <div class="modal-body category-create-modal__body">
+            <div class="modal-body category-create-modal__body mimo-popup-body">
                 <div class="category-create-grid">
                     <div class="category-section-card category-section-card--compact">
                         <div class="category-section-title mb-3">
@@ -408,19 +581,38 @@
                             <i class="bx bx-smile"></i>
                             <span>@T("Biểu tượng", "Icon")</span>
                         </div>
-                        <div class="category-icon-picker d-flex flex-wrap gap-2 icon-scroll-box category-icon-picker--create">
-                            @if (categoryIconFiles.Any())
-                            {
-                                for (int i = 0; i < categoryIconFiles.Count; i++)
+                        <div class="icon-scroll-box category-icon-picker--create">
+                            <div class="category-icon-group-list">
+                                @if (groupedIcons.Any())
                                 {
-                                    var fileName = categoryIconFiles[i];
-                                    <button type="button" class="category-icon-option category-icon-option-add btn btn-outline-secondary p-2 @(i == 0 ? "active" : "")" data-icon="/sneat/img/icons/categories/@fileName">
-                                        <img src="~/sneat/img/icons/categories/@fileName" alt="@fileName" />
-                                    </button>
+                                    var renderedIndex = 0;
+                                    foreach (var group in groupedIcons)
+                                    {
+                                        <div class="category-icon-group-block">
+                                            <div class="category-icon-group-head">
+                                                <div>
+                                                    <div class="category-icon-group-title">@group.Title</div>
+                                                    <div class="category-icon-group-desc">@group.Description</div>
+                                                </div>
+                                                <span class="badge bg-label-primary">@group.Icons.Count</span>
+                                            </div>
+
+                                            <div class="category-icon-picker category-icon-picker-grid">
+                                                @foreach (var fileName in group.Icons)
+                                                {
+                                                    var iconUrl = $"/sneat/img/icons/categories/{fileName}";
+                                                    <button type="button" class="category-icon-option category-icon-option-add btn btn-outline-secondary p-2 @(renderedIndex == 0 ? "active" : "")" data-icon="@iconUrl" title="@iconDisplayName(fileName)">
+                                                        <img src="@iconUrl" alt="@fileName" />
+                                                    </button>
+                                                    renderedIndex++;
+                                                }
+                                            </div>
+                                        </div>
+                                    }
                                 }
-                            }
+                            </div>
                         </div>
-                        <input type="hidden" id="addCategoryIcon" value="@(categoryIconFiles.Any() ? $"/sneat/img/icons/categories/{categoryIconFiles.First()}" : "")" />
+                        <input type="hidden" id="addCategoryIcon" value="@(groupedIconFirst != null ? $"/sneat/img/icons/categories/{groupedIconFirst}" : "")" />
                     </div>
                 </div>
             </div>
@@ -436,10 +628,11 @@
     </div>
 </div>
 
-<div class="modal fade category-modal" id="categoryDetailModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade category-modal mimo-popup-shell" id="categoryDetailModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-xl category-detail-redesign">
-        <div class="modal-content category-detail-redesign__content">
-            <div class="modal-header category-modal-header border-bottom-0">
+        <div class="modal-content category-detail-redesign__content mimo-popup-content">
+            <button type="button" class="mimo-popup-close" data-bs-dismiss="modal" aria-label="Close"><i class="bx bx-x"></i></button>
+            <div class="modal-header category-modal-header mimo-popup-header border-bottom-0">
                 <div class="category-modal-hero w-100 category-modal-hero--compact">
                     <div id="detailHeadIconWrap" class="category-modal-hero__icon">
                         <img id="detailHeadIcon" src="@iconAt(0)" class="category-icon-img" alt="icon" />
@@ -453,10 +646,10 @@
                         <span id="detailCategoryId" class="d-none"></span>
                     </div>
                 </div>
-                <button type="button" class="btn category-modal-close-solid" data-bs-dismiss="modal" aria-label="Close">&times;</button>
+                
             </div>
 
-            <div class="modal-body category-detail-redesign__body">
+            <div class="modal-body category-detail-redesign__body mimo-popup-body">
                 <input type="hidden" id="detailCategoryCanEdit" value="true" />
                 <input type="hidden" id="detailCategoryCanDelete" value="true" />
 
@@ -500,17 +693,36 @@
                                     <span>@T("Biểu tượng", "Icon")</span>
                                 </div>
 
-                                <div class="category-icon-picker d-flex flex-wrap gap-2 icon-scroll-box category-icon-picker--tall">
-                                    @if (categoryIconFiles.Any())
-                                    {
-                                        for (int i = 0; i < categoryIconFiles.Count; i++)
+                                <div class="icon-scroll-box category-icon-picker--tall">
+                                    <div class="category-icon-group-list">
+                                        @if (groupedIcons.Any())
                                         {
-                                            var fileName = categoryIconFiles[i];
-                                            <button type="button" class="category-icon-option category-icon-option-detail btn btn-outline-secondary p-2 @(i == 0 ? "active" : "")" data-icon="/sneat/img/icons/categories/@fileName">
-                                                <img src="~/sneat/img/icons/categories/@fileName" alt="@fileName" />
-                                            </button>
+                                            var renderedIndex = 0;
+                                            foreach (var group in groupedIcons)
+                                            {
+                                                <div class="category-icon-group-block">
+                                                    <div class="category-icon-group-head">
+                                                        <div>
+                                                            <div class="category-icon-group-title">@group.Title</div>
+                                                            <div class="category-icon-group-desc">@group.Description</div>
+                                                        </div>
+                                                        <span class="badge bg-label-secondary">@group.Icons.Count</span>
+                                                    </div>
+
+                                                    <div class="category-icon-picker category-icon-picker-grid">
+                                                        @foreach (var fileName in group.Icons)
+                                                        {
+                                                            var iconUrl = $"/sneat/img/icons/categories/{fileName}";
+                                                            <button type="button" class="category-icon-option category-icon-option-detail btn btn-outline-secondary p-2 @(renderedIndex == 0 ? "active" : "")" data-icon="@iconUrl" title="@iconDisplayName(fileName)">
+                                                                <img src="@iconUrl" alt="@fileName" />
+                                                            </button>
+                                                            renderedIndex++;
+                                                        }
+                                                    </div>
+                                                </div>
+                                            }
                                         }
-                                    }
+                                    </div>
                                 </div>
 
                                 <input type="hidden" id="detailCategoryIcon" value="" />
