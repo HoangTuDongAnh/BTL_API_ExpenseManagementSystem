@@ -184,6 +184,7 @@
 
 @section Styles {
     <link rel="stylesheet" href="~/sneat/css/pages/category-page.css" />
+    <link rel="stylesheet" href="~/sneat/css/pages/report-page.css" />
     <style>
         .category-card.has-budget {
             background-color: #fff;
@@ -526,10 +527,11 @@
     </div>
 </div>
 
-<div class="modal fade category-modal" id="addCategoryModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade category-modal mimo-popup-shell" id="addCategoryModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg category-modal-smaller">
-        <div class="modal-content category-detail-redesign__content category-modal-create__content">
-            <div class="modal-header category-modal-header border-bottom-0">
+        <div class="modal-content category-detail-redesign__content category-modal-create__content mimo-popup-content">
+            <button type="button" class="mimo-popup-close" data-bs-dismiss="modal" aria-label="Close"><i class="bx bx-x"></i></button>
+            <div class="modal-header category-modal-header mimo-popup-header border-bottom-0">
                 <div class="category-modal-hero w-100 category-modal-hero--compact">
                     <div class="category-modal-hero__icon is-accent">
                         <i class="bx bx-category-alt"></i>
@@ -539,10 +541,10 @@
                         <p class="text-body-secondary mb-0 small">@T("Tạo danh mục mới với bố cục ngắn gọn, đồng bộ cùng popup chi tiết.", "Create a new category with a compact layout that matches the detail popup.")</p>
                     </div>
                 </div>
-                <button type="button" class="btn category-modal-close-solid" data-bs-dismiss="modal" aria-label="Close">&times;</button>
+                
             </div>
 
-            <div class="modal-body category-create-modal__body">
+            <div class="modal-body category-create-modal__body mimo-popup-body">
                 <div class="category-create-grid">
                     <div class="category-section-card category-section-card--compact">
                         <div class="category-section-title mb-3">
@@ -626,10 +628,11 @@
     </div>
 </div>
 
-<div class="modal fade category-modal" id="categoryDetailModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade category-modal mimo-popup-shell" id="categoryDetailModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-xl category-detail-redesign">
-        <div class="modal-content category-detail-redesign__content">
-            <div class="modal-header category-modal-header border-bottom-0">
+        <div class="modal-content category-detail-redesign__content mimo-popup-content">
+            <button type="button" class="mimo-popup-close" data-bs-dismiss="modal" aria-label="Close"><i class="bx bx-x"></i></button>
+            <div class="modal-header category-modal-header mimo-popup-header border-bottom-0">
                 <div class="category-modal-hero w-100 category-modal-hero--compact">
                     <div id="detailHeadIconWrap" class="category-modal-hero__icon">
                         <img id="detailHeadIcon" src="@iconAt(0)" class="category-icon-img" alt="icon" />
@@ -643,10 +646,10 @@
                         <span id="detailCategoryId" class="d-none"></span>
                     </div>
                 </div>
-                <button type="button" class="btn category-modal-close-solid" data-bs-dismiss="modal" aria-label="Close">&times;</button>
+                
             </div>
 
-            <div class="modal-body category-detail-redesign__body">
+            <div class="modal-body category-detail-redesign__body mimo-popup-body">
                 <input type="hidden" id="detailCategoryCanEdit" value="true" />
                 <input type="hidden" id="detailCategoryCanDelete" value="true" />
 

@@ -1,4 +1,4 @@
-@* @model ExpenseWeb.Models.ViewModels.Profile.SupportPageViewModel
+﻿@* @model ExpenseWeb.Models.ViewModels.Profile.SupportPageViewModel
 @{
     ViewData["Title"] = "Hỗ trợ & Liên hệ admin";
     Layout = "~/Views/Shared/_Layout.cshtml";
@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="~/sneat/css/pages/wallet-dashboard.css" />
     <link rel="stylesheet" href="~/sneat/css/pages/category-page.css" />
     <link rel="stylesheet" href="~/sneat/css/pages/report-page.css" />
+    <link rel="stylesheet" href="~/sneat/css/pages/page-shell.css" />
     <style>
         .hover-opacity:hover {
             opacity: 0.8;
@@ -45,7 +46,7 @@
 
     <div class="row g-4">
         <div class="col-12">
-            <div class="card report-filter-card">
+            <div class="card report-filter-card page-shell-card support-form-card">
                 <div class="card-header border-bottom pb-3">
                     <h2 class="dashboard-section-title mb-1"><i class="bx bx-support me-2 text-primary"></i>Gửi hỗ trợ đến admin</h2>
                     <p class="dashboard-section-text mb-0">Vui lòng điền chi tiết thông tin để chúng tôi có thể hỗ trợ bạn tốt nhất.</p>
@@ -100,7 +101,7 @@
         </div>
 
         <div class="col-12">
-            <div class="card report-card">
+            <div class="card report-card page-shell-card support-history-card">
                 <div class="card-header border-bottom pb-3">
                     <h3 class="report-title m-0"><i class="bx bx-history me-2 text-primary"></i>Lịch sử gần đây</h3>
                     <p class="report-text mt-1 mb-0">Theo dõi trạng thái các yêu cầu hỗ trợ bạn đã gửi.</p>
@@ -430,6 +431,7 @@
     <link rel="stylesheet" href="~/sneat/css/pages/wallet-dashboard.css" />
     <link rel="stylesheet" href="~/sneat/css/pages/category-page.css" />
     <link rel="stylesheet" href="~/sneat/css/pages/report-page.css" />
+    <link rel="stylesheet" href="~/sneat/css/pages/page-shell.css" />
     <style>
         .hover-opacity:hover {
             opacity: 0.8;
@@ -467,7 +469,7 @@
 
     <div class="row g-4">
         <div class="col-12">
-            <div class="card report-filter-card">
+            <div class="card report-filter-card page-shell-card support-form-card">
                 <div class="card-header border-bottom pb-3">
                     <h2 class="dashboard-section-title mb-1"><i class="bx bx-support me-2 text-primary"></i>@T("Gửi hỗ trợ đến admin", "Send Support Request")</h2>
                     <p class="dashboard-section-text mb-0">@T("Vui lòng điền chi tiết thông tin để chúng tôi có thể hỗ trợ bạn tốt nhất.", "Please provide detailed information so we can assist you better.")</p>
@@ -522,7 +524,7 @@
         </div>
 
         <div class="col-12">
-            <div class="card report-card">
+            <div class="card report-card page-shell-card support-history-card">
                 <div class="card-header border-bottom pb-3">
                     <h3 class="report-title m-0"><i class="bx bx-history me-2 text-primary"></i>@T("Lịch sử gần đây", "Recent History")</h3>
                     <p class="report-text mt-1 mb-0">@T("Theo dõi trạng thái các yêu cầu hỗ trợ bạn đã gửi.", "Track the status of your submitted support requests.")</p>

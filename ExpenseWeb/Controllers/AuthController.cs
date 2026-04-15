@@ -45,6 +45,22 @@ namespace ExpenseWeb.Controllers
             ViewData[key] = cleanErrors.Count > 0 ? JsonSerializer.Serialize(cleanErrors) : "[]";
         }
 
+
+        private string GetAuthText(string key, string lang)
+        {
+            lang = (lang ?? "vi").ToLower() == "en" ? "en" : "vi";
+
+            return key switch
+            {
+                "LoginFailed" => lang == "en" ? "Invalid email or password." : "Email hoặc mật khẩu không đúng.",
+                "RegisterFailed" => lang == "en" ? "Registration failed." : "Đăng ký thất bại.",
+                "OtpInvalid" => lang == "en" ? "Invalid OTP." : "Mã OTP không hợp lệ.",
+                "ForgotFailed" => lang == "en" ? "Failed to send password reset request." : "Không thể gửi yêu cầu đặt lại mật khẩu.",
+                "ResetFailed" => lang == "en" ? "Password reset failed." : "Đặt lại mật khẩu thất bại.",
+                _ => string.Empty
+            };
+        }
+
         private IActionResult RedirectAfterLogin(string? lang = null)
         {
             lang = (lang ?? GetLang()).ToLower() == "en" ? "en" : "vi";
@@ -99,7 +115,7 @@ namespace ExpenseWeb.Controllers
             {
                 SetToastErrors("LoginErrorsJson", new[]
                 {
-                    result.ErrorMessage ?? (lang == "en" ? "Invalid email or password." : "Email hoặc mật khẩu không đúng.")
+                    GetAuthText("LoginFailed", lang)
                 });
                 return View(model);
             }
@@ -155,7 +171,7 @@ namespace ExpenseWeb.Controllers
             {
                 SetToastErrors("RegisterErrorsJson", new[]
                 {
-                    result.ErrorMessage ?? (lang == "en" ? "Registration failed." : "Đăng ký thất bại.")
+                    result.ErrorMessage ?? GetAuthText("RegisterFailed", lang)
                 });
                 return View("Login", new LoginViewModel());
             }
@@ -186,7 +202,7 @@ namespace ExpenseWeb.Controllers
             var result = await _authApiService.VerifyOtpAsync(model.Email, model.Otp);
             if (!result.Success)
             {
-                ModelState.AddModelError(string.Empty, result.ErrorMessage ?? (lang == "en" ? "Invalid OTP." : "Mã OTP không hợp lệ."));
+                ModelState.AddModelError(string.Empty, result.ErrorMessage ?? GetAuthText("OtpInvalid", lang));
                 return View(model);
             }
 
@@ -251,7 +267,7 @@ namespace ExpenseWeb.Controllers
             var result = await _authApiService.ForgotPasswordAsync(model.Email);
             if (!result.Success)
             {
-                TempData["ErrorMessage"] = result.ErrorMessage ?? (lang == "en" ? "Failed to send password reset request." : "Không thể gửi yêu cầu đặt lại mật khẩu.");
+                TempData["ErrorMessage"] = result.ErrorMessage ?? GetAuthText("ForgotFailed", lang);
                 return View(model);
             }
 
@@ -284,7 +300,7 @@ namespace ExpenseWeb.Controllers
             var result = await _authApiService.ResetPasswordAsync(model.Token, model.NewPassword);
             if (!result.Success)
             {
-                ModelState.AddModelError(string.Empty, result.ErrorMessage ?? (lang == "en" ? "Password reset failed." : "Đặt lại mật khẩu thất bại."));
+                ModelState.AddModelError(string.Empty, result.ErrorMessage ?? GetAuthText("ResetFailed", lang));
                 return View(model);
             }
 

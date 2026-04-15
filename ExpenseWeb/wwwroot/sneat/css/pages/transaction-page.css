@@ -2372,3 +2372,33 @@
         padding-left: calc(50px + .8rem);
     }
 }
+
+
+/* ===== Popup base tune ===== */
+#addTransactionModal .modal-content,
+#transactionDetailModal .modal-content {
+    max-height: min(84vh, 860px);
+}
+
+#addTransactionModal .tx-detail-modal-body,
+#transactionDetailModal .tx-detail-modal-body {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+#addTransactionModal .tx-modal-layout,
+#transactionDetailModal .tx-modal-layout {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+#addTransactionModal .tx-modal-preview,
+#transactionDetailModal .tx-modal-preview,
+#addTransactionModal .tx-modal-form,
+#transactionDetailModal .tx-modal-form {
+    min-height: 0;
+    max-height: 100%;
+    overflow: auto;
+}

@@ -1,4 +1,4 @@
-@* @model ExpenseWeb.Models.ViewModels.Profile.ProfilePageViewModel
+﻿@* @model ExpenseWeb.Models.ViewModels.Profile.ProfilePageViewModel
 @{
     ViewData["Title"] = "Hồ sơ cá nhân";
     Layout = "~/Views/Shared/_Layout.cshtml";
@@ -156,21 +156,26 @@
     </div>
 </div>
 
-<div class="modal fade" id="defaultAvatarModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade mimo-popup-shell avatar-picker-modal" id="defaultAvatarModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Chọn ảnh đại diện mặc định</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <div class="modal-content mimo-popup-content">
+            <button type="button" class="mimo-popup-close" data-bs-dismiss="modal" aria-label="Close"><i class="bx bx-x"></i></button>
+            <div class="mimo-popup-header">
+                <div class="mimo-popup-hero mimo-popup-hero--simple">
+                    <div class="mimo-popup-header-copy">
+                        <h5 class="mimo-popup-title mb-1">Chọn ảnh đại diện mặc định</h5>
+                        <p class="mimo-popup-subtitle mb-0">Chọn một ảnh mặc định từ thư viện 3x3 bên dưới.</p>
+                    </div>
+                </div>
             </div>
-            <div class="modal-body">
-                <div class="row g-3 justify-content-center">
+            <div class="modal-body mimo-popup-body">
+                <div class="avatar-picker-grid">
                     @if (ViewBag.DefaultAvatars != null && ((List<string>)ViewBag.DefaultAvatars).Any())
                     {
                         foreach (var defaultUrl in (List<string>)ViewBag.DefaultAvatars)
                         {
-                            <div class="col-4 col-sm-3 text-center">
-                                <img src="@defaultUrl" class="rounded-circle default-avatar-option"
+                            <div class="avatar-picker-cell">
+                                <img src="@defaultUrl" class="default-avatar-option avatar-picker-item"
                                      style="width: 80px; height: 80px; object-fit: cover; cursor: pointer; border: 3px solid transparent; transition: all 0.2s ease-in-out;"
                                      data-url="@defaultUrl"
                                      onmouseover="this.style.borderColor='#696cff'; this.style.transform='scale(1.1)';"

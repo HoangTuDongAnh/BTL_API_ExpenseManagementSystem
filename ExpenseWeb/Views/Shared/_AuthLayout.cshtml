@@ -23,17 +23,22 @@
 
     <link rel="stylesheet" href="~/sneat/vendor/fonts/iconify-icons.css" />
     <link rel="stylesheet" href="~/sneat/vendor/css/core.css" />
-    <link rel="stylesheet" href="~/css/auth-modern.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/app.auth.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/app.components.css" asp-append-version="true" />
 
     @RenderSection("Styles", required: false)
 </head>
 <body class="auth-modern-body @authPageClass">
     @RenderBody()
+    <div id="appToastStack" class="app-toast-stack" aria-live="polite" aria-atomic="true"></div>
 
     <script src="~/sneat/vendor/libs/jquery/jquery.js"></script>
     <script src="~/sneat/vendor/libs/popper/popper.js"></script>
     <script src="~/sneat/vendor/js/bootstrap.js"></script>
-    <script src="~/js/auth-modern.js" asp-append-version="true"></script>
+    <script src="~/js/app.js" asp-append-version="true"></script>
+    <script src="~/js/app.ui.js" asp-append-version="true"></script>
+    <script src="~/js/app.forms.js" asp-append-version="true"></script>
+    <script src="~/js/app.auth.js" asp-append-version="true"></script>
 
     @RenderSection("Scripts", required: false)
 </body>

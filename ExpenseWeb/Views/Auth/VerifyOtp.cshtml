@@ -95,7 +95,7 @@
                       asp-controller="Auth"
                       method="post"
                       class="auth-card-form"
-                      data-loading-button>
+                      data-auth-form="verify-otp">
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="lang" value="@lang" />
                     <input asp-for="Email" type="hidden" />
@@ -161,59 +161,35 @@
 @section Scripts {
     <script>
         (function () {
-            const stack = document.getElementById("authToastStack");
-
-            function createToast(title, messages, type = "error") {
-                if (!stack || !messages || !messages.length) return;
-
-                const toast = document.createElement("div");
-                toast.className = `auth-toast ${type === "success" ? "auth-toast-success" : "auth-toast-error"}`;
-                const bodyList = messages.map(m => `<li>${m}</li>`).join("");
-
-                toast.innerHTML = `
-                    <div class="auth-toast-header">
-                        <span>${title}</span>
-                        <button type="button" class="auth-toast-close">×</button>
-                    </div>
-                    <div class="auth-toast-body">
-                        <ul>${bodyList}</ul>
-                    </div>
-                `;
-
-                toast.querySelector(".auth-toast-close")?.addEventListener("click", () => toast.remove());
-                stack.appendChild(toast);
-                setTimeout(() => toast.remove(), 5000);
-            }
-
             @if (!ViewData.ModelState.IsValid)
             {
-                    var errors = ViewData.ModelState.Values
-                            .SelectMany(v => v.Errors)
-                            .Select(e => e.ErrorMessage)
-                            .Where(x => !string.IsNullOrWhiteSpace(x))
-                            .Distinct()
-                            .ToList();
+                var errors = ViewData.ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage)
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Distinct()
+                    .ToList();
 
-                    if (errors.Count > 0)
-                    {
-                            <text>
-                            createToast("@T("Lỗi xác thực", "Verification error")", @Html.Raw(System.Text.Json.JsonSerializer.Serialize(errors)), "error");
-                            </text>
-                    }
+                if (errors.Count > 0)
+                {
+                    <text>
+                    window.AuthToast?.error(window.AuthPage?.t("verifyError"), @Html.Raw(System.Text.Json.JsonSerializer.Serialize(errors)));
+                    </text>
+                }
             }
 
             @if (TempData["ErrorMessage"] != null)
             {
-                    <text>
-                    createToast("@T("Lỗi", "Error")", ["@TempData["ErrorMessage"]"], "error");
-                    </text>
+                <text>
+                window.AuthToast?.error(window.AuthPage?.t("error"), ["@TempData["ErrorMessage"]"]);
+                </text>
             }
 
             @if (TempData["SuccessMessage"] != null)
             {
-                    <text>
-                    createToast("@T("Thành công", "Success")", ["@TempData["SuccessMessage"]"], "success");
-                    </text>
+                <text>
+                window.AuthToast?.success(window.AuthPage?.t("success"), ["@TempData["SuccessMessage"]"]);
+                </text>
             }
         })();
     </script>

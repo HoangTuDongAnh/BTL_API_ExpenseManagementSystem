@@ -266,14 +266,19 @@
     </div>
 </div>
 
-<div class="modal fade tx-modal tx-detail-modal" id="transactionDetailModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade tx-modal tx-detail-modal mimo-popup-shell" id="transactionDetailModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered tx-modal-dialog tx-detail-modal-dialog">
-        <div class="modal-content">
-            <button type="button" class="tx-close-btn tx-detail-close-btn" data-bs-dismiss="modal" aria-label="Close"><i class="bx bx-x"></i></button>
-            <div class="modal-body tx-detail-modal-body">
-                <div class="tx-form-card tx-modal-title-card">
-                    <h4 class="modal-title mb-0">@T("Chi tiết giao dịch", "Transaction details")</h4>
+        <div class="modal-content mimo-popup-content">
+            <button type="button" class="mimo-popup-close" data-bs-dismiss="modal" aria-label="Close"><i class="bx bx-x"></i></button>
+            <div class="mimo-popup-header">
+                <div class="mimo-popup-hero mimo-popup-hero--simple">
+                    <div class="mimo-popup-header-copy">
+                        <h4 class="mimo-popup-title mb-1">@T("Chi tiết giao dịch", "Transaction details")</h4>
+                        <p class="mimo-popup-subtitle mb-0">@T("Xem nhanh, chỉnh sửa thông tin và cập nhật giao dịch hiện tại.", "Quickly review, edit, and update this transaction.")</p>
+                    </div>
                 </div>
+            </div>
+            <div class="modal-body tx-detail-modal-body mimo-popup-body">
                 <div class="tx-modal-layout tx-detail-layout">
                     <div class="tx-modal-preview tx-detail-preview">
                         <div class="tx-preview-top">
@@ -356,14 +361,19 @@
     </div>
 </div>
 
-<div class="modal fade tx-modal" id="addTransactionModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade tx-modal mimo-popup-shell" id="addTransactionModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered tx-modal-dialog">
-        <div class="modal-content">
-            <button type="button" class="tx-close-btn tx-detail-close-btn" data-bs-dismiss="modal" aria-label="Close"><i class="bx bx-x"></i></button>
-            <div class="modal-body tx-detail-modal-body">
-                <div class="tx-form-card tx-modal-title-card">
-                    <h4 class="modal-title mb-0">@T("Thêm giao dịch mới", "Add transaction")</h4>
+        <div class="modal-content mimo-popup-content">
+            <button type="button" class="mimo-popup-close" data-bs-dismiss="modal" aria-label="Close"><i class="bx bx-x"></i></button>
+            <div class="mimo-popup-header">
+                <div class="mimo-popup-hero mimo-popup-hero--simple">
+                    <div class="mimo-popup-header-copy">
+                        <h4 class="mimo-popup-title mb-1">@T("Thêm giao dịch mới", "Add transaction")</h4>
+                        <p class="mimo-popup-subtitle mb-0">@T("Tạo giao dịch mới với bố cục thống nhất, dễ nhập liệu và theo dõi trước khi lưu.", "Create a new transaction with a consistent layout that stays easy to fill and review before saving.")</p>
+                    </div>
                 </div>
+            </div>
+            <div class="modal-body tx-detail-modal-body mimo-popup-body">
                 <div class="tx-modal-layout tx-detail-layout">
                     <div class="tx-modal-preview tx-detail-preview">
                         <div class="tx-preview-top"><span class="badge bg-label-primary">@T("Xem trước", "Preview")</span></div>
