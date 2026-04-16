@@ -24,7 +24,6 @@
 
 <div class="support-detail">
 
-    {{-- User Info --}}
     <div class="d-flex align-items-center gap-3 mb-4">
         @if (!string.IsNullOrWhiteSpace(Model.UserAvatar))
         {
@@ -42,7 +41,6 @@
         </div>
     </div>
 
-    {{-- Ticket ID & Badges --}}
     <div class="mb-3 d-flex flex-wrap gap-2 align-items-center">
         <span class="badge bg-label-secondary font-monospace">@Model.SupportRequestId</span>
         <span class="badge @StatusBadgeClass(Model.Status)">@Model.StatusLabel</span>
@@ -50,19 +48,16 @@
         <span class="badge bg-label-info">@Model.SupportTypeLabel</span>
     </div>
 
-    {{-- Subject --}}
     <div class="mb-3">
         <div class="text-muted small mb-1">@T("Tiêu đề", "Subject")</div>
         <div class="fw-bold text-dark">@Model.Subject</div>
     </div>
 
-    {{-- Message --}}
     <div class="mb-3">
         <div class="text-muted small mb-1">@T("Nội dung", "Message")</div>
         <div class="p-3 bg-light rounded" style="white-space: pre-wrap; word-break: break-word;">@Model.Message</div>
     </div>
 
-    {{-- Timestamps --}}
     <div class="mb-3 d-flex flex-column gap-1">
         <small class="text-muted"><i class="bx bx-time me-1"></i>@T("Gửi lúc", "Sent at"): <strong>@Model.CreatedAt.ToString("dd/MM/yyyy HH:mm")</strong></small>
         @if (Model.ViewedAt.HasValue)
@@ -79,41 +74,64 @@
         }
     </div>
 
-    {{-- Attachments --}}
     @if (Model.Attachments.Count > 0)
     {
         <div class="mb-3">
             <div class="text-muted small mb-2">@T("Tệp đính kèm", "Attachments") (@Model.Attachments.Count)</div>
-            <div class="d-flex flex-wrap gap-2">
-                @foreach (var att in Model.Attachments)
+            <div class="support-attachment-grid">
+                @foreach (var attachment in Model.Attachments)
                 {
-                    if (att.IsImage)
-                    {
-                        <a href="@att.FileUrl" target="_blank" title="@att.FileName">
-                            <img src="@att.FileUrl" alt="@att.FileName"
-                                 style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid #ddd;" />
-                        </a>
-                    }
-                    else if (att.IsVideo)
-                    {
-                        <a href="@att.FileUrl" target="_blank" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1">
-                            <i class="bx bx-video"></i> @att.FileName
-                            <span class="text-muted small">(@att.DisplaySize)</span>
-                        </a>
-                    }
-                    else
-                    {
-                        <a href="@att.FileUrl" target="_blank" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1">
-                            <i class="bx bx-file"></i> @att.FileName
-                            <span class="text-muted small">(@att.DisplaySize)</span>
-                        </a>
-                    }
+                    <div class="support-attachment-card">
+                        @if (attachment.IsImage)
+                        {
+                            <img src="@attachment.FileUrl" alt="@attachment.FileName" class="support-attachment-preview view-media-btn" data-type="image" data-src="@attachment.FileUrl" style="cursor: pointer;" title="@T("Nhấn để xem lớn", "Click to view larger")" />
+                        }
+                        else if (attachment.IsVideo)
+                        {
+                            <div class="position-relative view-media-btn" data-type="video" data-src="@attachment.FileUrl" style="cursor: pointer;" title="@T("Nhấn để xem lớn", "Click to view larger")">
+                                <video class="support-attachment-video" preload="metadata" style="pointer-events: none;">
+                                    <source src="@attachment.FileUrl" type="@attachment.FileType" />
+                                </video>
+                                <div class="position-absolute top-50 start-50 translate-middle text-white" style="background: rgba(0,0,0,0.4); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="bx bx-play ms-1 fs-3"></i>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="support-attachment-preview d-flex align-items-center justify-content-center">
+                                <i class="bx bx-file fs-1 text-muted"></i>
+                            </div>
+                        }
+
+                        <div class="support-attachment-body">
+                            <div class="support-attachment-name" title="@attachment.FileName">@attachment.FileName</div>
+                            <div class="support-attachment-meta">
+                                @if (!string.IsNullOrWhiteSpace(attachment.DisplaySize))
+                                {
+                                    <span>@attachment.DisplaySize</span>
+                                }
+                            </div>
+
+                            @if (attachment.IsImage || attachment.IsVideo)
+                            {
+                                <a href="javascript:void(0);" class="small text-primary text-decoration-none view-media-btn" data-type="@(attachment.IsImage ? "image" : "video")" data-src="@attachment.FileUrl">
+                                    @T("Mở xem", "View")
+                                </a>
+                            }
+                            else
+                            {
+                                <a href="@attachment.FileUrl" target="_blank" class="small text-primary text-decoration-none">
+                                    @T("Tải xuống", "Download")
+                                </a>
+                            }
+                        </div>
+                    </div>
                 }
             </div>
         </div>
     }
 
-    {{-- Admin Reply --}}
     @if (!string.IsNullOrWhiteSpace(Model.AdminReply))
     {
         <div class="mb-4">
@@ -124,7 +142,6 @@
         </div>
     }
 
-   
     @if (Model.Status != "closed")
     {
         <hr class="my-3" />

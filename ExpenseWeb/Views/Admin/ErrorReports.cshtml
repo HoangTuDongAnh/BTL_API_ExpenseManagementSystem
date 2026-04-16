@@ -2,7 +2,6 @@
 @{
     var lang = (Context.Request.Query["lang"].FirstOrDefault() ?? ViewBag.Lang as string ?? "vi").ToLower();
     string T(string vi, string en) => lang == "en" ? en : vi;
-
     ViewData["Title"] = T("Quản lý yêu cầu hỗ trợ", "User Support Requests");
 }
 
@@ -10,6 +9,67 @@
     <link rel="stylesheet" href="~/sneat/css/pages/core-page-hero.css" />
     <link rel="stylesheet" href="~/sneat/css/pages/report-page.css" />
     <link rel="stylesheet" href="~/sneat/css/pages/admin-reports.css" />
+    <style>
+        .table-custom-scroll {
+            max-height: 600px;
+            overflow-y: auto;
+            display: block;
+        }
+
+            .table-custom-scroll table {
+                width: 100%;
+            }
+
+        .support-attachment-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-top: 10px;
+        }
+
+        .support-attachment-card {
+            width: 180px;
+            border: 1px solid #d9dee3;
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            background-color: #fff;
+        }
+
+        .support-attachment-preview,
+        .support-attachment-video {
+            width: 100%;
+            height: 140px;
+            object-fit: cover;
+            display: block;
+            border-bottom: 1px solid #d9dee3;
+        }
+
+        .support-attachment-body {
+            padding: 10px;
+            background-color: #f8f9fa;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .support-attachment-name {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-weight: 600;
+            font-size: 0.85rem;
+            margin-bottom: 4px;
+        }
+
+        .support-attachment-meta {
+            font-size: 0.75rem;
+            color: #697a8d;
+            margin-bottom: 8px;
+        }
+    </style>
 }
 
 <div class="container-xxl flex-grow-1 container-p-y">
@@ -31,10 +91,9 @@
         </div>
     }
 
-    <div class="card report-filter-card mb-4">
-        <div class="card-header border-bottom pb-3">
-            <h2 class="dashboard-section-title mb-1"><i class="bx bx-filter-alt me-2 text-primary"></i>@T("Bộ lọc tìm kiếm", "Search Filters")</h2>
-            <p class="dashboard-section-text mb-0">@T("Sử dụng các tiêu chí dưới đây để thu hẹp danh sách yêu cầu.", "Use the criteria below to narrow down the request list.")</p>
+    <div class="card mb-4">
+        <div class="card-header border-bottom d-flex justify-content-between align-items-center">
+            <h5 class="card-title m-0"><i class="bx bx-filter-alt me-2 text-primary"></i>@T("Bộ lọc tìm kiếm", "Search Filters")</h5>
         </div>
         <div class="card-body pt-4">
             <form method="get" asp-action="ErrorReports" asp-controller="Admin" class="row g-3">
@@ -70,7 +129,7 @@
                     <label class="form-label">@T("Từ khóa", "Keyword")</label>
                     <input type="text" name="keyword" value="@Model.Keyword" class="form-control" placeholder="@T("Tìm theo tiêu đề hoặc email user...", "Search by title or user email...")" />
                 </div>
-                <div class="col-12 pt-2 border-top d-flex justify-content-end mt-4">
+                <div class="col-12 mt-3 d-flex justify-content-end">
                     <button type="submit" class="btn btn-primary">
                         <i class="bx bx-search-alt me-1"></i> @T("Tìm kiếm", "Search")
                     </button>
@@ -79,79 +138,53 @@
         </div>
     </div>
 
-    <div class="row g-4">
-        <div class="col-lg-8">
-            <div class="card report-card h-100">
-                <div class="card-header border-bottom pb-3">
-                    <h3 class="report-title m-0"><i class="bx bx-list-ul me-2 text-primary"></i>@T("Danh sách yêu cầu", "Request List")</h3>
-                </div>
-                <div class="card-body p-0 text-nowrap">
-                    <div class="table-responsive">
-                        <table class="table table-hover table-custom-scroll mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th class="col-ticket">@T("Mã & Tiêu đề", "Ticket & Title")</th>
-                                    <th class="col-user">@T("Người dùng", "User")</th>
-                                    <th class="col-category">@T("Danh mục & Ưu tiên", "Category & Priority")</th>
-                                    <th class="col-date">@T("Ngày gửi", "Reported At")</th>
-                                    <th class="col-status">@T("Trạng thái", "Status")</th>
-                                    <th class="col-actions">@T("Thao tác", "Actions")</th>
-                                </tr>
-                            </thead>
-                            <tbody class="table-border-bottom-0">
-                                @if (Model.Items.Count == 0)
-                                {
-                                    <tr>
-                                        <td colspan="6" class="text-center text-muted py-5">
-                                            <div class="report-empty">
-                                                <i class="bx bx-folder-open fs-1 mb-2"></i>
-                                                <p>@T("Chưa có dữ liệu hỗ trợ phù hợp.", "No matching support requests found.")</p>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                }
-                                else
-                                {
-                                    @foreach (var item in Model.Items)
-                                    {
-                                        var isSelected = Model.SelectedItem != null && Model.SelectedItem.SupportRequestId == item.SupportRequestId;
-                                        var rowClass = isSelected ? "selected-row" : "";
-
-                                        <tr class="support-item-row @rowClass" style="cursor: pointer;" data-id="@item.SupportRequestId">
-                                            <td class="text-wrap">
-                                                <span class="text-primary fw-medium small">@item.SupportRequestId</span><br />
-                                                <span class="fw-bold text-dark">@item.Subject</span>
-                                            </td>
-                                            <td>
-                                                <div class="fw-medium text-heading">@item.UserFullName</div>
-                                                <small class="text-muted">@item.UserEmail</small>
-                                            </td>
-                                            <td>
-                                                <span class="badge @item.SupportTypeBadgeClass mb-1">
-                                                    @(lang == "en" ?
-                                                                                                (item.SupportTypeLabel == "Báo lỗi hệ thống" ? "System Bug" :
-                                                                                                item.SupportTypeLabel == "Hỗ trợ giao dịch" ? "Transaction Support" :
-                                                                                                item.SupportTypeLabel == "Hỗ trợ tài khoản" ? "Account Support" : "Other")
-                                                                                                : item.SupportTypeLabel)
-                                                                                                                    </span><br />
-                                                                                                                    <span class="badge @item.PriorityBadgeClass">
-                                                                                                                        @T("Ưu tiên:", "Priority:")
-                                                    @(lang == "en" ?
-                                                                                                (item.PriorityLabel == "Thấp" ? "Low" :
-                                                                                                item.PriorityLabel == "Cao" ? "High" :
-                                                                                                item.PriorityLabel == "Khẩn cấp" ? "Urgent" : "Medium")
-                                                                                                : item.PriorityLabel)
-                                                                                                                 </span>
-                                                                                                             </td>
-                                                                                                             <td>@item.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td>
-                                                                                                             <td>
-                                                                                                                 <span class="badge @item.StatusBadgeClass">
-                                                    @(lang == "en" ?
-                                                                                                (item.StatusLabel == "Chờ tiếp nhận" ? "Pending" :
-                                                                                                item.StatusLabel == "Đang xử lý" ? "Processing" :
-                                                                                                item.StatusLabel == "Đã phản hồi" ? "Replied" : "Closed")
-                                                                                                : item.StatusLabel)
-                                        </span>
+    <div class="card">
+        <div class="card-header border-bottom pb-3">
+            <h5 class="card-title m-0"><i class="bx bx-list-ul me-2 text-primary"></i>@T("Danh sách yêu cầu", "Request List")</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive table-custom-scroll text-nowrap">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light" style="position: sticky; top: 0; z-index: 1;">
+                        <tr>
+                            <th>@T("Mã & Tiêu đề", "Ticket & Title")</th>
+                            <th>@T("Người dùng", "User")</th>
+                            <th>@T("Danh mục & Ưu tiên", "Category & Priority")</th>
+                            <th>@T("Ngày gửi", "Reported At")</th>
+                            <th>@T("Trạng thái", "Status")</th>
+                            <th>@T("Thao tác", "Actions")</th>
+                        </tr>
+                    </thead>
+                    <tbody class="table-border-bottom-0">
+                        @if (Model.Items.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-5">
+                                    <i class="bx bx-folder-open fs-1 mb-2"></i>
+                                    <p>@T("Chưa có dữ liệu hỗ trợ phù hợp.", "No matching support requests found.")</p>
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var item in Model.Items)
+                            {
+                                <tr class="support-item-row" style="cursor: pointer;" data-id="@item.SupportRequestId">
+                                    <td class="text-wrap">
+                                        <span class="text-primary fw-medium small">@item.SupportRequestId</span><br />
+                                        <span class="fw-bold text-dark">@item.Subject</span>
+                                    </td>
+                                    <td>
+                                        <div class="fw-medium text-heading">@item.UserFullName</div>
+                                        <small class="text-muted">@item.UserEmail</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge @item.SupportTypeBadgeClass mb-1">@item.SupportTypeLabel</span><br />
+                                        <span class="badge @item.PriorityBadgeClass">@T("Ưu tiên:", "Priority:") @item.PriorityLabel</span>
+                                    </td>
+                                    <td>@item.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td>
+                                    <td>
+                                        <span class="badge @item.StatusBadgeClass">@item.StatusLabel</span>
                                     </td>
                                     <td>
                                         <button type="button" class="btn btn-sm btn-outline-primary">
@@ -159,33 +192,35 @@
                                         </button>
                                     </td>
                                 </tr>
-                                                                }
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                            }
+                        }
+                    </tbody>
+                </table>
             </div>
         </div>
+    </div>
+</div>
 
-        <div class="col-lg-4">
-            <div class="card report-card h-100">
-                <div class="card-header border-bottom pb-3">
-                    <h3 class="report-title m-0"><i class="bx bx-detail me-2 text-primary"></i>@T("Chi tiết yêu cầu", "Request Details")</h3>
-                </div>
-                <div class="card-body pt-4" id="detailContainer">
-                    @if (Model.SelectedItem == null)
-                    {
-                        <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted py-5 report-empty">
-                            <i class="bx bx-pointer fs-1 mb-2"></i>
-                            <p>@T("Chọn một yêu cầu bên trái để xem chi tiết.", "Select a request on the left to view details.")</p>
-                        </div>
-                    }
-                    else
-                    {
-                        <partial name="_SupportRequestDetail" model="Model.SelectedItem" />
-                    }
-                </div>
+<div class="modal fade" id="requestDetailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header border-bottom pb-3">
+                <h5 class="modal-title"><i class="bx bx-detail me-2 text-primary"></i>@T("Chi tiết yêu cầu", "Request Details")</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="modalDetailContent">
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="mediaViewerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
+        <div class="modal-content bg-transparent border-0 shadow-none">
+            <div class="modal-header border-0 pb-0 justify-content-end">
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center p-0" id="mediaViewerContent">
             </div>
         </div>
     </div>
@@ -196,17 +231,16 @@
         $(document).ready(function () {
             $('.support-item-row').on('click', function () {
                 const requestId = $(this).data('id');
-                const $container = $('#detailContainer');
-
-                $('.support-item-row').removeClass('selected-row');
-                $(this).addClass('selected-row');
+                const $container = $('#modalDetailContent');
 
                 $container.html(`
-                    <div class="d-flex flex-column align-items-center justify-content-center h-100 py-5 report-empty">
+                    <div class="d-flex flex-column align-items-center justify-content-center py-5">
                         <div class="spinner-border text-primary mb-2" role="status"></div>
                         <span class="text-muted">@T("Đang tải chi tiết...", "Loading details...")</span>
                     </div>
                 `);
+
+                $('#requestDetailModal').modal('show');
 
                 $.ajax({
                     url: '@Url.Action("GetSupportDetail", "Admin")',
@@ -214,7 +248,6 @@
                     data: { id: requestId },
                     success: function (html) {
                         $container.hide().html(html).fadeIn(200);
-
                         const currentUrl = new URL(window.location);
                         currentUrl.searchParams.set('selectedId', requestId);
                         window.history.pushState({}, '', currentUrl);
@@ -223,6 +256,32 @@
                         $container.html('<div class="alert alert-danger mt-3">@T("Không thể tải dữ liệu. Vui lòng thử lại.", "Failed to load data. Please try again.")</div>');
                     }
                 });
+            });
+
+            $(document).on('click', '.view-media-btn', function(e) {
+                e.preventDefault();
+                var type = $(this).data('type');
+                var src = $(this).data('src');
+                var $content = $('#mediaViewerContent');
+
+                $content.empty();
+
+                if (type === 'image') {
+                    $content.html('<img src="' + src + '" class="rounded shadow" style="width: 100%; height: 80vh; object-fit: contain; background-color: rgba(0,0,0,0.2);" />');
+                } else if (type === 'video') {
+                    $content.html(`
+                        <video controls autoplay class="rounded shadow" style="width: 100%; height: 80vh; object-fit: contain; background-color: rgba(0,0,0,0.2);">
+                            <source src="${src}" type="video/mp4">
+                            @T("Trình duyệt của bạn không hỗ trợ thẻ video.", "Your browser does not support the video tag.")
+                        </video>
+                    `);
+                }
+
+                $('#mediaViewerModal').modal('show');
+            });
+
+            $('#mediaViewerModal').on('hidden.bs.modal', function () {
+                $('#mediaViewerContent').empty();
             });
         });
     </script>

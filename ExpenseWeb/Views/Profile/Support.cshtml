@@ -3,7 +3,6 @@
 @{
     var lang = (Context.Request.Query["lang"].FirstOrDefault() ?? ViewBag.Lang as string ?? "vi").ToLower();
     string T(string vi, string en) => lang == "en" ? en : vi;
-
     ViewData["Title"] = T("Hỗ trợ & Liên hệ admin", "Support & Contact Admin");
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
@@ -12,6 +11,58 @@
     <link rel="stylesheet" href="~/sneat/css/pages/core-page-hero.css" />
     <link rel="stylesheet" href="~/sneat/css/pages/page-shell.css" />
     <link rel="stylesheet" href="~/sneat/css/pages/support-page.css" />
+
+    <style>
+        .support-attachment-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-top: 10px;
+        }
+
+        .support-attachment-card {
+            width: 180px;
+            border: 1px solid #d9dee3;
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            background-color: #fff;
+        }
+
+        .support-attachment-preview,
+        .support-attachment-video {
+            width: 100%;
+            height: 140px;
+            object-fit: cover;
+            display: block;
+            border-bottom: 1px solid #d9dee3;
+        }
+
+        .support-attachment-body {
+            padding: 10px;
+            background-color: #f8f9fa;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .support-attachment-name {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-weight: 600;
+            font-size: 0.85rem;
+            margin-bottom: 4px;
+        }
+
+        .support-attachment-meta {
+            font-size: 0.75rem;
+            color: #697a8d;
+            margin-bottom: 8px;
+        }
+    </style>
 }
 
 <div class="container-xxl flex-grow-1 container-p-y">
@@ -142,34 +193,26 @@
                             {
                                 var collapseId = "collapseSupport_" + item.SupportRequestId;
                                 var statusText = lang == "en"
-                                    ? item.Status == "pending" ? "Pending"
-                                        : item.Status == "viewed" ? "Processing"
-                                        : item.Status == "replied" ? "Replied"
-                                        : "Closed"
-                                    : item.StatusLabel;
-
+                                ? item.Status == "pending" ? "Pending"
+                                : item.Status == "viewed" ? "Processing"
+                                : item.Status == "replied" ? "Replied"
+                                : "Closed"
+                                : item.StatusLabel;
                                 var supportTypeText = lang == "en"
-                                    ? item.SupportType == "bug" ? "System Bug"
-                                        : item.SupportType == "transaction" ? "Transaction Support"
-                                        : item.SupportType == "account" ? "Account Support"
-                                        : item.SupportType == "feature" ? "Feature Request"
-                                        : "Other"
-                                    : item.SupportTypeLabel;
-
+                                ? item.SupportType == "bug" ? "System Bug"
+                                : item.SupportType == "transaction" ? "Transaction Support"
+                                : item.SupportType == "account" ? "Account Support"
+                                : item.SupportType == "feature" ? "Feature Request"
+                                : "Other"
+                                : item.SupportTypeLabel;
                                 var priorityText = lang == "en"
-                                    ? item.Priority == "low" ? "Low"
-                                        : item.Priority == "medium" ? "Medium"
-                                        : item.Priority == "high" ? "High"
-                                        : "Urgent"
-                                    : item.PriorityLabel;
-
+                                ? item.Priority == "low" ? "Low"
+                                : item.Priority == "medium" ? "Medium"
+                                : item.Priority == "high" ? "High"
+                                : "Urgent"
+                                : item.PriorityLabel;
                                 <div class="support-history-item">
-                                    <div class="support-history-head"
-                                         data-bs-toggle="collapse"
-                                         data-bs-target="#@collapseId"
-                                         aria-expanded="false"
-                                         aria-controls="@collapseId"
-                                         title="@T("Nhấn để xem chi tiết", "Click to view details")">
+                                    <div class="support-history-head" data-bs-toggle="collapse" data-bs-target="#@collapseId" aria-expanded="false" aria-controls="@collapseId" title="@T("Nhấn để xem chi tiết", "Click to view details")">
                                         <div class="flex-grow-1">
                                             <div class="support-history-title">
                                                 <span>@item.Subject</span>
@@ -222,15 +265,18 @@
                                                                 <div class="support-attachment-card">
                                                                     @if (attachment.IsImage)
                                                                     {
-                                                                        <a href="@attachment.FileUrl" target="_blank">
-                                                                            <img src="@attachment.FileUrl" alt="@attachment.FileName" class="support-attachment-preview" />
-                                                                        </a>
+                                                                        <img src="@attachment.FileUrl" alt="@attachment.FileName" class="support-attachment-preview view-media-btn" data-type="image" data-src="@attachment.FileUrl" style="cursor: pointer;" title="@T("Nhấn để xem lớn", "Click to view larger")" />
                                                                     }
                                                                     else if (attachment.IsVideo)
                                                                     {
-                                                                        <video class="support-attachment-video" controls preload="metadata">
-                                                                            <source src="@attachment.FileUrl" type="@attachment.FileType" />
-                                                                        </video>
+                                                                        <div class="position-relative view-media-btn" data-type="video" data-src="@attachment.FileUrl" style="cursor: pointer;" title="@T("Nhấn để xem lớn", "Click to view larger")">
+                                                                            <video class="support-attachment-video" preload="metadata" style="pointer-events: none;">
+                                                                                <source src="@attachment.FileUrl" type="@attachment.FileType" />
+                                                                            </video>
+                                                                            <div class="position-absolute top-50 start-50 translate-middle text-white" style="background: rgba(0,0,0,0.4); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                                                                                <i class="bx bx-play ms-1 fs-3"></i>
+                                                                            </div>
+                                                                        </div>
                                                                     }
                                                                     else
                                                                     {
@@ -240,16 +286,26 @@
                                                                     }
 
                                                                     <div class="support-attachment-body">
-                                                                        <div class="support-attachment-name">@attachment.FileName</div>
+                                                                        <div class="support-attachment-name" title="@attachment.FileName">@attachment.FileName</div>
                                                                         <div class="support-attachment-meta">
                                                                             @if (!string.IsNullOrWhiteSpace(attachment.DisplaySize))
                                                                             {
                                                                                 <span>@attachment.DisplaySize</span>
                                                                             }
                                                                         </div>
-                                                                        <a href="@attachment.FileUrl" target="_blank" class="small text-primary text-decoration-none">
-                                                                            @T("Mở tệp", "Open file")
-                                                                        </a>
+
+                                                                        @if (attachment.IsImage || attachment.IsVideo)
+                                                                        {
+                                                                            <a href="javascript:void(0);" class="small text-primary text-decoration-none view-media-btn" data-type="@(attachment.IsImage ? "image" : "video")" data-src="@attachment.FileUrl">
+                                                                                @T("Mở xem", "View")
+                                                                            </a>
+                                                                        }
+                                                                        else
+                                                                        {
+                                                                            <a href="@attachment.FileUrl" target="_blank" class="small text-primary text-decoration-none">
+                                                                                @T("Tải xuống", "Download")
+                                                                            </a>
+                                                                        }
                                                                     </div>
                                                                 </div>
                                                             }
@@ -286,6 +342,47 @@
     </div>
 </div>
 
+<div class="modal fade" id="mediaViewerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
+        <div class="modal-content bg-transparent border-0 shadow-none">
+            <div class="modal-header border-0 pb-0 justify-content-end">
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center p-0" id="mediaViewerContent">
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script>
+        $(document).ready(function() {
+            $(document).on('click', '.view-media-btn', function(e) {
+                e.preventDefault();
+                var type = $(this).data('type');
+                var src = $(this).data('src');
+                var $content = $('#mediaViewerContent');
+
+                $content.empty();
+
+                if (type === 'image') {
+                    $content.html('<img src="' + src + '" class="rounded shadow" style="width: 100%; height: 80vh; object-fit: contain; background-color: rgba(0,0,0,0.2);" />');
+                } else if (type === 'video') {
+                    $content.html(`
+                        <video controls autoplay class="rounded shadow" style="width: 100%; height: 80vh; object-fit: contain; background-color: rgba(0,0,0,0.2);">
+                            <source src="${src}">
+                            @T("Trình duyệt của bạn không hỗ trợ thẻ video.", "Your browser does not support the video tag.")
+                        </video>
+                    `);
+                }
+
+                $('#mediaViewerModal').modal('show');
+            });
+
+            $('#mediaViewerModal').on('hidden.bs.modal', function () {
+                $('#mediaViewerContent').empty();
+            });
+        });
+    </script>
 }
