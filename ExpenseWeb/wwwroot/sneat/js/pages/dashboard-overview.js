@@ -1,355 +1,270 @@
 document.addEventListener("DOMContentLoaded", function () {
-    const addWalletModalEl = document.getElementById("addWalletModal");
-    const walletDetailModalEl = document.getElementById("walletDetailModal");
-    const addWalletModal = addWalletModalEl ? new bootstrap.Modal(addWalletModalEl) : null;
-    const walletDetailModal = walletDetailModalEl ? new bootstrap.Modal(walletDetailModalEl) : null;
+    if (typeof Chart === "undefined") return;
 
+    const page = document.querySelector(".dashboard-page");
+    const insightsUrl = page?.dataset.dashboardInsightsUrl || "";
+    const lang = document.documentElement.lang === "en" ? "en" : "vi";
 
-    const walletActionAlert = document.getElementById("walletActionAlert");
-    const detailWalletActionAlert = document.getElementById("detailWalletActionAlert");
-    const replacementWalletGroup = document.getElementById("replacementWalletGroup");
-    const replacementWalletId = document.getElementById("replacementWalletId");
-
-    const lang = window.AppToast?.getLang?.() || "vi";
-    const dict = lang === "en"
+    const text = lang === "en"
         ? {
-            unknownError: "Something went wrong.",
-            requestFailed: "Request failed.",
-            emptyName: "Wallet name is required.",
-            invalidBalance: "Initial balance cannot be negative.",
-            unknownWalletUpdate: "Unable to identify the wallet to update.",
-            unknownWalletDelete: "Unable to identify the wallet to delete.",
-            chooseReplacement: "Please choose a replacement wallet.",
-            createSuccess: "Wallet created successfully.",
-            updateSuccess: "Wallet updated successfully.",
-            deleteSuccess: "Wallet deleted successfully.",
-            standardWallet: "Standard wallet",
-            defaultWallet: "Default wallet",
             income: "Income",
             expense: "Expense",
-            totalExpense: "Expenses"
-          }
+            noData: "No data",
+            trendPrefix: "Income and expense in",
+            donutPrefix: "Spending categories in",
+            over: "Over budget",
+            reached: "Reached limit",
+            near: "Near limit",
+            remaining: "Remaining",
+            budgetEmptyTitle: "No budgets need attention",
+            budgetEmptyText: "No budget category is over or near its warning threshold this month.",
+            donutEmptyTitle: "No spending data yet",
+            donutEmptyText: "The doughnut chart will appear once there are expense transactions in the selected period."
+        }
         : {
-            unknownError: "Có lỗi xảy ra.",
-            requestFailed: "Yêu cầu không thành công.",
-            emptyName: "Tên ví không được để trống.",
-            invalidBalance: "Số dư ban đầu không được âm.",
-            unknownWalletUpdate: "Không xác định được ví cần cập nhật.",
-            unknownWalletDelete: "Không xác định được ví cần xóa.",
-            chooseReplacement: "Hãy chọn ví nhận giao dịch.",
-            createSuccess: "Tạo ví thành công.",
-            updateSuccess: "Cập nhật ví thành công.",
-            deleteSuccess: "Xóa ví thành công.",
-            standardWallet: "Ví thường",
-            defaultWallet: "Ví mặc định",
             income: "Thu",
             expense: "Chi",
-            totalExpense: "Chi tiêu"
-          };
-
-    function queueToast(type, message) {
-        try {
-            sessionStorage.setItem("dashboard.wallet.toast", JSON.stringify({ type, message }));
-        } catch (e) {}
-    }
-
-    function flushQueuedToast() {
-        try {
-            const raw = sessionStorage.getItem("dashboard.wallet.toast");
-            if (!raw) return;
-            sessionStorage.removeItem("dashboard.wallet.toast");
-            const toast = JSON.parse(raw);
-            if (toast?.type && toast?.message && window.AppToast?.[toast.type]) {
-                window.AppToast[toast.type](toast.message);
-            }
-        } catch (e) {}
-    }
-
-    function formatCurrency(value, currencyCode) {
-        return `${Number(value || 0).toLocaleString(lang === "en" ? "en-US" : "vi-VN")} ${currencyCode || "VND"}`;
-    }
-
-    function showAlert(el, message) {
-        if (!el) return;
-        const finalMessage = message || dict.unknownError;
-        el.textContent = finalMessage;
-        el.classList.remove("d-none");
-        window.AppToast?.error?.(finalMessage);
-    }
-
-    function hideAlert(el) {
-        if (!el) return;
-        el.textContent = "";
-        el.classList.add("d-none");
-    }
-
-    function getDeleteMode() {
-        const checked = document.querySelector('input[name="deleteWalletMode"]:checked');
-        return checked ? checked.value : "delete_all";
-    }
-
-    function toggleReplacementWallet() {
-        const mode = getDeleteMode();
-        replacementWalletGroup?.classList.toggle("d-none", mode !== "move_transactions");
-    }
-
-    function fillReplacementWalletOptions(currentWalletId) {
-        if (!replacementWalletId) return;
-        const options = Array.from(replacementWalletId.querySelectorAll("option"));
-        options.forEach(opt => {
-            if (!opt.value) return;
-            opt.hidden = opt.value === currentWalletId;
-        });
-        replacementWalletId.value = "";
-    }
-
-    function setDetailWalletData(trigger) {
-        if (!trigger) return;
-        const walletId = trigger.getAttribute("data-wallet-id") || "";
-        const walletName = trigger.getAttribute("data-wallet-name") || "";
-        const walletBalance = trigger.getAttribute("data-wallet-balance") || "0";
-        const walletInitial = trigger.getAttribute("data-wallet-initial") || "0";
-        const walletCurrency = trigger.getAttribute("data-wallet-currency") || "VND";
-        const walletIsDefault = (trigger.getAttribute("data-wallet-is-default") || "false") === "true";
-
-        const setText = (id, value) => {
-            const el = document.getElementById(id);
-            if (el) el.textContent = value;
-        };
-        const setValue = (id, value) => {
-            const el = document.getElementById(id);
-            if (el) el.value = value;
+            noData: "Chưa có",
+            trendPrefix: "Thu và chi trong",
+            donutPrefix: "Danh mục chi tiêu trong",
+            over: "Đã vượt mức",
+            reached: "Đã chạm mức",
+            near: "Sắp chạm mức",
+            remaining: "Còn lại",
+            budgetEmptyTitle: "Chưa có ngân sách nào vượt ngưỡng",
+            budgetEmptyText: "Hiện chưa có danh mục nào vượt hoặc gần chạm mức cảnh báo trong tháng này.",
+            donutEmptyTitle: "Chưa có dữ liệu chi tiêu",
+            donutEmptyText: "Biểu đồ tròn sẽ xuất hiện khi kỳ đang xem có giao dịch chi tiêu."
         };
 
-        setValue("detailWalletIdValue", walletId);
-        setText("detailWalletId", walletId || "-");
-        setText("detailWalletTitle", walletName || "Ví");
-        setValue("detailWalletName", walletName);
-        setValue("detailWalletCurrencySelect", walletCurrency);
-        setValue("detailCurrentBalanceInput", formatCurrency(walletBalance, walletCurrency));
-        setValue("detailInitialBalance", formatCurrency(walletInitial, walletCurrency));
+    const parseJson = (value, fallback = []) => {
+        try { return JSON.parse(value || JSON.stringify(fallback)); } catch { return fallback; }
+    };
+    const formatNumber = value => Number(value || 0).toLocaleString(lang === "en" ? "en-US" : "vi-VN");
+    const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 
-        const defaultCheckbox = document.getElementById("detailWalletDefault");
-        if (defaultCheckbox) defaultCheckbox.checked = walletIsDefault;
+    const trendCanvas = document.getElementById("dashboardCashflowChart");
+    const donutCanvas = document.getElementById("dashboardExpenseDonutChart");
+    const trendTitle = document.getElementById("dashboardTrendTitle");
+    const donutTitle = document.getElementById("dashboardDonutTitle");
+    const rangeIncomeEl = document.getElementById("dashboardRangeIncome");
+    const rangeExpenseEl = document.getElementById("dashboardRangeExpense");
+    const rangeTxnEl = document.getElementById("dashboardRangeTransactionCount");
+    const busiestEl = document.getElementById("dashboardBusiestLabel");
+    const categoryPanel = document.getElementById("dashboardCategoryPanel");
+    const budgetPanel = document.getElementById("dashboardBudgetPanel");
+    const chips = Array.from(document.querySelectorAll("[data-period-chip]"));
 
-        const badge = document.getElementById("detailWalletBadge");
-        if (badge) badge.textContent = walletIsDefault ? dict.defaultWallet : dict.standardWallet;
+    let trendChart = null;
+    let donutChart = null;
 
-        fillReplacementWalletOptions(walletId);
-        hideAlert(detailWalletActionAlert);
-        document.getElementById("deleteWalletModeDeleteAll")?.click();
-        toggleReplacementWallet();
-    }
-
-    walletDetailModalEl?.addEventListener("show.bs.modal", function (event) {
-        setDetailWalletData(event.relatedTarget);
-    });
-
-    document.querySelectorAll('input[name="deleteWalletMode"]').forEach(r => r.addEventListener("change", toggleReplacementWallet));
-
-    async function sendJson(url, method, payload) {
-        const response = await fetch(url, {
-            method,
-            headers: {
-                "Content-Type": "application/json",
-                "X-Requested-With": "XMLHttpRequest"
+    function createTrendChart(labels, income, expense) {
+        if (!trendCanvas) return;
+        if (trendChart) trendChart.destroy();
+        trendChart = new Chart(trendCanvas, {
+            type: "line",
+            data: {
+                labels,
+                datasets: [
+                    {
+                        label: text.income,
+                        data: income,
+                        borderColor: "rgba(39, 169, 111, 0.95)",
+                        backgroundColor: "rgba(39, 169, 111, 0.14)",
+                        tension: 0.32,
+                        fill: false,
+                        pointRadius: 3,
+                        pointHoverRadius: 5,
+                        borderWidth: 3
+                    },
+                    {
+                        label: text.expense,
+                        data: expense,
+                        borderColor: "rgba(239, 95, 67, 0.95)",
+                        backgroundColor: "rgba(239, 95, 67, 0.14)",
+                        tension: 0.32,
+                        fill: false,
+                        pointRadius: 3,
+                        pointHoverRadius: 5,
+                        borderWidth: 3
+                    }
+                ]
             },
-            body: payload ? JSON.stringify(payload) : null
-        });
-
-        let data = null;
-        try { data = await response.json(); } catch {}
-        if (!response.ok || !data?.success) {
-            throw new Error(data?.message || dict.requestFailed);
-        }
-        return data;
-    }
-
-    document.getElementById("btnSaveWalletApi")?.addEventListener("click", async function () {
-        hideAlert(walletActionAlert);
-        const wallet_name = (document.getElementById("addWalletName")?.value || "").trim();
-        const initial_balance = Number(document.getElementById("addInitialBalance")?.value || 0);
-        const currency = document.getElementById("addWalletCurrencyCode")?.value || "VND";
-        const is_default = !!document.getElementById("addWalletDefault")?.checked;
-
-        if (!wallet_name) return showAlert(walletActionAlert, dict.emptyName);
-        if (initial_balance < 0) return showAlert(walletActionAlert, dict.invalidBalance);
-
-        try {
-            const data = await sendJson("/Dashboard/CreateWalletAjax", "POST", { wallet_name, initial_balance, currency, is_default });
-            addWalletModal?.hide();
-            queueToast("success", data?.message || dict.createSuccess);
-            window.location.reload();
-        } catch (error) {
-            showAlert(walletActionAlert, error.message);
-        }
-    });
-
-    document.getElementById("btnUpdateWalletApi")?.addEventListener("click", async function () {
-        hideAlert(detailWalletActionAlert);
-        const walletId = document.getElementById("detailWalletIdValue")?.value || "";
-        const wallet_name = (document.getElementById("detailWalletName")?.value || "").trim();
-        const currency = document.getElementById("detailWalletCurrencySelect")?.value || "VND";
-        const is_default = !!document.getElementById("detailWalletDefault")?.checked;
-
-        if (!walletId) return showAlert(detailWalletActionAlert, dict.unknownWalletUpdate);
-        if (!wallet_name) return showAlert(detailWalletActionAlert, dict.emptyName);
-
-        try {
-            const data = await sendJson(`/Dashboard/UpdateWalletAjax/${encodeURIComponent(walletId)}`, "PUT", { wallet_name, currency, is_default });
-            queueToast("success", data?.message || dict.updateSuccess);
-            window.location.reload();
-        } catch (error) {
-            showAlert(detailWalletActionAlert, error.message);
-        }
-    });
-
-    document.getElementById("btnDeleteWalletApi")?.addEventListener("click", async function () {
-        hideAlert(detailWalletActionAlert);
-        const walletId = document.getElementById("detailWalletIdValue")?.value || "";
-        const mode = getDeleteMode();
-        const replacement_wallet_id = replacementWalletId?.value || null;
-
-        if (!walletId) return showAlert(detailWalletActionAlert, dict.unknownWalletDelete);
-        if (mode === "move_transactions" && !replacement_wallet_id) return showAlert(detailWalletActionAlert, dict.chooseReplacement);
-
-        try {
-            const data = await sendJson(`/Dashboard/DeleteWalletAjax/${encodeURIComponent(walletId)}`, "DELETE", { mode, replacement_wallet_id });
-            walletDetailModal?.hide();
-            queueToast("success", data?.message || dict.deleteSuccess);
-            window.location.reload();
-        } catch (error) {
-            showAlert(detailWalletActionAlert, error.message);
-        }
-    });
-
-
-    function formatDateInput(date) {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, "0");
-        const day = String(date.getDate()).padStart(2, "0");
-        return `${year}-${month}-${day}`;
-    }
-
-    function syncBudgetPeriodFromEndDate() {
-        const endDateInput = document.getElementById("filterEndDate");
-        const monthSelect = document.getElementById("filterMonth");
-        const yearSelect = document.getElementById("filterYear");
-        if (!endDateInput || !monthSelect || !yearSelect || !endDateInput.value) return;
-        const endDate = new Date(endDateInput.value);
-        if (Number.isNaN(endDate.getTime())) return;
-        monthSelect.value = String(endDate.getMonth() + 1);
-        yearSelect.value = String(endDate.getFullYear());
-    }
-
-    function applyQuickRange(range) {
-        const startDateInput = document.getElementById("filterStartDate");
-        const endDateInput = document.getElementById("filterEndDate");
-        if (!startDateInput || !endDateInput) return;
-
-        const today = new Date();
-        let start = new Date(today);
-        let end = new Date(today);
-
-        if (range === "7d") {
-            start.setDate(today.getDate() - 6);
-        } else if (range === "30d") {
-            start.setDate(today.getDate() - 29);
-        } else if (range === "thisMonth") {
-            start = new Date(today.getFullYear(), today.getMonth(), 1);
-            end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-        } else if (range === "thisYear") {
-            start = new Date(today.getFullYear(), 0, 1);
-            end = new Date(today.getFullYear(), 11, 31);
-        }
-
-        startDateInput.value = formatDateInput(start);
-        endDateInput.value = formatDateInput(end);
-        syncBudgetPeriodFromEndDate();
-    }
-
-    function createLineChart() {
-        const cashflowEl = document.getElementById("dashboardCashflowChart");
-        if (!cashflowEl || typeof ApexCharts === "undefined") return;
-
-        const labels = JSON.parse(cashflowEl.dataset.labels || "[]");
-        const income = JSON.parse(cashflowEl.dataset.income || "[]");
-        const expense = JSON.parse(cashflowEl.dataset.expense || "[]");
-        if (!labels.length) return;
-
-        new ApexCharts(cashflowEl, {
-            series: [
-                { name: dict.income, data: income },
-                { name: dict.expense, data: expense }
-            ],
-            chart: { type: "line", height: 340, toolbar: { show: false }, zoom: { enabled: false } },
-            stroke: { curve: "smooth", width: [3, 3] },
-            colors: ["#48a111", "#ff7a59"],
-            dataLabels: { enabled: false },
-            markers: { size: 5, hover: { size: 7 } },
-            grid: { borderColor: "rgba(72,161,17,0.08)", strokeDashArray: 6 },
-            legend: { position: "bottom", horizontalAlign: "center" },
-            xaxis: { categories: labels, axisBorder: { show: false }, axisTicks: { show: false } },
-            yaxis: { labels: { formatter: val => Number(val).toLocaleString("vi-VN") } },
-            tooltip: { y: { formatter: val => `${Number(val).toLocaleString(lang === "en" ? "en-US" : "vi-VN")} VND` } }
-        }).render();
-    }
-
-    function createDonutChart() {
-        const donutEl = document.getElementById("dashboardExpenseDonutChart");
-        if (!donutEl || typeof ApexCharts === "undefined") return;
-
-        const labels = JSON.parse(donutEl.dataset.labels || "[]");
-        const series = JSON.parse(donutEl.dataset.series || "[]");
-        const colors = JSON.parse(donutEl.dataset.colors || "[]");
-        if (!labels.length) return;
-
-        new ApexCharts(donutEl, {
-            series,
-            labels,
-            colors,
-            chart: { type: "donut", height: 330 },
-            legend: { show: false },
-            dataLabels: { enabled: false },
-            stroke: { width: 0 },
-            plotOptions: {
-                pie: {
-                    donut: {
-                        size: "68%",
-                        labels: {
-                            show: true,
-                            name: { show: true, offsetY: 18 },
-                            value: {
-                                show: true,
-                                offsetY: -14,
-                                formatter: function (val) {
-                                    return `${Number(val).toLocaleString(lang === "en" ? "en-US" : "vi-VN")}`;
-                                }
-                            },
-                            total: {
-                                show: true,
-                                label: dict.totalExpense,
-                                formatter: function (w) {
-                                    const total = w.globals.seriesTotals.reduce((sum, n) => sum + n, 0);
-                                    return Number(total).toLocaleString(lang === "en" ? "en-US" : "vi-VN");
-                                }
-                            }
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: "index", intersect: false },
+                plugins: {
+                    legend: {
+                        position: "top",
+                        align: "end",
+                        labels: { usePointStyle: true, boxWidth: 10, boxHeight: 10, color: "#637381", font: { weight: 700 } }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: context => `${context.dataset.label}: ${formatNumber(context.parsed.y)}`
                         }
                     }
+                },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: "#8291a6", font: { weight: 600 } } },
+                    y: {
+                        beginAtZero: true,
+                        ticks: { color: "#8291a6", callback: value => formatNumber(value) },
+                        grid: { color: "rgba(130, 145, 166, 0.14)" }
+                    }
                 }
-            },
-            tooltip: { y: { formatter: val => `${Number(val).toLocaleString(lang === "en" ? "en-US" : "vi-VN")} VND` } }
-        }).render();
+            }
+        });
     }
 
-    document.getElementById("filterEndDate")?.addEventListener("change", syncBudgetPeriodFromEndDate);
-    document.querySelectorAll(".quick-range-btn").forEach(btn => {
-        btn.addEventListener("click", function () {
-            applyQuickRange(btn.dataset.range || "");
+    function createDonutChart(labels, series, colors) {
+        const canvas = document.getElementById("dashboardExpenseDonutChart");
+        if (!canvas) return;
+        if (donutChart) donutChart.destroy();
+        donutChart = new Chart(canvas, {
+            type: "doughnut",
+            data: {
+                labels,
+                datasets: [{ data: series, backgroundColor: colors, borderWidth: 0, hoverOffset: 6 }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: "68%",
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: context => `${context.label}: ${formatNumber(context.parsed)}` } }
+                }
+            }
         });
-    });
+    }
 
-    flushQueuedToast();
-    createLineChart();
-    createDonutChart();
+    function renderLegend(items) {
+        if (!categoryPanel) return;
+        if (!items || !items.length) {
+            categoryPanel.innerHTML = `
+                <div class="dashboard-empty-state small-empty">
+                    <span class="dashboard-empty-icon"><i class="bx bx-pie-chart-alt-2"></i></span>
+                    <h3>${text.donutEmptyTitle}</h3>
+                    <p>${text.donutEmptyText}</p>
+                </div>`;
+            return;
+        }
+
+        const colors = items.map((x, i) => x.color || ["#696cff", "#71dd37", "#03c3ec", "#ffab00", "#ff5c39"][i % 5]);
+        const labels = items.map(x => x.categoryName);
+        const series = items.map(x => Number(x.totalAmount || 0));
+
+        categoryPanel.innerHTML = `
+            <div class="dashboard-donut-shell">
+                <canvas id="dashboardExpenseDonutChart"></canvas>
+            </div>
+            <div class="dashboard-legend-list" id="dashboardCategoryLegend"></div>`;
+
+        const legend = categoryPanel.querySelector("#dashboardCategoryLegend");
+        legend.innerHTML = items.slice(0, 5).map(item => `
+            <div class="legend-row">
+                <div class="legend-left">
+                    <span class="legend-dot" style="background:${item.color}"></span>
+                    <span>${item.categoryName}</span>
+                </div>
+                <div class="legend-right">
+                    <strong>${Number(item.percentage || 0).toFixed(2).replace(/\.00$/, "")}%</strong>
+                    <small>${formatNumber(item.totalAmount)}</small>
+                </div>
+            </div>`).join("");
+
+        createDonutChart(labels, series, colors);
+    }
+
+    function renderBudgetAlerts(items) {
+        if (!budgetPanel) return;
+        if (!items || !items.length) {
+            budgetPanel.innerHTML = `
+                <div class="dashboard-empty-state small-empty alert-empty-ok">
+                    <span class="dashboard-empty-icon success"><i class="bx bx-check-shield"></i></span>
+                    <h3>${text.budgetEmptyTitle}</h3>
+                    <p>${text.budgetEmptyText}</p>
+                </div>`;
+            return;
+        }
+
+        budgetPanel.innerHTML = `<div class="budget-alert-grid" id="dashboardBudgetAlerts"></div>`;
+        const grid = budgetPanel.querySelector("#dashboardBudgetAlerts");
+        grid.innerHTML = items.map(item => {
+            const status = item.status === "over" ? text.over : item.status === "reached" ? text.reached : text.near;
+            const statusClass = item.status === "over" ? "over" : item.status === "reached" ? "reached" : "warning";
+            const width = clamp(Number(item.percentageUsed || 0), 0, 100);
+            return `
+                <article class="budget-alert-card ${statusClass}">
+                    <div class="budget-alert-head">
+                        <div class="budget-alert-title-wrap">
+                            <span class="budget-alert-dot" style="background:${item.categoryColor}"></span>
+                            <div>
+                                <h3>${item.categoryName}</h3>
+                                <p>${status}</p>
+                            </div>
+                        </div>
+                        <span class="budget-alert-badge">${Math.round(Number(item.percentageUsed || 0))}%</span>
+                    </div>
+                    <div class="budget-alert-bar"><span style="width:${width}%"></span></div>
+                    <div class="budget-alert-meta">
+                        <span>${formatNumber(item.spentAmount)} / ${formatNumber(item.limitAmount)}</span>
+                        <span>${text.remaining}: ${formatNumber(item.remainingAmount)}</span>
+                    </div>
+                </article>`;
+        }).join("");
+    }
+
+    async function loadPeriod(period) {
+        if (!insightsUrl) return;
+        chips.forEach(btn => btn.disabled = true);
+        page?.classList.add("dashboard-loading");
+        try {
+            const response = await fetch(`${insightsUrl}?period=${encodeURIComponent(period)}`, {
+                headers: { "X-Requested-With": "XMLHttpRequest" }
+            });
+            const data = await response.json();
+            if (!response.ok || !data?.success) throw new Error(data?.message || "Failed");
+
+            chips.forEach(btn => btn.classList.toggle("active", btn.dataset.periodChip === data.periodPreset));
+            if (trendTitle) trendTitle.textContent = `${text.trendPrefix} ${String(data.periodLabel || "").toLowerCase()}`;
+            if (donutTitle) donutTitle.textContent = `${text.donutPrefix} ${String(data.periodLabel || "").toLowerCase()}`;
+            if (rangeIncomeEl) rangeIncomeEl.textContent = formatNumber(data.rangeIncome);
+            if (rangeExpenseEl) rangeExpenseEl.textContent = formatNumber(data.rangeExpense);
+            if (rangeTxnEl) rangeTxnEl.textContent = formatNumber(data.rangeTransactionCount);
+            if (busiestEl) busiestEl.textContent = data.busiestLabel || text.noData;
+
+            createTrendChart(data.trendLabels || [], (data.trendIncome || []).map(Number), (data.trendExpense || []).map(Number));
+            renderLegend(data.categoryBreakdown || []);
+            renderBudgetAlerts(data.budgetAlerts || []);
+        } catch (error) {
+            window.AppToast?.error?.(error.message || "Không thể tải dữ liệu dashboard.");
+        } finally {
+            chips.forEach(btn => btn.disabled = false);
+            page?.classList.remove("dashboard-loading");
+        }
+    }
+
+    if (trendCanvas) {
+        createTrendChart(
+            parseJson(trendCanvas.dataset.labels),
+            parseJson(trendCanvas.dataset.income).map(Number),
+            parseJson(trendCanvas.dataset.expense).map(Number)
+        );
+    }
+    if (donutCanvas) {
+        createDonutChart(
+            parseJson(donutCanvas.dataset.labels),
+            parseJson(donutCanvas.dataset.series).map(Number),
+            parseJson(donutCanvas.dataset.colors, ["#696cff", "#71dd37", "#03c3ec", "#ffab00", "#ff5c39"])
+        );
+    }
+
+    chips.forEach(btn => btn.addEventListener("click", function () {
+        const period = this.dataset.periodChip;
+        if (!period || this.classList.contains("active")) return;
+        loadPeriod(period);
+    }));
 });

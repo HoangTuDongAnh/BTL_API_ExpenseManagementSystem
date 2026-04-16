@@ -15,8 +15,16 @@ namespace ExpenseWeb.Models.ViewModels.Dashboard
         public int SelectedMonth { get; set; }
         public int SelectedYear { get; set; }
         public string Granularity { get; set; } = "day";
+        public string PeriodPreset { get; set; } = "month";
+        public string PeriodLabel { get; set; } = string.Empty;
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
+
+        public decimal TodayIncome { get; set; }
+        public decimal TodayExpense { get; set; }
+        public int TodayIncomeCount { get; set; }
+        public int TodayExpenseCount { get; set; }
+        public int ActiveWalletCount { get; set; }
 
         public decimal RangeIncome { get; set; }
         public decimal RangeExpense { get; set; }
@@ -29,6 +37,7 @@ namespace ExpenseWeb.Models.ViewModels.Dashboard
         public List<DashboardReportPointViewModel> MonthlyTrend { get; set; } = new();
         public List<DashboardCategoryBreakdownViewModel> CategoryBreakdown { get; set; } = new();
         public List<DashboardTopExpenseItemViewModel> TopExpenses { get; set; } = new();
+        public List<DashboardRecentTransactionItemViewModel> RecentTransactions { get; set; } = new();
         public List<DashboardBudgetProgressItemViewModel> BudgetProgress { get; set; } = new();
 
         public string? ErrorMessage { get; set; }

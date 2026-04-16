@@ -1,7 +1,9 @@
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using ExpenseWeb.Models.Dtos.Category;
 using ExpenseWeb.Models.Dtos.Reports;
+using ExpenseWeb.Models.Dtos.Transaction;
 using ExpenseWeb.Models.Dtos.Wallet;
 using ExpenseWeb.Models.ViewModels.Dashboard;
 using ExpenseWeb.Services.Api;
@@ -15,16 +17,22 @@ namespace ExpenseWeb.Controllers
     {
         private readonly WalletApiService _walletApiService;
         private readonly ReportApiService _reportApiService;
+        private readonly TransactionApiService _transactionApiService;
+        private readonly CategoryApiService _categoryApiService;
 
         public DashboardController(
             WalletApiService walletApiService,
-            ReportApiService reportApiService)
+            ReportApiService reportApiService,
+            TransactionApiService transactionApiService,
+            CategoryApiService categoryApiService)
         {
             _walletApiService = walletApiService;
             _reportApiService = reportApiService;
+            _transactionApiService = transactionApiService;
+            _categoryApiService = categoryApiService;
         }
 
-        public async Task<IActionResult> Index(int? month, int? year, DateTime? startDate, DateTime? endDate, string? groupBy)
+        public async Task<IActionResult> Index(string? period = null)
         {
             var token = HttpContext.Session.GetString("AccessToken");
             if (string.IsNullOrEmpty(token))
@@ -33,25 +41,13 @@ namespace ExpenseWeb.Controllers
             }
 
             var now = DateTime.Now;
-            var selectedMonth = month.GetValueOrDefault(now.Month);
-            var selectedYear = year.GetValueOrDefault(now.Year);
-
-            var resolvedStartDate = startDate?.Date ?? new DateTime(selectedYear, selectedMonth, 1);
-            var resolvedEndDate = endDate?.Date ?? new DateTime(selectedYear, selectedMonth, DateTime.DaysInMonth(selectedYear, selectedMonth));
-            if (resolvedEndDate < resolvedStartDate)
-            {
-                (resolvedStartDate, resolvedEndDate) = (resolvedEndDate, resolvedStartDate);
-            }
-
-            var selectedGroupBy = NormalizeGroupBy(groupBy);
-            var budgetMonth = resolvedEndDate.Month;
-            var budgetYear = resolvedEndDate.Year;
+            var periodPreset = NormalizePeriod(period);
+            var (resolvedStartDate, resolvedEndDate, selectedGroupBy, periodLabel) = ResolvePeriod(periodPreset, now);
+            var budgetMonth = now.Month;
+            var budgetYear = now.Year;
 
             ViewBag.UserFullName = HttpContext.Session.GetString("UserFullName");
-            ViewBag.FilterStartDate = resolvedStartDate.ToString("yyyy-MM-dd");
-            ViewBag.FilterEndDate = resolvedEndDate.ToString("yyyy-MM-dd");
-            ViewBag.FilterPeriodText = $"{resolvedStartDate:dd-MM-yyyy}-{resolvedEndDate:dd-MM-yyyy}";
-            ViewBag.GroupBy = selectedGroupBy;
+            ViewBag.FilterPeriodText = periodLabel;
 
             var model = new DashboardIndexViewModel
             {
@@ -59,53 +55,59 @@ namespace ExpenseWeb.Controllers
                 SelectedYear = budgetYear,
                 StartDate = resolvedStartDate,
                 EndDate = resolvedEndDate,
-                Granularity = selectedGroupBy
+                Granularity = selectedGroupBy,
+                PeriodPreset = periodPreset,
+                PeriodLabel = periodLabel
             };
+
+            List<WalletResponseDto> wallets = new();
+            List<CategoryResponseDto> categories = new();
+            List<TransactionResponseDto> transactions = new();
 
             try
             {
-                var wallets = await _walletApiService.GetWalletsAsync(token);
+                var walletTask = _walletApiService.GetWalletsAsync(token);
+                var categoryTask = _categoryApiService.GetCategoriesAsync(token);
+                var transactionTask = _transactionApiService.GetTransactionsAsync(token);
+
+                await Task.WhenAll(walletTask, categoryTask, transactionTask);
+
+                wallets = walletTask.Result;
+                categories = categoryTask.Result;
+                transactions = transactionTask.Result;
+
                 model.Wallets = wallets.Select(MapWallet).ToList();
+                model.ActiveWalletCount = model.Wallets.Count;
+                model.TotalBalance = model.Wallets.Sum(x => x.CurrentBalance);
+
+                var today = now.Date;
+                var todayTransactions = transactions
+                    .Where(x => x.transaction_date.Date == today)
+                    .OrderByDescending(x => x.transaction_date)
+                    .ThenByDescending(x => x.transaction_id)
+                    .ToList();
+
+                model.TodayIncome = todayTransactions.Where(x => x.transaction_type == "income").Sum(x => x.amount);
+                model.TodayExpense = todayTransactions.Where(x => x.transaction_type == "expense").Sum(x => x.amount);
+                model.TodayIncomeCount = todayTransactions.Count(x => x.transaction_type == "income");
+                model.TodayExpenseCount = todayTransactions.Count(x => x.transaction_type == "expense");
+
+                var walletLookup = wallets.ToDictionary(x => x.wallet_id, x => x.wallet_name);
+                var categoryLookup = categories.ToDictionary(x => x.category_id, x => x);
+
+                model.RecentTransactions = todayTransactions
+                    .Take(5)
+                    .Select(x => MapRecentTransaction(x, walletLookup, categoryLookup))
+                    .ToList();
             }
             catch (Exception ex)
             {
-                model.ErrorMessage = ExtractApiMessage(ex.Message, "Không thể tải danh sách ví.");
+                model.ErrorMessage = ExtractApiMessage(ex.Message, "Không thể tải danh sách ví và giao dịch gần đây.");
             }
 
             try
             {
-                var overview = await _reportApiService.GetDashboardOverviewRangeAsync(token, resolvedStartDate, resolvedEndDate);
-                model.TotalBalance = overview.total_balance;
-                model.MonthlyIncome = overview.monthly_income;
-                model.MonthlyExpense = overview.monthly_expense;
-                model.TransactionCount = overview.transaction_count;
-
-                model.RangeIncome = overview.monthly_income;
-                model.RangeExpense = overview.monthly_expense;
-                model.RangeNetChange = overview.monthly_income - overview.monthly_expense;
-                model.RangeTransactionCount = overview.transaction_count;
-
-                var analytics = await _reportApiService.GetCashflowAnalyticsAsync(token, resolvedStartDate, resolvedEndDate, selectedGroupBy);
-                model.CashflowSeries = analytics.series.Select(MapCashflowSeries).ToList();
-                model.RangeIncome = analytics.total_income;
-                model.RangeExpense = analytics.total_expense;
-                model.RangeNetChange = analytics.net_change;
-                model.RangeTransactionCount = analytics.transaction_count;
-                model.RangeAverageExpense = analytics.average_expense;
-                model.BusiestLabel = analytics.busiest_label ?? string.Empty;
-
-                model.MonthlyIncome = analytics.total_income;
-                model.MonthlyExpense = analytics.total_expense;
-                model.TransactionCount = analytics.transaction_count;
-
-                var categorySummary = await _reportApiService.GetCategorySummaryRangeAsync(token, resolvedStartDate, resolvedEndDate);
-                model.CategoryBreakdown = categorySummary.Select(MapCategoryBreakdown).ToList();
-
-                var topExpenses = await _reportApiService.GetTopExpensesRangeAsync(token, resolvedStartDate, resolvedEndDate, 5);
-                model.TopExpenses = topExpenses.Select(MapTopExpense).ToList();
-
-                var budgetProgress = await _reportApiService.GetBudgetProgressAsync(token, budgetMonth, budgetYear);
-                model.BudgetProgress = budgetProgress.Select(MapBudgetProgress).ToList();
+                await PopulateReportDataAsync(model, token, periodPreset, now);
             }
             catch (Exception ex)
             {
@@ -113,6 +115,65 @@ namespace ExpenseWeb.Controllers
             }
 
             return View(model);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> Insights(string? period = null)
+        {
+            var token = HttpContext.Session.GetString("AccessToken");
+            if (string.IsNullOrEmpty(token))
+            {
+                return Unauthorized(new { success = false, message = "Phiên đăng nhập đã hết hạn." });
+            }
+
+            try
+            {
+                var now = DateTime.Now;
+                var model = new DashboardIndexViewModel();
+                await PopulateReportDataAsync(model, token, NormalizePeriod(period), now);
+
+                var warningBudgets = model.BudgetProgress
+                    .Where(x => x.Status == "over" || x.Status == "reached" || x.PercentageUsed >= 80)
+                    .OrderByDescending(x => x.PercentageUsed)
+                    .Take(4)
+                    .ToList();
+
+                return Json(new
+                {
+                    success = true,
+                    periodPreset = model.PeriodPreset,
+                    periodLabel = model.PeriodLabel,
+                    rangeIncome = model.RangeIncome,
+                    rangeExpense = model.RangeExpense,
+                    rangeTransactionCount = model.RangeTransactionCount,
+                    busiestLabel = string.IsNullOrWhiteSpace(model.BusiestLabel) ? string.Empty : model.BusiestLabel,
+                    trendLabels = model.CashflowSeries.Select(x => x.Label).ToList(),
+                    trendIncome = model.CashflowSeries.Select(x => x.Income).ToList(),
+                    trendExpense = model.CashflowSeries.Select(x => x.Expense).ToList(),
+                    categoryBreakdown = model.CategoryBreakdown.Select(x => new
+                    {
+                        categoryId = x.CategoryId,
+                        categoryName = x.CategoryName,
+                        color = x.Color,
+                        totalAmount = x.TotalAmount,
+                        percentage = x.Percentage
+                    }).ToList(),
+                    budgetAlerts = warningBudgets.Select(x => new
+                    {
+                        categoryName = x.CategoryName,
+                        categoryColor = string.IsNullOrWhiteSpace(x.CategoryColor) ? "#8592A3" : x.CategoryColor,
+                        percentageUsed = x.PercentageUsed,
+                        spentAmount = x.SpentAmount,
+                        limitAmount = x.LimitAmount,
+                        remainingAmount = x.RemainingAmount,
+                        status = x.Status
+                    }).ToList()
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = ExtractApiMessage(ex.Message, "Không thể tải dữ liệu dashboard.") });
+            }
         }
 
         [HttpGet]
@@ -244,10 +305,76 @@ namespace ExpenseWeb.Controllers
             }
         }
 
-        private static string NormalizeGroupBy(string? groupBy)
+        private async Task PopulateReportDataAsync(DashboardIndexViewModel model, string token, string periodPreset, DateTime now)
         {
-            var value = (groupBy ?? "day").Trim().ToLowerInvariant();
-            return value is "day" or "week" or "month" or "year" ? value : "day";
+            var (resolvedStartDate, resolvedEndDate, selectedGroupBy, periodLabel) = ResolvePeriod(periodPreset, now);
+            var budgetMonth = now.Month;
+            var budgetYear = now.Year;
+
+            model.StartDate = resolvedStartDate;
+            model.EndDate = resolvedEndDate;
+            model.Granularity = selectedGroupBy;
+            model.PeriodPreset = periodPreset;
+            model.PeriodLabel = periodLabel;
+            model.SelectedMonth = budgetMonth;
+            model.SelectedYear = budgetYear;
+
+            var overview = await _reportApiService.GetDashboardOverviewRangeAsync(token, resolvedStartDate, resolvedEndDate);
+            model.MonthlyIncome = overview.monthly_income;
+            model.MonthlyExpense = overview.monthly_expense;
+            model.TransactionCount = overview.transaction_count;
+            model.RangeIncome = overview.monthly_income;
+            model.RangeExpense = overview.monthly_expense;
+            model.RangeNetChange = overview.monthly_income - overview.monthly_expense;
+            model.RangeTransactionCount = overview.transaction_count;
+
+            var analytics = await _reportApiService.GetCashflowAnalyticsAsync(token, resolvedStartDate, resolvedEndDate, selectedGroupBy);
+            model.CashflowSeries = analytics.series.Select(dto => MapCashflowSeries(dto, periodPreset)).ToList();
+            model.RangeIncome = analytics.total_income;
+            model.RangeExpense = analytics.total_expense;
+            model.RangeNetChange = analytics.net_change;
+            model.RangeTransactionCount = analytics.transaction_count;
+            model.RangeAverageExpense = analytics.average_expense;
+            model.BusiestLabel = FormatBusiestLabel(analytics.busiest_label, periodPreset);
+            model.MonthlyIncome = analytics.total_income;
+            model.MonthlyExpense = analytics.total_expense;
+            model.TransactionCount = analytics.transaction_count;
+
+            var categorySummary = await _reportApiService.GetCategorySummaryRangeAsync(token, resolvedStartDate, resolvedEndDate);
+            model.CategoryBreakdown = categorySummary.Select(MapCategoryBreakdown).ToList();
+
+            var budgetProgress = await _reportApiService.GetBudgetProgressAsync(token, budgetMonth, budgetYear);
+            model.BudgetProgress = budgetProgress
+                .Select(MapBudgetProgress)
+                .OrderByDescending(x => x.PercentageUsed)
+                .ToList();
+        }
+
+        private static string NormalizePeriod(string? period)
+        {
+            var value = (period ?? "month").Trim().ToLowerInvariant();
+            return value is "week" or "month" or "year" ? value : "month";
+        }
+
+        private static (DateTime Start, DateTime End, string GroupBy, string Label) ResolvePeriod(string period, DateTime now)
+        {
+            if (period == "week")
+            {
+                var end = now.Date;
+                var start = end.AddDays(-6);
+                return (start, end, "day", $"7 ngày gần nhất ({start:dd/MM} - {end:dd/MM})");
+            }
+
+            if (period == "year")
+            {
+                var start = new DateTime(now.Year, 1, 1);
+                var end = new DateTime(now.Year, 12, 31);
+                return (start, end, "month", $"Năm {now.Year}");
+            }
+
+            var monthStart = new DateTime(now.Year, now.Month, 1);
+            var monthEnd = new DateTime(now.Year, now.Month, DateTime.DaysInMonth(now.Year, now.Month));
+            return (monthStart, monthEnd, "day", $"Tháng {now.Month:D2}/{now.Year}");
         }
 
         private static string Csv(string? input)
@@ -259,17 +386,55 @@ namespace ExpenseWeb.Controllers
             return "\"" + escaped + "\"";
         }
 
-        private static DashboardCashflowSeriesItemViewModel MapCashflowSeries(CashflowSeriesItemDto dto)
+        private static DashboardCashflowSeriesItemViewModel MapCashflowSeries(CashflowSeriesItemDto dto, string periodPreset)
         {
             return new DashboardCashflowSeriesItemViewModel
             {
                 Key = dto.key,
-                Label = dto.label,
+                Label = FormatSeriesLabel(dto, periodPreset),
                 Income = dto.income,
                 Expense = dto.expense,
                 Net = dto.net,
                 RunningBalance = dto.running_balance
             };
+        }
+
+        private static string FormatSeriesLabel(CashflowSeriesItemDto dto, string periodPreset)
+        {
+            if (DateTime.TryParse(dto.key, out var parsed) || DateTime.TryParse(dto.label, out parsed))
+            {
+                return periodPreset switch
+                {
+                    "month" => parsed.ToString("dd"),
+                    "year" => $"T{parsed.Month:D2}",
+                    _ => parsed.ToString("dd/MM")
+                };
+            }
+
+            if (periodPreset == "month" && dto.label.Contains('/'))
+            {
+                return dto.label.Split('/')[0];
+            }
+
+            return dto.label;
+        }
+
+        private static string FormatBusiestLabel(string? rawLabel, string periodPreset)
+        {
+            if (string.IsNullOrWhiteSpace(rawLabel))
+                return string.Empty;
+
+            if (DateTime.TryParse(rawLabel, out var parsed))
+            {
+                return periodPreset switch
+                {
+                    "month" => parsed.ToString("dd/MM"),
+                    "year" => $"Tháng {parsed.Month:D2}",
+                    _ => parsed.ToString("dd/MM")
+                };
+            }
+
+            return rawLabel;
         }
 
         private static DashboardWalletItemViewModel MapWallet(WalletResponseDto dto)
@@ -295,6 +460,28 @@ namespace ExpenseWeb.Controllers
                 Color = string.IsNullOrWhiteSpace(dto.color) ? "#8592A3" : dto.color,
                 TotalAmount = dto.total_amount,
                 Percentage = dto.percentage
+            };
+        }
+
+        private static DashboardRecentTransactionItemViewModel MapRecentTransaction(
+            TransactionResponseDto dto,
+            IReadOnlyDictionary<string, string> walletLookup,
+            IReadOnlyDictionary<string, CategoryResponseDto> categoryLookup)
+        {
+            categoryLookup.TryGetValue(dto.category_id, out var category);
+            walletLookup.TryGetValue(dto.wallet_id, out var walletName);
+
+            return new DashboardRecentTransactionItemViewModel
+            {
+                TransactionId = dto.transaction_id,
+                TransactionDate = dto.transaction_date,
+                TransactionType = string.IsNullOrWhiteSpace(dto.transaction_type) ? "expense" : dto.transaction_type,
+                Amount = dto.amount,
+                WalletName = walletName ?? dto.wallet_id,
+                CategoryName = category?.category_name ?? dto.category_id,
+                CategoryIcon = category?.icon,
+                CategoryColor = category?.color,
+                Note = string.IsNullOrWhiteSpace(dto.note) ? "Không có ghi chú" : dto.note!
             };
         }
 

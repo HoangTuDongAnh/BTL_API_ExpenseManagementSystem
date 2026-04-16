@@ -1,4 +1,4 @@
-﻿@model ExpenseWeb.Models.ViewModels.Dashboard.DashboardIndexViewModel
+@model ExpenseWeb.Models.ViewModels.Dashboard.DashboardIndexViewModel
 @using System.Linq
 @using System.Text.Json
 
@@ -13,14 +13,31 @@
         .OrderByDescending(x => x.IsDefault)
         .ThenBy(x => x.WalletName)
         .ToList();
+
+    var trendLabels = JsonSerializer.Serialize(Model.CashflowSeries.Select(x => x.Label));
+    var trendIncome = JsonSerializer.Serialize(Model.CashflowSeries.Select(x => x.Income));
+    var trendExpense = JsonSerializer.Serialize(Model.CashflowSeries.Select(x => x.Expense));
+
+    var donutLabels = JsonSerializer.Serialize(Model.CategoryBreakdown.Select(x => x.CategoryName));
+    var donutSeries = JsonSerializer.Serialize(Model.CategoryBreakdown.Select(x => x.TotalAmount));
+    var donutColors = JsonSerializer.Serialize(Model.CategoryBreakdown.Select(x => string.IsNullOrWhiteSpace(x.Color) ? "#696cff" : x.Color));
+
+    var warningBudgets = Model.BudgetProgress
+        .Where(x => x.Status == "over" || x.Status == "reached" || x.PercentageUsed >= 80)
+        .OrderByDescending(x => x.PercentageUsed)
+        .Take(4)
+        .ToList();
+
+    var warningCount = warningBudgets.Count;
 }
 
 @section Styles {
     <link rel="stylesheet" href="~/sneat/css/pages/core-page-hero.css" />
     <link rel="stylesheet" href="~/sneat/css/pages/wallet-dashboard.css" />
+    <link rel="stylesheet" href="~/sneat/css/pages/dashboard-overview.css" />
 }
 
-<div class="container-xxl flex-grow-1 container-p-y">
+<div class="dashboard-page" data-dashboard-insights-url="@Url.Action("Insights", "Dashboard")">
     <section class="dashboard-hero mb-4">
         <div class="dashboard-hero-copy hero-copy-single">
             <span class="dashboard-hero-eyebrow">@T("Bảng điều khiển tài chính", "Finance dashboard")</span>
@@ -28,9 +45,8 @@
                 @T("Nhìn rõ ví tiền, nhịp thu chi và báo cáo quan trọng mỗi ngày.", "See your wallets, cashflow rhythm, and key reports more clearly each day.")
             </h1>
             <p class="dashboard-hero-text">
-                @T(
-                "Theo dõi số dư hiện có, biến động trong kỳ và những chỉ số nổi bật để việc quản lý chi tiêu trở nên chủ động hơn.",
-                                "Track current balances, period changes, and standout indicators so managing your spending feels more proactive.")
+                @T("Theo dõi số dư hiện có, biến động trong kỳ và những chỉ số nổi bật để việc quản lý chi tiêu trở nên chủ động hơn.",
+                "Track current balances, period changes, and standout indicators so managing your spending feels more proactive.")
             </p>
         </div>
     </section>
@@ -91,13 +107,259 @@
             {
                 <div class="alert alert-info wallet-empty-state mb-0">@T("Bạn chưa có ví nào. Hãy tạo ví đầu tiên để bắt đầu ghi nhận thu chi.", "You do not have a wallet yet. Create your first wallet to start tracking money.")</div>
             }
+            </div>
         </div>
     </section>
 
-</div>
+    @if (!string.IsNullOrWhiteSpace(Model.ReportErrorMessage))
+    {
+        <div class="alert alert-warning mb-4">@Model.ReportErrorMessage</div>
+    }
 
-</div>
+    <section class="dashboard-mini-grid mb-4">
+        <article class="dashboard-mini-card danger">
+            <span class="dashboard-mini-icon"><i class="bx bx-trending-down"></i></span>
+            <div class="dashboard-mini-copy">
+                <div class="dashboard-mini-label">@T("Chi hôm nay", "Today expense")</div>
+                <div class="dashboard-mini-value">@Model.TodayExpense.ToString("N0")</div>
+                <div class="dashboard-mini-meta">@Model.TodayExpenseCount @T("giao dịch chi", "expense transactions")</div>
+            </div>
+        </article>
+        <article class="dashboard-mini-card success">
+            <span class="dashboard-mini-icon"><i class="bx bx-trending-up"></i></span>
+            <div class="dashboard-mini-copy">
+                <div class="dashboard-mini-label">@T("Thu hôm nay", "Today income")</div>
+                <div class="dashboard-mini-value">@Model.TodayIncome.ToString("N0")</div>
+                <div class="dashboard-mini-meta">@Model.TodayIncomeCount @T("giao dịch thu", "income transactions")</div>
+            </div>
+        </article>
+        <article class="dashboard-mini-card primary">
+            <span class="dashboard-mini-icon"><i class="bx bx-wallet-alt"></i></span>
+            <div class="dashboard-mini-copy">
+                <div class="dashboard-mini-label">@T("Tổng số dư hiện có", "Current total balance")</div>
+                <div class="dashboard-mini-value">@Model.TotalBalance.ToString("N0")</div>
+                <div class="dashboard-mini-meta">@Model.ActiveWalletCount @T("ví đang hoạt động", "active wallets")</div>
+            </div>
+        </article>
+        <article class="dashboard-mini-card warning">
+            <span class="dashboard-mini-icon"><i class="bx bx-error-circle"></i></span>
+            <div class="dashboard-mini-copy">
+                <div class="dashboard-mini-label">@T("Ngân sách cần chú ý", "Budgets to review")</div>
+                <div class="dashboard-mini-value">@warningCount</div>
+                <div class="dashboard-mini-meta">@warningBudgets.Count(x => x.Status == "over") @T("đã vượt", "over") • @warningBudgets.Count(x => x.Status != "over") @T("sắp chạm mức", "near limit")</div>
+            </div>
+        </article>
+    </section>
 
+    <section class="card dashboard-report-card mb-4">
+        <div class="card-body">
+            <div class="dashboard-card-head">
+                <div>
+                    <span class="dashboard-card-eyebrow">@T("Xu hướng thu chi", "Cashflow trend")</span>
+                    <h2 class="dashboard-card-title" id="dashboardTrendTitle">@T("Thu và chi trong", "Income and expense in") @Model.PeriodLabel.ToLower()</h2>
+                    <p class="dashboard-card-text" id="dashboardTrendSubtitle">@T("Chọn nhanh khung thời gian để xem nhịp thu chi theo tuần gần nhất, tháng hiện tại hoặc toàn bộ năm.", "Quickly switch between the last 7 days, current month, or the full year.")</p>
+                </div>
+                <div class="dashboard-card-actions">
+                    <div class="dashboard-period-switch" role="tablist" aria-label="Dashboard period">
+                        <button type="button" class="period-chip @(Model.PeriodPreset == "week" ? "active" : null)" data-period-chip="week">7 @T("ngày", "days")</button>
+                        <button type="button" class="period-chip @(Model.PeriodPreset == "month" ? "active" : null)" data-period-chip="month">@T("Tháng này", "This month")</button>
+                        <button type="button" class="period-chip @(Model.PeriodPreset == "year" ? "active" : null)" data-period-chip="year">@T("Năm nay", "This year")</button>
+                    </div>
+                    <a class="dashboard-link-action" asp-controller="Transaction" asp-action="Index">@T("Mở trang giao dịch", "Open transactions") <i class="bx bx-right-arrow-alt"></i></a>
+                </div>
+            </div>
+
+            <div class="dashboard-trend-chart-shell">
+                <canvas id="dashboardCashflowChart"
+                        data-labels='@Html.Raw(trendLabels)'
+                        data-income='@Html.Raw(trendIncome)'
+                        data-expense='@Html.Raw(trendExpense)'></canvas>
+            </div>
+
+            <div class="dashboard-trend-stats" id="dashboardTrendStats">
+                <div class="trend-stat-box">
+                    <span class="label">@T("Tổng thu", "Income")</span>
+                    <strong id="dashboardRangeIncome">@Model.RangeIncome.ToString("N0")</strong>
+                </div>
+                <div class="trend-stat-box">
+                    <span class="label">@T("Tổng chi", "Expense")</span>
+                    <strong id="dashboardRangeExpense">@Model.RangeExpense.ToString("N0")</strong>
+                </div>
+                <div class="trend-stat-box">
+                    <span class="label">@T("Giao dịch", "Transactions")</span>
+                    <strong id="dashboardRangeTransactionCount">@Model.RangeTransactionCount</strong>
+                </div>
+                <div class="trend-stat-box">
+                    <span class="label">@T("Nhịp nổi bật", "Busiest point")</span>
+                    <strong id="dashboardBusiestLabel">@(string.IsNullOrWhiteSpace(Model.BusiestLabel) ? T("Chưa có", "No data") : Model.BusiestLabel)</strong>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="dashboard-split-grid mb-4">
+        <article class="card dashboard-report-card">
+            <div class="card-body">
+                <div class="dashboard-card-head compact">
+                    <div>
+                        <span class="dashboard-card-eyebrow">@T("Hoạt động trong ngày", "Daily activity")</span>
+                        <h2 class="dashboard-card-title">@T("Giao dịch hôm nay", "Today's transactions")</h2>
+                    </div>
+                    <a class="dashboard-link-action" asp-controller="Transaction" asp-action="Index">@T("Xem tất cả", "View all") <i class="bx bx-right-arrow-alt"></i></a>
+                </div>
+
+                @if (Model.RecentTransactions.Any())
+                {
+                    <div class="dashboard-table-wrap">
+                        <table class="dashboard-mini-table">
+                            <thead>
+                                <tr>
+                                    <th>@T("Danh mục", "Category")</th>
+                                    <th>@T("Ví", "Wallet")</th>
+                                    <th>@T("Ghi chú", "Note")</th>
+                                    <th class="text-end">@T("Số tiền", "Amount")</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in Model.RecentTransactions.Take(5))
+                                {
+                                    var icon = string.IsNullOrWhiteSpace(item.CategoryIcon) ? "bx-category" : item.CategoryIcon;
+                                    var isIncome = item.TransactionType == "income";
+                                    <tr>
+                                        <td>
+                                            <div class="txn-category-cell">
+                                                <span class="txn-category-icon" style="background:@(string.IsNullOrWhiteSpace(item.CategoryColor) ? "#eef2ff" : item.CategoryColor + "22"); color:@(string.IsNullOrWhiteSpace(item.CategoryColor) ? "#696cff" : item.CategoryColor)">
+                                                    <i class='bx @icon'></i>
+                                                </span>
+                                                <div>
+                                                    <strong>@item.CategoryName</strong>
+                                                    <small>@item.TransactionDate.ToString("dd/MM")</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>@item.WalletName</td>
+                                        <td class="txn-note">@item.Note</td>
+                                        <td class="text-end @(isIncome ? "amount-income" : "amount-expense")">@(isIncome ? "+" : "-")@item.Amount.ToString("N0")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="dashboard-empty-state small-empty">
+                        <span class="dashboard-empty-icon"><i class="bx bx-receipt"></i></span>
+                        <h3>@T("Hôm nay chưa có giao dịch nào", "No transactions yet today")</h3>
+                        <p>@T("Khi bạn thêm giao dịch mới, dashboard sẽ hiển thị 3 - 5 giao dịch gần nhất ngay tại đây.", "New transactions will appear here as a compact table once they are created.")</p>
+                    </div>
+                }
+            </div>
+        </article>
+
+        <article class="card dashboard-report-card">
+            <div class="card-body">
+                <div class="dashboard-card-head compact">
+                    <div>
+                        <span class="dashboard-card-eyebrow">@T("Cơ cấu chi tiêu", "Spending breakdown")</span>
+                        <h2 class="dashboard-card-title" id="dashboardDonutTitle">@T("Danh mục chi tiêu trong", "Spending categories in") @Model.PeriodLabel.ToLower()</h2>
+                    </div>
+                    <a class="dashboard-link-action" asp-controller="Category" asp-action="Index">@T("Quản lý danh mục", "Manage categories") <i class="bx bx-right-arrow-alt"></i></a>
+                </div>
+
+                <div id="dashboardCategoryPanel">
+                    @if (Model.CategoryBreakdown.Any())
+                    {
+                        <div class="dashboard-donut-shell">
+                            <canvas id="dashboardExpenseDonutChart"
+                                    data-labels='@Html.Raw(donutLabels)'
+                                    data-series='@Html.Raw(donutSeries)'
+                                    data-colors='@Html.Raw(donutColors)'></canvas>
+                        </div>
+                        <div class="dashboard-legend-list" id="dashboardCategoryLegend">
+                            @foreach (var item in Model.CategoryBreakdown.Take(5))
+                            {
+                                <div class="legend-row">
+                                    <div class="legend-left">
+                                        <span class="legend-dot" style="background:@item.Color"></span>
+                                        <span>@item.CategoryName</span>
+                                    </div>
+                                    <div class="legend-right">
+                                        <strong>@item.Percentage.ToString("0.##")%</strong>
+                                        <small>@item.TotalAmount.ToString("N0")</small>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="dashboard-empty-state small-empty">
+                            <span class="dashboard-empty-icon"><i class="bx bx-pie-chart-alt-2"></i></span>
+                            <h3>@T("Chưa có dữ liệu chi tiêu", "No spending data yet")</h3>
+                            <p>@T("Biểu đồ tròn sẽ xuất hiện khi kỳ đang xem có giao dịch chi tiêu.", "The doughnut chart will appear once there are expense transactions in the selected period.")</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </article>
+    </section>
+
+    <section class="card dashboard-report-card mb-4">
+        <div class="card-body">
+            <div class="dashboard-card-head compact">
+                <div>
+                    <span class="dashboard-card-eyebrow">@T("Cảnh báo nhanh", "Quick alerts")</span>
+                    <h2 class="dashboard-card-title">@T("Ngân sách cần chú ý", "Budgets to review")</h2>
+                </div>
+                <a class="dashboard-link-action" asp-controller="Category" asp-action="Index">@T("Quản lý danh mục và budget", "Open categories & budgets") <i class="bx bx-right-arrow-alt"></i></a>
+            </div>
+
+            <div id="dashboardBudgetPanel">
+                @if (warningBudgets.Any())
+                {
+                    <div class="budget-alert-grid" id="dashboardBudgetAlerts">
+                        @foreach (var item in warningBudgets)
+                        {
+                            var statusClass = item.Status == "over" ? "over" : item.Status == "reached" ? "reached" : "warning";
+                            var statusText = item.Status == "over"
+                                ? T("Đã vượt mức", "Over budget")
+                                : item.Status == "reached"
+                                    ? T("Đã chạm mức", "Reached limit")
+                                    : T("Sắp chạm mức", "Near limit");
+                            var percentageText = Math.Round(item.PercentageUsed, 0).ToString("0");
+                            <article class="budget-alert-card @statusClass">
+                                <div class="budget-alert-head">
+                                    <div class="budget-alert-title-wrap">
+                                        <span class="budget-alert-dot" style="background:@(string.IsNullOrWhiteSpace(item.CategoryColor) ? "#696cff" : item.CategoryColor)"></span>
+                                        <div>
+                                            <h3>@item.CategoryName</h3>
+                                            <p>@statusText</p>
+                                        </div>
+                                    </div>
+                                    <span class="budget-alert-badge">@percentageText%</span>
+                                </div>
+                                <div class="budget-alert-bar"><span style="width:@Math.Min(item.PercentageUsed, 100).ToString(System.Globalization.CultureInfo.InvariantCulture)%"></span></div>
+                                <div class="budget-alert-meta">
+                                    <span>@item.SpentAmount.ToString("N0") / @item.LimitAmount.ToString("N0")</span>
+                                    <span>@T("Còn lại", "Remaining"): @item.RemainingAmount.ToString("N0")</span>
+                                </div>
+                            </article>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="dashboard-empty-state small-empty alert-empty-ok">
+                        <span class="dashboard-empty-icon success"><i class="bx bx-check-shield"></i></span>
+                        <h3>@T("Chưa có ngân sách nào vượt ngưỡng", "No budgets need attention")</h3>
+                        <p>@T("Hiện chưa có danh mục nào vượt hoặc gần chạm mức cảnh báo trong tháng này.", "No budget category is over or near its warning threshold this month.")</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </section>
+</div>
 <div class="modal fade wallet-modal wallet-modal-unified mimo-popup" id="addWalletModal" tabindex="-1" aria-hidden="true" data-popup-base="true" data-popup-source-header=".wallet-modal-hero" data-popup-source-close=".wallet-modal-close" data-popup-title=".wallet-modal-title" data-popup-subtitle=".wallet-modal-subtitle">
     <div class="modal-dialog modal-dialog-centered modal-xl wallet-modal-dialog">
         <div class="modal-content wallet-modal-content-shell">
@@ -285,5 +547,7 @@
 </div>
 
 @section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="~/sneat/js/pages/wallet-dashboard.js"></script>
+    <script src="~/sneat/js/pages/dashboard-overview.js"></script>
 }
