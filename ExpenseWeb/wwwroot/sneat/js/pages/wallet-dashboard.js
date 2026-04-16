@@ -1,4 +1,4 @@
-document.addEventListener("DOMContentLoaded", function () {
+﻿document.addEventListener("DOMContentLoaded", function () {
     const addWalletModalEl = document.getElementById("addWalletModal");
     const walletDetailModalEl = document.getElementById("walletDetailModal");
     const addWalletModal = addWalletModalEl ? new bootstrap.Modal(addWalletModalEl) : null;
@@ -24,10 +24,7 @@ document.addEventListener("DOMContentLoaded", function () {
             updateSuccess: "Wallet updated successfully.",
             deleteSuccess: "Wallet deleted successfully.",
             standardWallet: "Standard wallet",
-            defaultWallet: "Default wallet",
-            income: "Income",
-            expense: "Expense",
-            totalExpense: "Expenses"
+            defaultWallet: "Default wallet"
           }
         : {
             unknownError: "Có lỗi xảy ra.",
@@ -41,10 +38,7 @@ document.addEventListener("DOMContentLoaded", function () {
             updateSuccess: "Cập nhật ví thành công.",
             deleteSuccess: "Xóa ví thành công.",
             standardWallet: "Ví thường",
-            defaultWallet: "Ví mặc định",
-            income: "Thu",
-            expense: "Chi",
-            totalExpense: "Chi tiêu"
+            defaultWallet: "Ví mặc định"
           };
 
     function queueToast(type, message) {
@@ -224,132 +218,5 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
 
-    function formatDateInput(date) {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, "0");
-        const day = String(date.getDate()).padStart(2, "0");
-        return `${year}-${month}-${day}`;
-    }
-
-    function syncBudgetPeriodFromEndDate() {
-        const endDateInput = document.getElementById("filterEndDate");
-        const monthSelect = document.getElementById("filterMonth");
-        const yearSelect = document.getElementById("filterYear");
-        if (!endDateInput || !monthSelect || !yearSelect || !endDateInput.value) return;
-        const endDate = new Date(endDateInput.value);
-        if (Number.isNaN(endDate.getTime())) return;
-        monthSelect.value = String(endDate.getMonth() + 1);
-        yearSelect.value = String(endDate.getFullYear());
-    }
-
-    function applyQuickRange(range) {
-        const startDateInput = document.getElementById("filterStartDate");
-        const endDateInput = document.getElementById("filterEndDate");
-        if (!startDateInput || !endDateInput) return;
-
-        const today = new Date();
-        let start = new Date(today);
-        let end = new Date(today);
-
-        if (range === "7d") {
-            start.setDate(today.getDate() - 6);
-        } else if (range === "30d") {
-            start.setDate(today.getDate() - 29);
-        } else if (range === "thisMonth") {
-            start = new Date(today.getFullYear(), today.getMonth(), 1);
-            end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-        } else if (range === "thisYear") {
-            start = new Date(today.getFullYear(), 0, 1);
-            end = new Date(today.getFullYear(), 11, 31);
-        }
-
-        startDateInput.value = formatDateInput(start);
-        endDateInput.value = formatDateInput(end);
-        syncBudgetPeriodFromEndDate();
-    }
-
-    function createLineChart() {
-        const cashflowEl = document.getElementById("dashboardCashflowChart");
-        if (!cashflowEl || typeof ApexCharts === "undefined") return;
-
-        const labels = JSON.parse(cashflowEl.dataset.labels || "[]");
-        const income = JSON.parse(cashflowEl.dataset.income || "[]");
-        const expense = JSON.parse(cashflowEl.dataset.expense || "[]");
-        if (!labels.length) return;
-
-        new ApexCharts(cashflowEl, {
-            series: [
-                { name: dict.income, data: income },
-                { name: dict.expense, data: expense }
-            ],
-            chart: { type: "line", height: 340, toolbar: { show: false }, zoom: { enabled: false } },
-            stroke: { curve: "smooth", width: [3, 3] },
-            colors: ["#48a111", "#ff7a59"],
-            dataLabels: { enabled: false },
-            markers: { size: 5, hover: { size: 7 } },
-            grid: { borderColor: "rgba(72,161,17,0.08)", strokeDashArray: 6 },
-            legend: { position: "bottom", horizontalAlign: "center" },
-            xaxis: { categories: labels, axisBorder: { show: false }, axisTicks: { show: false } },
-            yaxis: { labels: { formatter: val => Number(val).toLocaleString("vi-VN") } },
-            tooltip: { y: { formatter: val => `${Number(val).toLocaleString(lang === "en" ? "en-US" : "vi-VN")} VND` } }
-        }).render();
-    }
-
-    function createDonutChart() {
-        const donutEl = document.getElementById("dashboardExpenseDonutChart");
-        if (!donutEl || typeof ApexCharts === "undefined") return;
-
-        const labels = JSON.parse(donutEl.dataset.labels || "[]");
-        const series = JSON.parse(donutEl.dataset.series || "[]");
-        const colors = JSON.parse(donutEl.dataset.colors || "[]");
-        if (!labels.length) return;
-
-        new ApexCharts(donutEl, {
-            series,
-            labels,
-            colors,
-            chart: { type: "donut", height: 330 },
-            legend: { show: false },
-            dataLabels: { enabled: false },
-            stroke: { width: 0 },
-            plotOptions: {
-                pie: {
-                    donut: {
-                        size: "68%",
-                        labels: {
-                            show: true,
-                            name: { show: true, offsetY: 18 },
-                            value: {
-                                show: true,
-                                offsetY: -14,
-                                formatter: function (val) {
-                                    return `${Number(val).toLocaleString(lang === "en" ? "en-US" : "vi-VN")}`;
-                                }
-                            },
-                            total: {
-                                show: true,
-                                label: dict.totalExpense,
-                                formatter: function (w) {
-                                    const total = w.globals.seriesTotals.reduce((sum, n) => sum + n, 0);
-                                    return Number(total).toLocaleString(lang === "en" ? "en-US" : "vi-VN");
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            tooltip: { y: { formatter: val => `${Number(val).toLocaleString(lang === "en" ? "en-US" : "vi-VN")} VND` } }
-        }).render();
-    }
-
-    document.getElementById("filterEndDate")?.addEventListener("change", syncBudgetPeriodFromEndDate);
-    document.querySelectorAll(".quick-range-btn").forEach(btn => {
-        btn.addEventListener("click", function () {
-            applyQuickRange(btn.dataset.range || "");
-        });
-    });
-
     flushQueuedToast();
-    createLineChart();
-    createDonutChart();
 });
