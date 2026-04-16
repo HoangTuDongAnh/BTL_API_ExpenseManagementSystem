@@ -7,7 +7,7 @@
     ViewData["Title"] = T("Hồ sơ cá nhân", "My Profile");
     Layout = "~/Views/Shared/_Layout.cshtml";
     var avatarUrl = string.IsNullOrWhiteSpace(Model?.Avatar)
-        ? Url.Content("~/sneat/img/avatars/1.png")
+        ? Url.Content("~/sneat/img/avatars/default/teams_1.png")
         : Model.Avatar;
     var defaultAvatars = ViewBag.DefaultAvatars as List<string> ?? new List<string>();
     var avatarLibrary = defaultAvatars.Take(9).ToList();
@@ -173,7 +173,7 @@
 </div>
 
 @section Scripts {
-    <script src="~/sneat/js/pages/profile-page.js"></script>
+    <script src="~/sneat/js/pages/profile-page.js?v=@DateTime.Now.Ticks"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const uploadedAvatar = document.getElementById('uploadedAvatar');

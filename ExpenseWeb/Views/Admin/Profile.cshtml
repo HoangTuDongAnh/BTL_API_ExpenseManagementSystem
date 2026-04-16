@@ -7,7 +7,7 @@
     Layout = "~/Views/Shared/_Layout.cshtml";
 
     var avatarUrl = string.IsNullOrWhiteSpace(Model?.Avatar)
-        ? Url.Content("~/sneat/img/avatars/1.png")
+        ? Url.Content("~/sneat/img/avatars/default/teams_1.png")
         : Model.Avatar;
 }
 
@@ -54,7 +54,7 @@
                         </div>
 
                         <div class="col-12 col-md-8 ps-md-5 mt-4 mt-md-0">
-                            <form id="formProfileSettings" method="post" enctype="multipart/form-data" onsubmit="return false">
+                            <form id="formProfileSettings" method="post" enctype="multipart/form-data">
                                 <input type="hidden" id="avatarUrl" name="Avatar" value="@Model.Avatar" />
 
                                 <div class="row g-4">
@@ -160,42 +160,46 @@
 </div>
 
 @section Scripts {
-    <script src="~/sneat/js/pages/profile-page.js"></script>
+    <script src="~/sneat/js/pages/profile-page.js" asp-append-version="true"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const uploadedAvatar = document.getElementById('uploadedAvatar');
-            const zoomedAvatar = document.getElementById('zoomedAvatar');
-            const uploadAvatarFile = document.getElementById('uploadAvatarFile');
-            const hiddenAvatarInput = document.getElementById('avatarUrl');
+        document.addEventListener('DOMContentLoaded', function () {
+        const uploadedAvatar = document.getElementById('uploadedAvatar');
+        const zoomedAvatar = document.getElementById('zoomedAvatar');
+        const uploadAvatarFile = document.getElementById('uploadAvatarFile');
+        const hiddenAvatarInput = document.getElementById('avatarUrl');
+        const pickerCards = document.querySelectorAll('.avatar-picker-card');
 
-            uploadAvatarFile.addEventListener('change', function(e) {
-                if (e.target.files && e.target.files[0]) {
-                    const reader = new FileReader();
-                    reader.onload = function(event) {
-                        uploadedAvatar.src = event.target.result;
-                        zoomedAvatar.src = event.target.result;
-                        hiddenAvatarInput.value = '';
-                    };
-                    reader.readAsDataURL(e.target.files[0]);
-                }
-            });
+        uploadAvatarFile.addEventListener('change', function (e) {
+        if (e.target.files && e.target.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function (event) {
+        uploadedAvatar.src = event.target.result;
+        zoomedAvatar.src = event.target.result;
+        hiddenAvatarInput.value = '';
+        pickerCards.forEach(card => card.classList.remove('active'));
+        };
+        reader.readAsDataURL(e.target.files[0]);
+        }
+        });
 
-            const defaultOptions = document.querySelectorAll('.default-avatar-option');
-            defaultOptions.forEach(option => {
-                option.addEventListener('click', function() {
-                    const selectedUrl = this.getAttribute('data-url');
+        const defaultOptions = document.querySelectorAll('.default-avatar-option');
+        defaultOptions.forEach(option => {
+        option.addEventListener('click', function () {
+        const selectedUrl = this.getAttribute('data-url');
 
-                    uploadedAvatar.src = selectedUrl;
-                    zoomedAvatar.src = selectedUrl;
+        uploadedAvatar.src = selectedUrl;
+        zoomedAvatar.src = selectedUrl;
+        hiddenAvatarInput.value = selectedUrl;
+        uploadAvatarFile.value = '';
 
-                    hiddenAvatarInput.value = selectedUrl;
-                    uploadAvatarFile.value = '';
+        pickerCards.forEach(card => card.classList.remove('active'));
+        this.closest('.avatar-picker-card')?.classList.add('active');
 
-                    const modalEl = document.getElementById('defaultAvatarModal');
-                    const modal = bootstrap.Modal.getInstance(modalEl);
-                    modal.hide();
-                });
-            });
+        const modalEl = document.getElementById('defaultAvatarModal');
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        modal.hide();
+        });
+        });
         });
     </script>
 }
