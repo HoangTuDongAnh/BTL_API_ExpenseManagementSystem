@@ -1,5 +1,5 @@
-(function () {
-    const defaultAvatar = '/sneat/img/avatars/1.png';
+﻿(function () {
+    const defaultAvatar = '/sneat/img/avatars/default/teams_1.png';
     const form = document.getElementById('formProfileSettings');
     if (!form) return;
 

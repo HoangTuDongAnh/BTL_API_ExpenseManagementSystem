@@ -84,7 +84,7 @@ namespace ExpenseWeb.Controllers
             }
         }
 
-        [HttpPut]
+        [HttpPut("{id}")]
         public async Task<IActionResult> Update(string id, [FromBody] CategoryUpdateRequestDto request)
         {
             var token = HttpContext.Session.GetString("AccessToken");
@@ -104,7 +104,7 @@ namespace ExpenseWeb.Controllers
             }
         }
 
-        [HttpDelete]
+        [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(string id, [FromBody] CategoryDeleteRequestDto? request)
         {
             var token = HttpContext.Session.GetString("AccessToken");
