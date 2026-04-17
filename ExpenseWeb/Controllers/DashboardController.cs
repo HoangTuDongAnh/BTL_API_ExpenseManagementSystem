@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using ExpenseWeb.Models.Dtos.Category;
@@ -154,6 +154,7 @@ namespace ExpenseWeb.Controllers
                     {
                         categoryId = x.CategoryId,
                         categoryName = x.CategoryName,
+                        icon = x.Icon,
                         color = x.Color,
                         totalAmount = x.TotalAmount,
                         percentage = x.Percentage

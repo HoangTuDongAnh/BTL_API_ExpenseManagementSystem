@@ -21,6 +21,7 @@
     var donutLabels = JsonSerializer.Serialize(Model.CategoryBreakdown.Select(x => x.CategoryName));
     var donutSeries = JsonSerializer.Serialize(Model.CategoryBreakdown.Select(x => x.TotalAmount));
     var donutColors = JsonSerializer.Serialize(Model.CategoryBreakdown.Select(x => string.IsNullOrWhiteSpace(x.Color) ? "#696cff" : x.Color));
+    var donutItems = JsonSerializer.Serialize(Model.CategoryBreakdown.Select(x => new { x.CategoryId, x.CategoryName, x.Icon, Color = string.IsNullOrWhiteSpace(x.Color) ? "#696cff" : x.Color, x.TotalAmount, x.Percentage }));
 
     var warningBudgets = Model.BudgetProgress
         .Where(x => x.Status == "over" || x.Status == "reached" || x.PercentageUsed >= 80)
@@ -195,6 +196,75 @@
         </div>
     </section>
 
+    <section class="card dashboard-report-card mb-4">
+        <div class="card-body">
+            <div class="dashboard-card-head compact">
+                <div>
+                    <span class="dashboard-card-eyebrow">@T("Cơ cấu chi tiêu", "Spending breakdown")</span>
+                    <h2 class="dashboard-card-title" id="dashboardDonutTitle">@T("Danh mục chi tiêu trong", "Spending categories in") @Model.PeriodLabel.ToLower()</h2>
+                    <p class="dashboard-card-text">@T("Biểu đồ tròn cho biết nhóm chi tiêu nổi bật, còn danh sách bên cạnh giúp bạn đọc nhanh số tiền và tỷ trọng của từng danh mục.", "The doughnut chart highlights your top spending groups, while the panel beside it summarizes the amount and share of each category.")</p>
+                </div>
+                <a class="dashboard-link-action" asp-controller="Category" asp-action="Index">@T("Quản lý danh mục", "Manage categories") <i class="bx bx-right-arrow-alt"></i></a>
+            </div>
+
+            <div id="dashboardCategoryPanel">
+                @if (Model.CategoryBreakdown.Any())
+                {
+                    <div class="dashboard-breakdown-layout">
+                        <div class="dashboard-breakdown-chart-card">
+                            <div class="dashboard-donut-shell">
+                                <canvas id="dashboardExpenseDonutChart"
+                                        data-labels='@Html.Raw(donutLabels)'
+                                        data-series='@Html.Raw(donutSeries)'
+                                        data-colors='@Html.Raw(donutColors)'
+                                        data-items='@Html.Raw(donutItems)'></canvas>
+                            </div>
+                        </div>
+                        <div class="dashboard-breakdown-sidecard">
+                            <div class="dashboard-breakdown-summary">
+                                <div class="summary-pill summary-pill--highlight">
+                                    <span>@T("Danh mục phát sinh", "Active categories")</span>
+                                    <strong>@Model.CategoryBreakdown.Count</strong>
+                                </div>
+                            </div>
+                            <div class="dashboard-legend-shell">
+                                <div class="dashboard-legend-scroll" id="dashboardCategoryLegend">
+                                    @for (var i = 0; i < Model.CategoryBreakdown.Count; i++)
+                                    {
+                                        var item = Model.CategoryBreakdown[i];
+                                        var itemColor = string.IsNullOrWhiteSpace(item.Color) ? "#696cff" : item.Color;
+                                        var itemIcon = string.IsNullOrWhiteSpace(item.Icon) ? "bx bx-category" : item.Icon;
+                                        <div class="legend-row" data-legend-index="@i">
+                                            <div class="legend-left">
+                                                <span class="legend-icon" style="--legend-color:@itemColor"><i class="@itemIcon"></i></span>
+                                                <div>
+                                                    <strong>@item.CategoryName</strong>
+                                                    <small>@T("Tỷ trọng trong kỳ", "Share in period")</small>
+                                                </div>
+                                            </div>
+                                            <div class="legend-right">
+                                                <strong>@item.Percentage.ToString("0.##")%</strong>
+                                                <small>@item.TotalAmount.ToString("N0")</small>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="dashboard-empty-state small-empty">
+                        <span class="dashboard-empty-icon"><i class="bx bx-pie-chart-alt-2"></i></span>
+                        <h3>@T("Chưa có dữ liệu chi tiêu", "No spending data yet")</h3>
+                        <p>@T("Biểu đồ tròn sẽ xuất hiện khi kỳ đang xem có giao dịch chi tiêu.", "The doughnut chart will appear once there are expense transactions in the selected period.")</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </section>
+
     <section class="dashboard-split-grid mb-4">
         <article class="card dashboard-report-card">
             <div class="card-body">
@@ -254,54 +324,6 @@
                 }
             </div>
         </article>
-
-        <article class="card dashboard-report-card">
-            <div class="card-body">
-                <div class="dashboard-card-head compact">
-                    <div>
-                        <span class="dashboard-card-eyebrow">@T("Cơ cấu chi tiêu", "Spending breakdown")</span>
-                        <h2 class="dashboard-card-title" id="dashboardDonutTitle">@T("Danh mục chi tiêu trong", "Spending categories in") @Model.PeriodLabel.ToLower()</h2>
-                    </div>
-                    <a class="dashboard-link-action" asp-controller="Category" asp-action="Index">@T("Quản lý danh mục", "Manage categories") <i class="bx bx-right-arrow-alt"></i></a>
-                </div>
-
-                <div id="dashboardCategoryPanel">
-                    @if (Model.CategoryBreakdown.Any())
-                    {
-                        <div class="dashboard-donut-shell">
-                            <canvas id="dashboardExpenseDonutChart"
-                                    data-labels='@Html.Raw(donutLabels)'
-                                    data-series='@Html.Raw(donutSeries)'
-                                    data-colors='@Html.Raw(donutColors)'></canvas>
-                        </div>
-                        <div class="dashboard-legend-list" id="dashboardCategoryLegend">
-                            @foreach (var item in Model.CategoryBreakdown.Take(5))
-                            {
-                                <div class="legend-row">
-                                    <div class="legend-left">
-                                        <span class="legend-dot" style="background:@item.Color"></span>
-                                        <span>@item.CategoryName</span>
-                                    </div>
-                                    <div class="legend-right">
-                                        <strong>@item.Percentage.ToString("0.##")%</strong>
-                                        <small>@item.TotalAmount.ToString("N0")</small>
-                                    </div>
-                                </div>
-                            }
-                        </div>
-                    }
-                    else
-                    {
-                        <div class="dashboard-empty-state small-empty">
-                            <span class="dashboard-empty-icon"><i class="bx bx-pie-chart-alt-2"></i></span>
-                            <h3>@T("Chưa có dữ liệu chi tiêu", "No spending data yet")</h3>
-                            <p>@T("Biểu đồ tròn sẽ xuất hiện khi kỳ đang xem có giao dịch chi tiêu.", "The doughnut chart will appear once there are expense transactions in the selected period.")</p>
-                        </div>
-                    }
-                </div>
-            </div>
-        </article>
-    </section>
 
     <section class="card dashboard-report-card mb-4">
         <div class="card-body">
