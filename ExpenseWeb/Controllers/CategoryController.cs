@@ -47,13 +47,13 @@ namespace ExpenseWeb.Controllers
 
             try
             {
-                viewModel.Categories = SortCategories(await _categoryApiService.GetOverviewAsync(
+                viewModel.Categories = await _categoryApiService.GetOverviewAsync(
                     token,
                     resolvedPeriodType,
                     resolvedYear,
                     resolvedMonth,
                     resolvedWeek
-                ));
+                );
             }
             catch (Exception ex)
             {
@@ -212,41 +212,6 @@ namespace ExpenseWeb.Controllers
         }
 
 
-        [HttpPost]
-        public async Task<IActionResult> DeleteBudgetsByCategory([FromBody] DeleteBudgetsByCategoryRequest request)
-        {
-            var token = HttpContext.Session.GetString("AccessToken");
-            if (string.IsNullOrEmpty(token))
-            {
-                return Unauthorized(new { success = false, message = "Phiên đăng nhập đã hết hạn." });
-            }
-
-            if (request == null || string.IsNullOrWhiteSpace(request.category_id))
-            {
-                return BadRequest(new { success = false, message = "Thiếu category_id." });
-            }
-
-            try
-            {
-                var budgets = await _categoryApiService.GetBudgetsAsync(token, categoryId: request.category_id);
-                foreach (var budget in budgets.Where(x => !string.IsNullOrWhiteSpace(x.budget_id)))
-                {
-                    await _categoryApiService.DeleteBudgetAsync(token, budget.budget_id);
-                }
-
-                return Json(new { success = true, deleted_count = budgets.Count, message = "Đã xóa toàn bộ hạn mức của danh mục." });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { success = false, message = ExtractApiMessage(ex.Message, "Xóa hạn mức của danh mục thất bại.") });
-            }
-        }
-
-        public class DeleteBudgetsByCategoryRequest
-        {
-            public string category_id { get; set; } = string.Empty;
-        }
-
         [HttpGet]
         public async Task<IActionResult> BudgetsByCategory(string categoryId)
         {
@@ -264,67 +229,6 @@ namespace ExpenseWeb.Controllers
             }
         }
 
-
-
-        private static List<CategoryOverviewResponseDto> SortCategories(IEnumerable<CategoryOverviewResponseDto>? categories)
-        {
-            var expenseDefaultOrder = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["Ăn uống"] = 0,
-                ["Đi lại"] = 1,
-                ["Hóa đơn"] = 2,
-                ["Mua sắm"] = 3,
-                ["Sức khỏe"] = 4,
-                ["Giáo dục"] = 5,
-                ["Giải trí"] = 6,
-                ["Du lịch"] = 7,
-                ["Tiết kiệm"] = 8,
-                ["Khác"] = 9
-            };
-
-            var incomeDefaultOrder = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["Lương"] = 0,
-                ["Thưởng"] = 1,
-                ["Đầu tư"] = 2,
-                ["Quà tặng"] = 3,
-                ["Khác"] = 4
-            };
-
-            return (categories ?? Enumerable.Empty<CategoryOverviewResponseDto>())
-                .Select((item, index) => new { item, index })
-                .OrderBy(x => GetCategoryTypeOrder(x.item.category_type))
-                .ThenBy(x => x.item.is_default ? 0 : 1)
-                .ThenBy(x => GetDefaultCategoryOrder(x.item, expenseDefaultOrder, incomeDefaultOrder))
-                .ThenBy(x => x.item.is_default ? x.index : x.index)
-                .ToList()
-                .Select(x => x.item)
-                .ToList();
-        }
-
-        private static int GetCategoryTypeOrder(string? categoryType)
-        {
-            return string.Equals(categoryType, "income", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
-        }
-
-        private static int GetDefaultCategoryOrder(
-            CategoryOverviewResponseDto item,
-            IReadOnlyDictionary<string, int> expenseDefaultOrder,
-            IReadOnlyDictionary<string, int> incomeDefaultOrder)
-        {
-            if (!item.is_default)
-            {
-                return int.MaxValue;
-            }
-
-            var categoryName = item.category_name?.Trim() ?? string.Empty;
-            if (string.Equals(item.category_type, "income", StringComparison.OrdinalIgnoreCase))
-            {
-                return incomeDefaultOrder.TryGetValue(categoryName, out var incomeOrder) ? incomeOrder : 999;
-            }
-
-            return expenseDefaultOrder.TryGetValue(categoryName, out var expenseOrder) ? expenseOrder : 999;
-        }
 
         private static string NormalizeCategoryType(string? value)
         {

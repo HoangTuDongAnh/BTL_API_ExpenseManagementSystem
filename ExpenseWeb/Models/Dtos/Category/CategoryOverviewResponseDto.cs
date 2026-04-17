@@ -7,8 +7,8 @@
         public string category_name { get; set; } = string.Empty;
         public string? icon { get; set; }
         public string? color { get; set; }
+        public string category_type { get; set; } = "expense";
         public bool is_default { get; set; }
-        public string? category_type { get; set; }
         public bool can_edit { get; set; }
         public bool can_delete { get; set; }
         public CategoryBudgetSummaryDto budget { get; set; } = new();

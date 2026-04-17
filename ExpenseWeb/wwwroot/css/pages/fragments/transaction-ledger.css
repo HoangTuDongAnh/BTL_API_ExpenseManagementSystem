@@ -2427,11 +2427,6 @@
     margin-bottom: 1rem;
 }
 
-.tx-breakdown-head > div {
-    min-width: 0;
-    flex: 1 1 auto;
-}
-
 .tx-breakdown-eyebrow {
     display: inline-block;
     font-size: .82rem;
@@ -2451,12 +2446,9 @@
 
 .tx-breakdown-text {
     margin: .55rem 0 0;
-    max-width: none;
-    width: 100%;
+    max-width: 760px;
     color: #7f8e83;
     line-height: 1.6;
-    white-space: normal;
-    text-wrap: pretty;
 }
 
 .tx-breakdown-layout {
@@ -2487,7 +2479,6 @@
     flex-direction: column;
     min-height: 0;
     padding: 1rem;
-    align-self: stretch;
 }
 
 .tx-breakdown-summary {
@@ -2521,9 +2512,8 @@
 }
 
 .tx-legend-shell {
-    flex: 0 0 auto;
+    flex: 1 1 auto;
     min-height: 0;
-    height: 330px;
     border: 1px solid #edf1ea;
     border-radius: 22px;
     background: linear-gradient(180deg, #fff 0%, #fbfdfb 100%);
@@ -2536,7 +2526,6 @@
     flex-direction: column;
     gap: .7rem;
     min-height: 0;
-    height: 100%;
     max-height: 100%;
     overflow: auto;
     padding-right: .35rem;
@@ -2562,18 +2551,19 @@
     border: 1px solid #edf1ea;
     border-radius: 16px;
     background: #fafcf9;
-    transition: border-color .18s ease, background .18s ease;
+    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease;
 }
 
 .tx-breakdown-legend .legend-row:hover {
-    border-color: color-mix(in srgb, var(--legend-active-color, #696cff) 56%, #dfe7e2);
-    background: #fff;
+    transform: translateY(-1px);
+    border-color: #d9e5f6;
+    box-shadow: 0 10px 22px rgba(49, 67, 84, 0.06);
 }
 
 .tx-breakdown-legend .legend-row.is-active {
     background: #ffffff;
     border-color: var(--legend-active-color, #d9e5f6);
-    box-shadow: none;
+    box-shadow: 0 12px 28px color-mix(in srgb, var(--legend-active-color, #696cff) 14%, transparent);
 }
 
 .tx-breakdown-legend .legend-left {
@@ -2620,7 +2610,7 @@
     justify-content: center;
     flex: 0 0 auto;
     overflow: hidden;
-    box-shadow: none;
+    box-shadow: 0 6px 14px rgba(67, 89, 113, 0.08);
 }
 
 .tx-legend-icon img,

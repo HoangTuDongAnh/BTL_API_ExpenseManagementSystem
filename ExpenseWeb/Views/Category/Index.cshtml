@@ -196,10 +196,8 @@
 <input type="hidden" id="categoryUpdateBaseUrl" value="@Url.Action("Update", "Category", new { id = "__id__" })" />
 <input type="hidden" id="categoryDeleteBaseUrl" value="@Url.Action("Delete", "Category", new { id = "__id__" })" />
 <input type="hidden" id="categorySaveBudgetUrl" value="@Url.Action("SaveBudget", "Category")" />
-<input type="hidden" id="categoryDeleteBudgetsByCategoryUrl" value="@Url.Action("DeleteBudgetsByCategory", "Category")" />
 <input type="hidden" id="categoryBudgetsByCategoryUrl" value="@Url.Action("BudgetsByCategory", "Category")" />
 <input type="hidden" id="categoryReturnToDetailFlag" value="false" />
-<input type="hidden" id="categoryTypeBudgetWarningState" value="idle" />
 
 <div class="container-xxl flex-grow-1 container-p-y">
     @if (TempData["CategoryPageError"] != null)
@@ -221,7 +219,7 @@
         </div>
     </section>
 
-    <div class="card mb-4 category-list-shell">
+    <div class="card mb-4">
         <div class="card-header category-toolbar-header">
             <div class="category-toolbar-title-wrap">
                 <h5 class="category-toolbar-title mb-0">@T("Danh sách Danh mục", "Category list")</h5>
@@ -261,7 +259,6 @@
                         var badgeIcon = status == "over" ? "bx-error-circle text-danger" : status == "reached" ? "bx-error text-warning" : "bx-wallet";
                         var cardCss = hasBudget ? "has-budget" : string.Empty;
                         if (status == "over") { cardCss += " over-budget"; }
-                        cardCss += item.is_default ? " category-card--default" : " category-card--custom";
                         var budgetType = budgetTypeLabel(budget?.period_type);
 
                         <div class="col-6 col-md-4 col-lg-3 col-xl-2 category-card-col">
@@ -296,9 +293,8 @@
                                         }
                                     </div>
                                     <div class="category-name fw-bold">@item.category_name</div>
-                                    <div class="mt-1 d-flex flex-wrap justify-content-center gap-1">
+                                    <div class="mt-1">
                                         <span class="badge category-type-badge @($"category-type-badge--{normalizeCategoryType(item.category_type)}")">@categoryTypeLabel(item.category_type)</span>
-                                        <span class="badge category-source-badge @(item.is_default ? "category-source-badge--default" : "category-source-badge--custom")">@(item.is_default ? T("Mặc định", "Default") : T("Cá nhân", "Personal"))</span>
                                     </div>
 
                                     <div class="text-muted mt-1" style="font-size: 0.75rem;">
@@ -329,7 +325,7 @@
                                         }
                                         else
                                         {
-                                            <span class="badge @(normalizeCategoryType(item.category_type) == "income" ? "category-budget-note--income" : "bg-label-secondary")" style="font-size: 0.7rem;">@(normalizeCategoryType(item.category_type) == "income" ? T("Không áp dụng hạn mức", "No budget limit") : T("Chưa có hạn mức", "No budget"))</span>
+                                            <span class="badge bg-label-secondary" style="font-size: 0.7rem;">@T("Chưa có hạn mức", "No budget")</span>
                                         }
                                     </div>
                                 </div>
@@ -543,11 +539,7 @@
                             <h4 class="modal-title mb-0" id="detailCategoryTitle">@T("Danh mục", "Category")</h4>
                             <span class="badge bg-label-secondary" id="detailCategoryTypeBadge"></span>
                         </div>
-                        <p class="text-body-secondary mb-0 small" id="detailCategorySourceText"
-                           data-default-vi="Đây là danh mục mặc định của hệ thống. Bạn có thể xem thông tin và theo dõi hạn mức ưu tiên của danh mục này."
-                           data-default-en="This is a system default category. You can review its information and monitor the priority budget shown for it."
-                           data-custom-vi="Đây là danh mục do bạn tạo. Bạn có thể chỉnh sửa thông tin và theo dõi toàn bộ hạn mức của danh mục này."
-                           data-custom-en="This is a category created by you. You can edit its information and review all budgets belonging to it.">@T("Đây là danh mục mặc định của hệ thống. Bạn có thể xem thông tin và theo dõi hạn mức ưu tiên của danh mục này.", "This is a system default category. You can review its information and monitor the priority budget shown for it.")</p>
+                        <p class="text-body-secondary mb-0 small">@T("Chỉnh sửa thông tin danh mục và xem toàn bộ hạn mức của danh mục này. Card ngoài danh sách vẫn chỉ hiển thị hạn mức ưu tiên.", "Edit category details and view all budgets of this category. Outer cards still show only the priority budget.")</p>
                         <span id="detailCategoryId" class="d-none"></span>
                     </div>
                 </div>
@@ -664,13 +656,13 @@
                                     </div>
                                 </div>
 
-                                <div id="incomeBudgetLockedState" class="category-budget-empty category-budget-empty--locked d-none">
+                                <div id="incomeBudgetLockedState" class="category-budget-empty d-none">
                                     <div class="category-budget-empty__icon"><i class="bx bx-trending-up"></i></div>
                                     <div class="category-budget-empty__title">@T("Danh mục thu nhập không có hạn mức", "Income categories do not use budgets")</div>
                                     <p class="category-budget-empty__text">@T("Hạn mức chỉ áp dụng cho danh mục chi tiêu. Bạn vẫn có thể đổi loại danh mục ở khung bên trái.", "Budgets are only available for expense categories. You can still change the category type on the left.")</p>
                                 </div>
 
-                                <div id="noBudgetState" class="category-budget-empty category-budget-empty--locked d-none">
+                                <div id="noBudgetState" class="category-budget-empty d-none">
                                     <div class="category-budget-empty__icon"><i class="bx bx-wallet"></i></div>
                                     <div class="category-budget-empty__title">@T("Chưa có hạn mức", "No budgets yet")</div>
                                     <p class="category-budget-empty__text">@T("Tạo hạn mức theo tuần, tháng hoặc năm.", "Create weekly, monthly, or yearly budgets.")</p>
@@ -700,7 +692,7 @@
                                 <i class="bx bx-edit-alt"></i>
                                 <span>@T("Thiết lập hạn mức", "Budget editor")</span>
                             </div>
-                            <div class="text-muted small">@T("Thiết lập tạm thời hạn mức cho danh mục này. Chỉ khi bấm Lưu thay đổi ở popup chi tiết thì dữ liệu mới được lưu vào hệ thống.", "Set a temporary budget draft for this category. It will only be saved after you confirm Save changes in the category detail popup.")</div>
+                            <div class="text-muted small">@T("Chọn kỳ hạn và số tiền. Hệ thống tự tính thời gian áp dụng.", "Choose a period and amount. Dates are calculated automatically.")</div>
                         </div>
 
                         <div class="d-flex align-items-center gap-2">
@@ -887,36 +879,6 @@
                 <button type="button" class="btn btn-success" id="btnUpdateCategoryStatic">
                     <i class="bx bx-save me-1"></i>@T("Lưu thay đổi", "Save changes")
                 </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-
-<div class="modal fade" id="categoryTypeWarningModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-sm category-type-warning-dialog">
-        <div class="modal-content category-type-warning-card">
-            <button type="button" class="btn-close category-type-warning-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            <div class="modal-body category-type-warning-body">
-                <div class="category-type-warning-icon-wrap">
-                    <div class="category-type-warning-icon">
-                        <i class="bx bx-error-circle"></i>
-                    </div>
-                </div>
-                <div class="category-type-warning-copy">
-                    <div class="category-type-warning-eyebrow">@T("Cảnh báo thay đổi loại", "Type change warning")</div>
-                    <h5 class="category-type-warning-title mb-2">@T("Chuyển danh mục sang Thu nhập?", "Switch this category to Income?")</h5>
-                    <p class="category-type-warning-text mb-0">@T("Nếu chuyển danh mục này sang Thu nhập, toàn bộ hạn mức hiện có sẽ bị xóa khi bạn lưu thay đổi.", "If you switch this category to Income, all existing budgets will be removed when you save your changes.")</p>
-                </div>
-
-                <div class="category-type-warning-note">
-                    <i class="bx bx-info-circle"></i>
-                    <span>@T("Bạn vẫn có thể đổi lại về Chi tiêu trước khi lưu.", "You can still switch back to Expense before saving.")</span>
-                </div>
-            </div>
-            <div class="modal-footer category-type-warning-footer border-0">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">@T("Giữ nguyên", "Keep current")</button>
-                <button type="button" class="btn btn-warning" id="btnConfirmCategoryTypeIncome">@T("Vẫn chuyển sang Thu nhập", "Switch to Income")</button>
             </div>
         </div>
     </div>
