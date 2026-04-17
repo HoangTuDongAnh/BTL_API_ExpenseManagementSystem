@@ -84,16 +84,6 @@
     <div class="card tx-toolbar-card mb-4">
         <div class="card-body">
             <div class="tx-filter-grid tx-filter-grid-top">
-                <div class="tx-filter-block tx-filter-block-type">
-                    <label class="tx-label">@T("Loại giao dịch", "Transaction type")</label>
-                    <div class="tx-segmented tx-segmented-wide" id="transactionTypeTabs">
-                        <button type="button" class="active" data-type="all">@T("Tất cả", "All")</button>
-                        <button type="button" data-type="expense">@T("Chi tiêu", "Expense")</button>
-                        <button type="button" data-type="income">@T("Thu nhập", "Income")</button>
-                        <button type="button" data-type="transfer">@T("Chuyển ví", "Transfer")</button>
-                    </div>
-                </div>
-
                 <div class="tx-filter-block">
                     <label class="tx-label">@T("Ví", "Wallet")</label>
                     <select class="form-select" id="walletFilter">
@@ -160,7 +150,14 @@
                 <div>
                     <span class="tx-breakdown-eyebrow" id="txBreakdownEyebrow">@T("Cơ cấu giao dịch", "Transaction breakdown")</span>
                     <h2 class="tx-breakdown-title" id="txBreakdownTitle">@T("Danh mục giao dịch trong kỳ đang xem", "Transaction categories in the current period")</h2>
-                    <p class="tx-breakdown-text" id="txBreakdownSubtitle">@T("Biểu đồ tròn và danh sách bên cạnh sẽ đổi theo lựa chọn lọc phía trên để bạn xem nhanh tỷ trọng từng nhóm danh mục.", "The doughnut chart and side list update with the filter above so you can quickly compare category shares.")</p>
+                    <p class="tx-breakdown-text" id="txBreakdownSubtitle">@T("Biểu đồ tròn sẽ đổi theo bộ lọc ví, thời gian và lựa chọn Chi tiêu hoặc Thu nhập ngay trong card này.", "The doughnut chart updates using the shared wallet and period filters together with the Expense or Income toggle inside this card.")</p>
+                </div>
+                <div class="tx-card-toggle-shell">
+                    <span class="tx-inline-filter-label">@T("Loại giao dịch", "Transaction type")</span>
+                    <div class="tx-segmented" id="breakdownTypeTabs">
+                        <button type="button" class="active" data-type="expense">@T("Chi tiêu", "Expense")</button>
+                        <button type="button" data-type="income">@T("Thu nhập", "Income")</button>
+                    </div>
                 </div>
             </div>
 
@@ -188,7 +185,18 @@
     <div class="card tx-list-card mb-4">
         <div class="card-header border-0 pb-0">
             <div class="tx-list-toolbar">
-                <h3>@T("Danh sách giao dịch", "Transactions")</h3>
+                <div class="tx-list-title-block">
+                    <h3>@T("Danh sách giao dịch", "Transactions")</h3>
+                    <div class="tx-card-toggle-shell tx-card-toggle-shell--inline">
+                        <span class="tx-inline-filter-label">@T("Loại giao dịch", "Transaction type")</span>
+                        <div class="tx-segmented tx-segmented-wide" id="ledgerTypeTabs">
+                            <button type="button" class="active" data-type="all">@T("Tất cả", "All")</button>
+                            <button type="button" data-type="income">@T("Thu nhập", "Income")</button>
+                            <button type="button" data-type="expense">@T("Chi tiêu", "Expense")</button>
+                            <button type="button" data-type="transfer">@T("Chuyển ví", "Transfer")</button>
+                        </div>
+                    </div>
+                </div>
                 <div class="tx-list-head-actions">
                     <div class="tx-searchbox tx-searchbox-list">
                         <i class="bx bx-search"></i>

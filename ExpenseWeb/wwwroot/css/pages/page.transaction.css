@@ -94,3 +94,68 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* Split transaction type toggles per card */
+.tx-filter-grid-top {
+    grid-template-columns: minmax(220px, .9fr) minmax(220px, .9fr) minmax(240px, .95fr);
+}
+
+.tx-card-toggle-shell {
+    display: flex;
+    flex-direction: column;
+    gap: .45rem;
+    align-items: flex-end;
+    flex: 0 0 auto;
+}
+
+.tx-card-toggle-shell--inline {
+    align-items: flex-start;
+}
+
+.tx-inline-filter-label {
+    font-size: .8rem;
+    font-weight: 700;
+    color: var(--tx-muted);
+    line-height: 1.2;
+}
+
+.tx-breakdown-head.compact {
+    align-items: flex-start;
+}
+
+.tx-breakdown-head.compact .tx-card-toggle-shell .tx-segmented {
+    width: auto;
+}
+
+.tx-list-title-block {
+    display: flex;
+    flex-direction: column;
+    gap: .85rem;
+    min-width: 0;
+}
+
+.tx-list-title-block h3 {
+    margin: 0;
+}
+
+.tx-list-toolbar {
+    align-items: flex-start;
+}
+
+@media (max-width: 1199.98px) {
+    .tx-filter-grid-top {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 767.98px) {
+    .tx-card-toggle-shell,
+    .tx-card-toggle-shell--inline {
+        align-items: stretch;
+    }
+
+    .tx-card-toggle-shell .tx-segmented,
+    .tx-card-toggle-shell--inline .tx-segmented {
+        width: 100%;
+    }
+}
