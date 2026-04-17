@@ -7,7 +7,7 @@
         public string category_name { get; set; } = string.Empty;
         public string? icon { get; set; }
         public string? color { get; set; }
-        public string category_type { get; set; } = "expense";
         public bool is_default { get; set; }
+        public string? category_type { get; set; }
     }
 }

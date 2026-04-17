@@ -148,11 +148,19 @@ document.addEventListener('DOMContentLoaded', () => {
     return `<i class="${escapeHtml(icon || 'bx bx-category')}${safeClass}"></i>`;
   }
 
+  function normalizeColor(value, fallback = '#696cff') {
+    if (!value || typeof value !== 'string') return fallback;
+    const trimmed = value.trim();
+    if (!trimmed.startsWith('#')) return fallback;
+    if (/^#[0-9a-fA-F]{3}$/.test(trimmed) || /^#[0-9a-fA-F]{6}$/.test(trimmed)) return trimmed;
+    return fallback;
+  }
+
   function alphaColor(hex, alpha) {
-    if (!hex || !hex.startsWith('#')) return `rgba(105,108,255,${alpha})`;
-    const normalized = hex.length === 4
-      ? `#${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}`
-      : hex;
+    const safeHex = normalizeColor(hex, '#696cff');
+    const normalized = safeHex.length === 4
+      ? `#${safeHex[1]}${safeHex[1]}${safeHex[2]}${safeHex[2]}${safeHex[3]}${safeHex[3]}`
+      : safeHex;
     const raw = Number.parseInt(normalized.slice(1), 16);
     const red = (raw >> 16) & 255;
     const green = (raw >> 8) & 255;
@@ -463,7 +471,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const total = groups.reduce((sum, item) => sum + Number(item.value || 0), 0);
     container.innerHTML = groups.map((item, index) => `
-      <div class="legend-row" data-legend-index="${index}">
+      <div class="legend-row" data-legend-index="${index}" style="--legend-active-color:${item.color}">
         <div class="legend-left">
           <span class="legend-icon tx-legend-icon" style="--legend-color:${item.color}; background:${alphaColor(item.color, 0.12)}; color:${item.color}">${iconMarkup(item.icon, item.name)}</span>
           <div>
@@ -500,7 +508,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const labels = groups.map((item) => item.name);
     const series = groups.map((item) => Number(item.value || 0));
-    const colors = groups.map((item) => item.color || '#696cff');
+    const colors = groups.map((item) => normalizeColor(item.color || '#696cff', '#696cff'));
 
     if (!groups.length) {
       state.charts.breakdown = new Chart(canvas, {
