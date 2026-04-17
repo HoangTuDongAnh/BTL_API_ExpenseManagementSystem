@@ -1,8 +1,8 @@
-﻿from datetime import datetime
+from datetime import datetime
 from decimal import Decimal
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
-from sqlalchemy.sql import func
 
 from app.models.budget import Budget
 from app.models.category import Category
@@ -17,8 +17,8 @@ class BudgetService:
         self.budget_repo = BudgetRepository()
 
     def _generate_budget_id(self, db: Session) -> str:
-        date_part = datetime.now().strftime("%y%m")
-        prefix = f"BUD{date_part}"
+        date_part = datetime.now().strftime("%y%m%d")
+        prefix = f"BDG{date_part}"
 
         last_budget = (
             db.query(Budget)
@@ -77,12 +77,15 @@ class BudgetService:
             db.query(Category)
             .filter(
                 Category.CategoryID == data.category_id,
+                Category.IsDeleted.is_(False),
                 ((Category.UserID == user_id) | (Category.UserID.is_(None)))
             )
             .first()
         )
         if not category:
             raise ValueError("Category not found")
+        if category.CategoryType != "expense":
+            raise ValueError("Chỉ có thể tạo ngân sách cho danh mục chi tiêu")
 
         period = normalize_period(
             period_type=data.period_type,
@@ -143,6 +146,18 @@ class BudgetService:
         budget = self.budget_repo.get_by_id_and_user(db, budget_id, user_id)
         if not budget:
             raise ValueError("Budget not found")
+
+        category = (
+            db.query(Category)
+            .filter(
+                Category.CategoryID == budget.CategoryID,
+                Category.IsDeleted.is_(False),
+                ((Category.UserID == user_id) | (Category.UserID.is_(None)))
+            )
+            .first()
+        )
+        if not category or category.CategoryType != "expense":
+            raise ValueError("Ngân sách chỉ áp dụng cho danh mục chi tiêu")
 
         if data.limit_amount is not None:
             budget.LimitAmount = data.limit_amount

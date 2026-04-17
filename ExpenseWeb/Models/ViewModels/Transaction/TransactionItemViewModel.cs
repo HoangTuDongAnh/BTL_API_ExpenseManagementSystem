@@ -12,6 +12,7 @@ namespace ExpenseWeb.Models.ViewModels.Transaction
         public string CategoryIcon { get; set; } = "bx bx-category";
         public string CategoryColor { get; set; } = "#8592A3";
         public string TransactionType { get; set; } = "expense";
+        public bool IsTransfer { get; set; }
         public decimal AmountValue { get; set; }
         public string AmountText { get; set; } = "0 VND";
         public DateTime TransactionDate { get; set; }

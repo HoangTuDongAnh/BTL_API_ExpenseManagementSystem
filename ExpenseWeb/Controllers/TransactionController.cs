@@ -223,6 +223,7 @@ namespace ExpenseWeb.Controllers
                     CategoryColor = isTransfer ? "#696cff" : (category?.color ?? "#8592A3"),
 
                     TransactionType = t.transaction_type,
+                    IsTransfer = isTransfer,
                     AmountValue = t.amount,
                     AmountText = $"{signedAmount.ToString("+#,##0;-#,##0;0", culture)} {currency}",
                     TransactionDate = t.transaction_date,

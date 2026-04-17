@@ -53,10 +53,14 @@ namespace ExpenseWeb.Services.Api
             return JsonSerializer.Deserialize<List<CategoryOverviewResponseDto>>(body, _jsonOptions) ?? new List<CategoryOverviewResponseDto>();
         }
 
-        public async Task<List<CategoryResponseDto>> GetCategoriesAsync(string token, bool includeDeleted = false)
+        public async Task<List<CategoryResponseDto>> GetCategoriesAsync(string token, bool includeDeleted = false, string? categoryType = null)
         {
-            var url = includeDeleted
-                ? $"{_baseUrl}/categories?include_deleted=true"
+            var query = new List<string>();
+            if (includeDeleted) query.Add("include_deleted=true");
+            if (!string.IsNullOrWhiteSpace(categoryType)) query.Add($"category_type={Uri.EscapeDataString(categoryType.Trim().ToLowerInvariant())}");
+
+            var url = query.Count > 0
+                ? $"{_baseUrl}/categories?{string.Join("&", query)}"
                 : $"{_baseUrl}/categories";
 
             var request = CreateRequest(HttpMethod.Get, url, token);

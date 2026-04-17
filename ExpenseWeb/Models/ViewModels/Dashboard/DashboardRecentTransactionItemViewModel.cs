@@ -8,6 +8,8 @@ namespace ExpenseWeb.Models.ViewModels.Dashboard
         public decimal Amount { get; set; }
         public string WalletName { get; set; } = string.Empty;
         public string CategoryName { get; set; } = string.Empty;
+        public string CategoryType { get; set; } = "expense";
+        public bool IsTransfer { get; set; }
         public string? CategoryIcon { get; set; }
         public string? CategoryColor { get; set; }
         public string Note { get; set; } = string.Empty;

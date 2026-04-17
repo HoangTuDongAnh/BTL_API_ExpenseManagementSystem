@@ -1,10 +1,11 @@
-﻿namespace ExpenseWeb.Models.Dtos.Category
+namespace ExpenseWeb.Models.Dtos.Category
 {
     public class BudgetResponseDto
     {
         public string budget_id { get; set; } = string.Empty;
         public string user_id { get; set; } = string.Empty;
         public string category_id { get; set; } = string.Empty;
+        public string category_type { get; set; } = "expense";
         public decimal limit_amount { get; set; }
         public decimal spent_amount { get; set; }
         public string period_type { get; set; } = string.Empty;

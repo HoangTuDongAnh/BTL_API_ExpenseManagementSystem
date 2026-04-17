@@ -1,4 +1,4 @@
-﻿from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String
 from sqlalchemy.sql import func
 from app.core.database import Base
 
@@ -10,6 +10,7 @@ class Category(Base):
     UserID = Column("userid", String(15), ForeignKey("users.userid"), nullable=True, index=True)
 
     CategoryName = Column("categoryname", String(100), nullable=False)
+    CategoryType = Column("categorytype", String(10), nullable=False, server_default="expense")
 
     Icon = Column("icon", String(50), nullable=True)
     Color = Column("color", String(10), nullable=True)

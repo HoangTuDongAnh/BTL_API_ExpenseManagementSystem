@@ -8,6 +8,8 @@ namespace ExpenseWeb.Models.ViewModels.Transaction
     {
         public List<TransactionItemViewModel> Transactions { get; set; } = new();
         public List<CategoryResponseDto> Categories { get; set; } = new();
+        public List<CategoryResponseDto> ExpenseCategories { get; set; } = new();
+        public List<CategoryResponseDto> IncomeCategories { get; set; } = new();
         public List<WalletResponseDto> Wallets { get; set; } = new();
         public string? ErrorMessage { get; set; }
     }

@@ -42,6 +42,7 @@
         categoryIcon = item.CategoryIcon,
         categoryColor = item.CategoryColor,
         transactionType = item.TransactionType,
+        isTransfer = item.IsTransfer,
         amountValue = item.AmountValue,
         amountText = item.AmountText,
         transactionDate = item.TransactionDate.ToString("yyyy-MM-dd"),
@@ -85,15 +86,12 @@
             <div class="tx-filter-grid tx-filter-grid-top">
                 <div class="tx-filter-block tx-filter-block-type">
                     <label class="tx-label">@T("Loại giao dịch", "Transaction type")</label>
-                    <div class="tx-segmented" id="addTypeSwitch">
-                        <button type="button" class="active" data-value="expense">
-                            @T("Chi tiêu", "Expense")
-                        </button>
-                        <button type="button" data-value="income">
-                            @T("Thu nhập", "Income")
-                        </button>
+                    <div class="tx-segmented tx-segmented-wide" id="transactionTypeTabs">
+                        <button type="button" class="active" data-type="all">@T("Tất cả", "All")</button>
+                        <button type="button" data-type="expense">@T("Chi tiêu", "Expense")</button>
+                        <button type="button" data-type="income">@T("Thu nhập", "Income")</button>
+                        <button type="button" data-type="transfer">@T("Chuyển ví", "Transfer")</button>
                     </div>
-                    <input type="hidden" id="addTransactionType" value="expense" />
                 </div>
 
                 <div class="tx-filter-block">
@@ -156,35 +154,31 @@
         </div>
     </div>
 
-    <div class="row g-4 mb-4 tx-summary-row">
-        <div class="col-12 col-xl-6">
-            <div class="card tx-summary-card h-100">
-                <div class="card-body">
-                    <div class="tx-summary-layout tx-summary-layout-vertical">
-                        <div class="tx-summary-head">
-                            <h4>@T("Cơ cấu thu nhập", "Income breakdown")</h4>
-                            <p>@T("Theo tập giao dịch đang hiển thị", "Based on visible transactions")</p>
-                        </div>
-                        <div class="tx-summary-canvas-wrap">
-                            <canvas id="incomeDonutChart" class="tx-summary-chart"></canvas>
-</div>
-                        <div class="tx-summary-legend" id="incomeLegend"></div>
-                    </div>
+    <div class="card tx-breakdown-card mb-4">
+        <div class="card-body">
+            <div class="tx-breakdown-head compact">
+                <div>
+                    <span class="tx-breakdown-eyebrow" id="txBreakdownEyebrow">@T("Cơ cấu giao dịch", "Transaction breakdown")</span>
+                    <h2 class="tx-breakdown-title" id="txBreakdownTitle">@T("Danh mục giao dịch trong kỳ đang xem", "Transaction categories in the current period")</h2>
+                    <p class="tx-breakdown-text" id="txBreakdownSubtitle">@T("Biểu đồ tròn và danh sách bên cạnh sẽ đổi theo lựa chọn lọc phía trên để bạn xem nhanh tỷ trọng từng nhóm danh mục.", "The doughnut chart and side list update with the filter above so you can quickly compare category shares.")</p>
                 </div>
             </div>
-        </div>
-        <div class="col-12 col-xl-6">
-            <div class="card tx-summary-card h-100">
-                <div class="card-body">
-                    <div class="tx-summary-layout tx-summary-layout-vertical">
-                        <div class="tx-summary-head">
-                            <h4>@T("Cơ cấu chi tiêu", "Expense breakdown")</h4>
-                            <p>@T("Theo tập giao dịch đang hiển thị", "Based on visible transactions")</p>
+
+            <div class="tx-breakdown-layout">
+                <div class="tx-breakdown-chart-card">
+                    <div class="tx-summary-canvas-wrap tx-breakdown-canvas-wrap">
+                        <canvas id="transactionBreakdownChart" class="tx-summary-chart"></canvas>
+                    </div>
+                </div>
+                <div class="tx-breakdown-sidecard">
+                    <div class="tx-breakdown-summary">
+                        <div class="summary-pill summary-pill--highlight">
+                            <span id="txBreakdownSummaryLabel">@T("Danh mục phát sinh", "Active categories")</span>
+                            <strong id="transactionBreakdownCount">0</strong>
                         </div>
-                        <div class="tx-summary-canvas-wrap">
-                            <canvas id="expenseDonutChart" class="tx-summary-chart"></canvas>
-</div>
-                        <div class="tx-summary-legend" id="expenseLegend"></div>
+                    </div>
+                    <div class="dashboard-legend-shell tx-legend-shell">
+                        <div class="dashboard-legend-scroll tx-breakdown-legend" id="transactionBreakdownLegend"></div>
                     </div>
                 </div>
             </div>
@@ -564,6 +558,5 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/vn.js"></script>
-    <script src="~/js/chart/transaction-donut-chart.js"></script>
     <script src="~/js/pages/transaction-ledger.js"></script>
 }

@@ -67,7 +67,7 @@ namespace ExpenseWeb.Controllers
             try
             {
                 var walletTask = _walletApiService.GetWalletsAsync(token);
-                var categoryTask = _categoryApiService.GetCategoriesAsync(token);
+                var categoryTask = _categoryApiService.GetCategoriesAsync(token, false);
                 var transactionTask = _transactionApiService.GetTransactionsAsync(token);
 
                 await Task.WhenAll(walletTask, categoryTask, transactionTask);
@@ -479,11 +479,19 @@ namespace ExpenseWeb.Controllers
                 TransactionType = string.IsNullOrWhiteSpace(dto.transaction_type) ? "expense" : dto.transaction_type,
                 Amount = dto.amount,
                 WalletName = walletName ?? dto.wallet_id,
-                CategoryName = category?.category_name ?? dto.category_id,
-                CategoryIcon = category?.icon,
-                CategoryColor = category?.color,
+                CategoryName = IsTransferCategory(category) ? "Chuyển khoản" : (category?.category_name ?? dto.category_id),
+                CategoryType = category?.category_type ?? dto.transaction_type,
+                IsTransfer = IsTransferCategory(category),
+                CategoryIcon = IsTransferCategory(category) ? "bx bx-transfer-alt" : category?.icon,
+                CategoryColor = IsTransferCategory(category) ? "#696cff" : category?.color,
                 Note = string.IsNullOrWhiteSpace(dto.note) ? "Không có ghi chú" : dto.note!
             };
+        }
+
+        private static bool IsTransferCategory(CategoryResponseDto? category)
+        {
+            var name = category?.category_name?.Trim().ToLowerInvariant() ?? string.Empty;
+            return name is "chuyển tiền" or "chuyển tiền đi" or "chuyển tiền đến";
         }
 
         private static DashboardTopExpenseItemViewModel MapTopExpense(TopExpenseItemDto dto)

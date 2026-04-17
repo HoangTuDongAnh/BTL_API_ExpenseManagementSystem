@@ -70,6 +70,7 @@ class CategoryService:
         user_id: str,
         replacement_category_id: str | None,
         deleting_category_id: str,
+        deleting_category_type: str,
     ) -> Category:
         replacement: Category | None = None
 
@@ -79,23 +80,26 @@ class CategoryService:
                 .filter(
                     Category.CategoryID == replacement_category_id,
                     Category.IsDeleted == False,
+                    Category.CategoryType == deleting_category_type,
                     or_(Category.UserID == user_id, Category.UserID.is_(None)),
                 )
                 .first()
             )
 
             if not replacement:
-                raise ValueError("Danh mục thay thế không hợp lệ hoặc không tồn tại.")
+                raise ValueError("Danh mục thay thế không hợp lệ, không tồn tại, hoặc khác loại.")
 
             if replacement.CategoryID == deleting_category_id:
                 raise ValueError("Danh mục thay thế phải khác danh mục đang xóa.")
 
             return replacement
 
+        fallback_name = "Khác" if deleting_category_type == "expense" else "Thu nhập khác"
         replacement = (
             db.query(Category)
             .filter(
-                Category.CategoryName == "Khác",
+                Category.CategoryName == fallback_name,
+                Category.CategoryType == deleting_category_type,
                 Category.IsDeleted == False,
                 or_(Category.UserID == user_id, Category.UserID.is_(None)),
             )
@@ -104,23 +108,38 @@ class CategoryService:
         )
 
         if not replacement:
-            raise ValueError("Không tìm thấy danh mục 'Khác' để thay thế dữ liệu.")
+            raise ValueError(
+                f"Không tìm thấy danh mục thay thế mặc định cho loại '{deleting_category_type}'. Hãy truyền replacement_category_id."
+            )
 
         if replacement.CategoryID == deleting_category_id:
             raise ValueError("Không thể dùng chính danh mục đang xóa làm danh mục thay thế.")
 
         return replacement
 
-    def get_categories(self, db: Session, user_id: str, include_deleted: bool = False):
-        return self.category_repo.get_all_by_user(db, user_id, include_deleted)
+    def get_categories(
+        self,
+        db: Session,
+        user_id: str,
+        include_deleted: bool = False,
+        category_type: str | None = None,
+    ):
+        return self.category_repo.get_all_by_user(db, user_id, include_deleted, category_type)
 
-    def get_categories_response(self, db: Session, user_id: str, include_deleted: bool = False) -> list[CategoryResponse]:
-        categories = self.get_categories(db, user_id, include_deleted)
+    def get_categories_response(
+        self,
+        db: Session,
+        user_id: str,
+        include_deleted: bool = False,
+        category_type: str | None = None,
+    ) -> list[CategoryResponse]:
+        categories = self.get_categories(db, user_id, include_deleted, category_type)
         return [
             CategoryResponse(
                 category_id=c.CategoryID,
                 user_id=c.UserID,
                 category_name=c.CategoryName,
+                category_type=c.CategoryType,
                 icon=c.Icon,
                 color=c.Color,
                 is_default=c.IsDefault,
@@ -136,6 +155,7 @@ class CategoryService:
         period_year: int,
         period_month: int | None = None,
         period_week: int | None = None,
+        category_type: str | None = None,
     ) -> list[CategoryOverviewResponse]:
         period = normalize_period(
             period_type=period_type,
@@ -144,7 +164,9 @@ class CategoryService:
             period_week=period_week,
         )
 
-        categories = self.category_repo.get_all_by_user(db, user_id, include_deleted=False)
+        categories = self.category_repo.get_all_by_user(
+            db, user_id, include_deleted=False, category_type=category_type
+        )
 
         tx_counts = (
             db.query(Transaction.CategoryID, func.count(Transaction.TransactionID).label("count"))
@@ -210,6 +232,7 @@ class CategoryService:
                     category_id=c.CategoryID,
                     user_id=c.UserID,
                     category_name=c.CategoryName,
+                    category_type=c.CategoryType,
                     icon=c.Icon,
                     color=c.Color,
                     is_default=c.IsDefault,
@@ -235,6 +258,7 @@ class CategoryService:
             CategoryID=self._generate_category_id(db),
             UserID=user_id,
             CategoryName=normalized_name,
+            CategoryType=data.category_type,
             Icon=data.icon,
             Color=data.color,
             IsDefault=False,
@@ -259,6 +283,21 @@ class CategoryService:
                     raise ValueError("Tên danh mục đã tồn tại hoặc trùng với danh mục mặc định")
                 category.CategoryName = normalized_name
 
+        if data.category_type is not None and data.category_type != category.CategoryType:
+            linked_tx_count = (
+                db.query(func.count(Transaction.TransactionID))
+                .filter(Transaction.CategoryID == category_id, Transaction.UserID == user_id)
+                .scalar()
+            )
+            linked_budget_count = (
+                db.query(func.count(Budget.BudgetID))
+                .filter(Budget.CategoryID == category_id, Budget.UserID == user_id)
+                .scalar()
+            )
+            if (linked_tx_count or 0) > 0 or (linked_budget_count or 0) > 0:
+                raise ValueError("Không thể đổi loại danh mục khi đã có giao dịch hoặc ngân sách liên kết")
+            category.CategoryType = data.category_type
+
         if data.icon is not None:
             category.Icon = data.icon
 
@@ -280,6 +319,7 @@ class CategoryService:
             user_id=user_id,
             replacement_category_id=(data.replacement_category_id if data else None),
             deleting_category_id=category_id,
+            deleting_category_type=category.CategoryType,
         )
 
         transactions = db.query(Transaction).filter(

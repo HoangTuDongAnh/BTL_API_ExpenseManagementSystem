@@ -1,4 +1,4 @@
-﻿document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", function () {
     const addModalEl = document.getElementById("addCategoryModal");
     const detailModalEl = document.getElementById("categoryDetailModal");
     const addModal = addModalEl ? new bootstrap.Modal(addModalEl) : null;
@@ -16,6 +16,7 @@
 
     const state = {
         currentCategory: null,
+        currentFilter: 'all',
         budgets: [],
         activeBudgetId: null,
         defaultIcon: document.querySelector(".category-icon-option-detail")?.dataset.icon || document.getElementById("detailHeadIcon")?.getAttribute("src") || ""
@@ -54,6 +55,79 @@
         document.querySelectorAll(selector).forEach(function (btn) {
             btn.classList.toggle("active", (btn.dataset.color || "").toUpperCase() === (color || "").toUpperCase());
         });
+    }
+
+    function normalizeCategoryType(value) {
+        return String(value || '').toLowerCase() === 'income' ? 'income' : 'expense';
+    }
+
+    function setCategoryTypeSelection(target, value) {
+        const normalized = normalizeCategoryType(value);
+        const hidden = document.getElementById(`${target}CategoryType`);
+        if (hidden) hidden.value = normalized;
+
+        document.querySelectorAll(`[data-category-type-target="${target}"]`).forEach(function (btn) {
+            btn.classList.toggle('active', normalizeCategoryType(btn.dataset.categoryTypeValue) === normalized);
+        });
+
+        if (target === 'detail') {
+            updateBudgetAvailabilityUI(normalized);
+            updateDetailPreview();
+        }
+    }
+
+    function getCategoryTypeLabel(value) {
+        const normalized = normalizeCategoryType(value);
+        const targetBtn = document.querySelector(`[data-category-type-target="detail"][data-category-type-value="${normalized}"]`)
+            || document.querySelector(`[data-category-type-target="add"][data-category-type-value="${normalized}"]`);
+        return (targetBtn?.textContent || (normalized === 'income' ? 'Thu nhập' : 'Chi tiêu')).trim();
+    }
+
+    function applyCategoryFilter(filterValue) {
+        const normalizedFilter = ['all', 'expense', 'income'].includes(String(filterValue || '').toLowerCase())
+            ? String(filterValue || '').toLowerCase()
+            : 'all';
+        state.currentFilter = normalizedFilter;
+
+        document.querySelectorAll('[data-category-filter]').forEach(function (btn) {
+            btn.classList.toggle('active', (btn.dataset.categoryFilter || 'all') === normalizedFilter);
+        });
+
+        let visibleCount = 0;
+        document.querySelectorAll('.category-card[data-category-id]').forEach(function (card) {
+            const cardType = normalizeCategoryType(card.dataset.categoryType);
+            const shouldShow = normalizedFilter === 'all' || cardType === normalizedFilter;
+            const col = card.closest('.col-6, .col-sm-6, .col-md-4, .col-lg-3, .col-xl-2, .category-card-col') || card.parentElement;
+            if (col) {
+                col.classList.toggle('d-none', !shouldShow);
+            }
+            if (shouldShow) visibleCount += 1;
+        });
+
+        const emptyState = document.getElementById('categoryFilterEmptyState');
+        if (emptyState) emptyState.classList.toggle('d-none', visibleCount > 0);
+    }
+
+    function updateBudgetAvailabilityUI(categoryType) {
+        const isIncome = normalizeCategoryType(categoryType) === 'income';
+        const lockState = document.getElementById('incomeBudgetLockedState');
+        const noBudgetState = document.getElementById('noBudgetState');
+        const hasBudgetState = document.getElementById('hasBudgetState');
+        const openBtn = document.getElementById('btnOpenBudgetEditor');
+        const childPanel = document.getElementById('budgetChildOverlay');
+
+        if (lockState) lockState.classList.toggle('d-none', !isIncome);
+        if (openBtn) {
+            openBtn.disabled = isIncome;
+            openBtn.classList.toggle('d-none', isIncome);
+        }
+        if (isIncome) {
+            if (noBudgetState) noBudgetState.classList.add('d-none');
+            if (hasBudgetState) hasBudgetState.classList.add('d-none');
+            if (childPanel && !childPanel.classList.contains('d-none')) closeBudgetChildDialog();
+        } else {
+            renderDetailBudgetSummary();
+        }
     }
 
     function buildUpdateUrl(id) {
@@ -242,18 +316,24 @@
         const color = document.getElementById("detailCategoryColor")?.value || "#FFAB00";
         const iconInputValue = document.getElementById("detailCategoryIcon")?.value || "";
         const icon = iconInputValue || state.defaultIcon;
+        const categoryType = normalizeCategoryType(document.getElementById("detailCategoryType")?.value || "expense");
 
         const headIcon = document.getElementById("detailHeadIcon");
         const headWrap = document.getElementById("detailHeadIconWrap");
         const title = document.getElementById("detailCategoryTitle");
         const budgetText = document.getElementById("budgetCurrentCategoryText");
         const budgetDot = document.getElementById("budgetCurrentColorDot");
+        const typeBadge = document.getElementById("detailCategoryTypeBadge");
 
         if (title) title.textContent = name;
         if (budgetText) budgetText.textContent = name;
         if (headIcon && icon) headIcon.src = icon;
         if (headWrap) headWrap.style.background = hexToRgba(color, 0.14);
         if (budgetDot) budgetDot.style.background = color;
+        if (typeBadge) {
+            typeBadge.textContent = getCategoryTypeLabel(categoryType);
+            typeBadge.className = `badge category-type-badge category-type-badge--${categoryType}`;
+        }
 
         setActiveColor(".category-color-preset-detail", color);
         document.querySelectorAll(".category-icon-option-detail").forEach(function (btn) {
@@ -490,7 +570,14 @@
     function renderDetailBudgetSummary() {
         const noBudgetState = document.getElementById("noBudgetState");
         const hasBudgetState = document.getElementById("hasBudgetState");
+        const categoryType = normalizeCategoryType(document.getElementById("detailCategoryType")?.value || state.currentCategory?.type || "expense");
         const hasItems = Array.isArray(state.budgets) && state.budgets.length > 0;
+
+        if (categoryType === 'income') {
+            noBudgetState?.classList.add("d-none");
+            hasBudgetState?.classList.add("d-none");
+            return;
+        }
 
         noBudgetState?.classList.toggle("d-none", hasItems);
         hasBudgetState?.classList.toggle("d-none", !hasItems);
@@ -498,10 +585,17 @@
 
     async function loadBudgetsForCurrentCategory() {
         if (!state.currentCategory?.id) return;
+        if (normalizeCategoryType(state.currentCategory.type) === 'income') {
+            state.budgets = [];
+            renderBudgetList(state.budgets);
+            updateBudgetAvailabilityUI('income');
+            return;
+        }
         const response = await fetchJson(buildCategoryBudgetsUrl(state.currentCategory.id));
         state.budgets = Array.isArray(response.items) ? response.items : [];
         renderBudgetList(state.budgets);
         renderDetailBudgetSummary();
+        updateBudgetAvailabilityUI(state.currentCategory.type);
     }
 
     function setDetailStateFromTrigger(trigger) {
@@ -512,8 +606,9 @@
         const canEdit = trigger.getAttribute("data-category-can-edit") === "true";
         const canDelete = trigger.getAttribute("data-category-can-delete") === "true";
         const isDefault = trigger.getAttribute("data-category-is-default") === "true";
+        const categoryType = normalizeCategoryType(trigger.getAttribute("data-category-type") || "expense");
 
-        state.currentCategory = { id: categoryId, name: categoryName, color: categoryColor, icon: categoryIcon };
+        state.currentCategory = { id: categoryId, name: categoryName, color: categoryColor, icon: categoryIcon, type: categoryType };
 
         document.getElementById("detailCategoryId").textContent = categoryId;
         document.getElementById("detailCategoryName").value = categoryName;
@@ -521,12 +616,7 @@
         document.getElementById("detailCategoryIcon").value = categoryIcon || state.defaultIcon;
         document.getElementById("detailCategoryCanEdit").value = canEdit ? "true" : "false";
         document.getElementById("detailCategoryCanDelete").value = canDelete ? "true" : "false";
-
-        const typeBadge = document.getElementById("detailCategoryTypeBadge");
-        if (typeBadge) {
-            typeBadge.textContent = isDefault ? "Mặc định" : "Tùy chỉnh";
-            typeBadge.className = isDefault ? "badge bg-label-secondary" : "badge bg-label-primary";
-        }
+        setCategoryTypeSelection("detail", categoryType);
 
         const deleteButton = document.getElementById("btnDeleteCategoryStatic");
         const updateButton = document.getElementById("btnUpdateCategoryStatic");
@@ -538,7 +628,7 @@
         if (detailNameInput) detailNameInput.readOnly = !canEdit;
         if (detailColorInput) detailColorInput.disabled = !canEdit;
 
-        document.querySelectorAll(".category-color-preset-detail, .category-icon-option-detail").forEach(function (el) {
+        document.querySelectorAll('.category-color-preset-detail, .category-icon-option-detail, [data-category-type-target="detail"]').forEach(function (el) {
             if (!canEdit) {
                 el.classList.add("disabled");
                 el.style.pointerEvents = "none";
@@ -602,6 +692,21 @@
         if (el) el.addEventListener("input", updateDetailPreview);
     });
 
+    document.querySelectorAll('[data-category-type-target]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const target = btn.dataset.categoryTypeTarget || 'add';
+            const hidden = document.getElementById(`${target}CategoryType`);
+            if (target === 'detail' && document.getElementById('detailCategoryCanEdit')?.value !== 'true') return;
+            setCategoryTypeSelection(target, btn.dataset.categoryTypeValue || hidden?.value || 'expense');
+        });
+    });
+
+    document.querySelectorAll('[data-category-filter]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            applyCategoryFilter(btn.dataset.categoryFilter || 'all');
+        });
+    });
+
     ["budgetModalTimeType", "budgetModalYear", "budgetModalMonth", "budgetModalWeek", "budgetModalWeekDate"].forEach(function (id) {
         const el = document.getElementById(id);
         if (!el) return;
@@ -649,6 +754,7 @@
             const categoryName = (document.getElementById("addCategoryName")?.value || "").trim();
             const color = document.getElementById("addCategoryColor")?.value || "#FFAB00";
             const icon = document.getElementById("addCategoryIcon")?.value || "";
+            const categoryType = normalizeCategoryType(document.getElementById("addCategoryType")?.value || "expense");
 
             if (!categoryName) {
                 alert("Vui lòng nhập tên danh mục.");
@@ -657,7 +763,7 @@
 
             btnSave.disabled = true;
             try {
-                await sendJson(createUrl, "POST", { category_name: categoryName, color, icon });
+                await sendJson(createUrl, "POST", { category_name: categoryName, color, icon, category_type: categoryType });
                 addModal?.hide();
                 toastSaved?.show();
                 setTimeout(function () { window.location.reload(); }, 700);
@@ -681,6 +787,7 @@
             const categoryName = (document.getElementById("detailCategoryName")?.value || "").trim();
             const color = document.getElementById("detailCategoryColor")?.value || "#FFAB00";
             const icon = document.getElementById("detailCategoryIcon")?.value || state.defaultIcon;
+            const categoryType = normalizeCategoryType(document.getElementById("detailCategoryType")?.value || state.currentCategory?.type || "expense");
 
             if (!categoryId || !categoryName) {
                 alert("Dữ liệu danh mục chưa hợp lệ.");
@@ -689,7 +796,7 @@
 
             btnUpdate.disabled = true;
             try {
-                await sendJson(buildUpdateUrl(categoryId), "PUT", { category_name: categoryName, color, icon });
+                await sendJson(buildUpdateUrl(categoryId), "PUT", { category_name: categoryName, color, icon, category_type: categoryType });
                 toastUpdated?.show();
                 setTimeout(function () { window.location.reload(); }, 700);
             } catch (error) {
@@ -739,7 +846,10 @@
                 };
             })
             .filter(function (item) {
-                return item.id && item.id !== currentId;
+                const currentType = normalizeCategoryType(state.currentCategory?.type);
+                const itemCard = document.querySelector(`.category-card[data-category-id="${item.id}"]`);
+                const itemType = normalizeCategoryType(itemCard?.dataset.categoryType);
+                return item.id && item.id !== currentId && itemType === currentType;
             })
             .sort(function (a, b) {
                 return a.name.localeCompare(b.name, "vi");
@@ -845,6 +955,11 @@
     if (btnSaveBudget) {
         btnSaveBudget.addEventListener("click", async function () {
             const categoryId = (document.getElementById("detailCategoryId")?.textContent || "").trim();
+            const categoryType = normalizeCategoryType(document.getElementById("detailCategoryType")?.value || state.currentCategory?.type || "expense");
+            if (categoryType === 'income') {
+                alert("Danh mục thu nhập không thể thiết lập hạn mức.");
+                return;
+            }
             const budgetId = document.getElementById("budgetModalBudgetId")?.value || "";
             const periodType = document.getElementById("budgetModalTimeType")?.value || "month";
             const amount = parseBudgetAmount(document.getElementById("budgetModalAmount")?.value || "");
@@ -917,7 +1032,10 @@
         });
     }
 
+    setCategoryTypeSelection("add", document.getElementById("addCategoryType")?.value || "expense");
+    setCategoryTypeSelection("detail", document.getElementById("detailCategoryType")?.value || "expense");
     updateAddPreview();
     updateDetailPreview();
     resetBudgetForm();
+    applyCategoryFilter("all");
 });

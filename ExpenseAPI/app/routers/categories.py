@@ -1,4 +1,4 @@
-﻿from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -19,11 +19,16 @@ category_service = CategoryService()
 @router.get("", response_model=list[CategoryResponse])
 def get_categories(
     include_deleted: bool = Query(False, description="Bao gồm cả danh mục đã xóa mềm"),
+    category_type: str | None = Query(default=None, pattern="^(income|expense)$"),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
-    # Luôn lấy theo user_id hiện tại và lọc theo flag include_deleted
-    return category_service.get_categories_response(db, current_user.UserID, include_deleted)
+    return category_service.get_categories_response(
+        db,
+        current_user.UserID,
+        include_deleted,
+        category_type,
+    )
 
 
 @router.get("/overview", response_model=list[CategoryOverviewResponse])
@@ -32,6 +37,7 @@ def get_categories_overview(
     period_year: int = Query(..., ge=2000, le=2100),
     period_month: int | None = Query(default=None, ge=1, le=12),
     period_week: int | None = Query(default=None, ge=1, le=53),
+    category_type: str | None = Query(default=None, pattern="^(income|expense)$"),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
@@ -43,6 +49,7 @@ def get_categories_overview(
             period_year=period_year,
             period_month=period_month,
             period_week=period_week,
+            category_type=category_type,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
@@ -60,6 +67,7 @@ def create_category(
             category_id=category.CategoryID,
             user_id=category.UserID,
             category_name=category.CategoryName,
+            category_type=category.CategoryType,
             icon=category.Icon,
             color=category.Color,
             is_default=category.IsDefault,
@@ -81,6 +89,7 @@ def update_category(
             category_id=category.CategoryID,
             user_id=category.UserID,
             category_name=category.CategoryName,
+            category_type=category.CategoryType,
             icon=category.Icon,
             color=category.Color,
             is_default=category.IsDefault,

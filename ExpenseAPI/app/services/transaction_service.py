@@ -1,5 +1,6 @@
-﻿from datetime import datetime
+from datetime import datetime
 from decimal import Decimal
+
 from sqlalchemy.orm import Session
 
 from app.models.budget import Budget
@@ -10,7 +11,7 @@ from app.repositories.transaction_repo import TransactionRepository
 from app.schemas.transaction_schema import (
     TransactionCreateRequest,
     TransactionUpdateRequest,
-    TransferCreateRequest
+    TransferCreateRequest,
 )
 
 
@@ -19,7 +20,6 @@ class TransactionService:
         self.transaction_repo = TransactionRepository()
 
     def _generate_transaction_id(self, db: Session) -> str:
-        """Sinh ID giao dịch dựa trên ngày hiện tại: TXNyymmddXXXX"""
         date_part = datetime.now().strftime("%y%m%d")
         prefix = f"TXN{date_part}"
 
@@ -35,14 +35,13 @@ class TransactionService:
         return f"{prefix}{new_seq:04d}"
 
     def _apply_budget_spent_delta(
-            self,
-            db: Session,
-            user_id: str,
-            category_id: str,
-            tx_date,
-            amount_delta: Decimal,
+        self,
+        db: Session,
+        user_id: str,
+        category_id: str,
+        tx_date,
+        amount_delta: Decimal,
     ) -> None:
-        """Cập nhật số tiền đã chi tiêu trong ngân sách (Budget)"""
         budgets = (
             db.query(Budget)
             .filter(
@@ -62,6 +61,55 @@ class TransactionService:
             budget.SpentAmount = next_value
             budget.UpdatedAt = datetime.now()
 
+    def _get_accessible_category(self, db: Session, user_id: str, category_id: str) -> Category | None:
+        return (
+            db.query(Category)
+            .filter(
+                Category.CategoryID == category_id,
+                ((Category.UserID == user_id) | (Category.UserID.is_(None))),
+                Category.IsDeleted.is_(False),
+            )
+            .first()
+        )
+
+    @staticmethod
+    def _validate_category_matches_transaction(category: Category, transaction_type: str) -> None:
+        if category.CategoryType != transaction_type:
+            raise ValueError("Loại danh mục phải trùng với loại giao dịch")
+
+    def _get_or_create_transfer_category(self, db: Session, user_id: str, category_type: str) -> Category:
+        category_name = "Chuyển tiền đi" if category_type == "expense" else "Chuyển tiền đến"
+        icon = "/sneat/img/icons/categories/exchange-alt.svg"
+        color = "#696cff"
+
+        category = (
+            db.query(Category)
+            .filter(
+                Category.CategoryName == category_name,
+                Category.CategoryType == category_type,
+                ((Category.UserID == user_id) | (Category.UserID.is_(None))),
+                Category.IsDeleted.is_(False),
+            )
+            .order_by(Category.IsDefault.desc())
+            .first()
+        )
+        if category:
+            return category
+
+        category = Category(
+            CategoryID=f"CATTR{category_type[:3].upper()}{user_id[-4:]}",
+            UserID=user_id,
+            CategoryName=category_name,
+            CategoryType=category_type,
+            Icon=icon,
+            Color=color,
+            IsDefault=False,
+            IsDeleted=False,
+        )
+        db.add(category)
+        db.flush()
+        return category
+
     def get_transactions(self, db: Session, user_id: str):
         return self.transaction_repo.get_all_by_user(db, user_id)
 
@@ -70,13 +118,10 @@ class TransactionService:
         if not wallet:
             raise ValueError("Wallet not found")
 
-        category = db.query(Category).filter(
-            Category.CategoryID == data.category_id,
-            ((Category.UserID == user_id) | (Category.UserID.is_(None))),
-            Category.IsDeleted.is_(False)
-        ).first()
+        category = self._get_accessible_category(db, user_id, data.category_id)
         if not category:
             raise ValueError("Category not found")
+        self._validate_category_matches_transaction(category, data.transaction_type)
 
         if data.transaction_type == "expense" and Decimal(wallet.CurrentBalance) < Decimal(data.amount):
             raise ValueError("Insufficient wallet balance")
@@ -125,8 +170,13 @@ class TransactionService:
             old_wallet.CurrentBalance = Decimal(old_wallet.CurrentBalance) - Decimal(transaction.Amount)
         else:
             old_wallet.CurrentBalance = Decimal(old_wallet.CurrentBalance) + Decimal(transaction.Amount)
-            self._apply_budget_spent_delta(db, user_id, transaction.CategoryID, transaction.TransactionDate,
-                                           -Decimal(transaction.Amount))
+            self._apply_budget_spent_delta(
+                db,
+                user_id,
+                transaction.CategoryID,
+                transaction.TransactionDate,
+                -Decimal(transaction.Amount),
+            )
 
         new_wallet_id = data.wallet_id or transaction.WalletID
         new_category_id = data.category_id or transaction.CategoryID
@@ -135,7 +185,15 @@ class TransactionService:
         new_date = data.transaction_date or transaction.TransactionDate
 
         new_wallet = db.query(Wallet).filter(Wallet.WalletID == new_wallet_id, Wallet.UserID == user_id).first()
-        if not new_wallet or (new_type == "expense" and Decimal(new_wallet.CurrentBalance) < new_amount):
+        if not new_wallet:
+            raise ValueError("Wallet not found")
+
+        new_category = self._get_accessible_category(db, user_id, new_category_id)
+        if not new_category:
+            raise ValueError("Category not found")
+        self._validate_category_matches_transaction(new_category, new_type)
+
+        if new_type == "expense" and Decimal(new_wallet.CurrentBalance) < new_amount:
             raise ValueError("Wallet error or insufficient balance")
 
         if new_type == "income":
@@ -144,22 +202,30 @@ class TransactionService:
             new_wallet.CurrentBalance = Decimal(new_wallet.CurrentBalance) - new_amount
             self._apply_budget_spent_delta(db, user_id, new_category_id, new_date, new_amount)
 
-        transaction.WalletID, transaction.CategoryID = new_wallet_id, new_category_id
-        transaction.TransactionType, transaction.Amount = new_type, new_amount
-        transaction.TransactionDate, transaction.Note = new_date, data.note
+        transaction.WalletID = new_wallet_id
+        transaction.CategoryID = new_category_id
+        transaction.TransactionType = new_type
+        transaction.Amount = new_amount
+        transaction.TransactionDate = new_date
+        transaction.Note = data.note if data.note is not None else transaction.Note
 
         if data.is_recurring is not None:
             transaction.IsRecurring = data.is_recurring
             transaction.RecurInterval = data.recur_interval if data.is_recurring else None
+        elif data.recur_interval is not None and transaction.IsRecurring:
+            transaction.RecurInterval = data.recur_interval
 
         transaction.UpdatedAt = datetime.now()
+        old_wallet.UpdatedAt = datetime.now()
+        new_wallet.UpdatedAt = datetime.now()
         db.commit()
         db.refresh(transaction)
         return transaction
 
     def delete_transaction(self, db: Session, transaction_id: str, user_id: str):
         transaction = self.transaction_repo.get_by_id_and_user(db, transaction_id, user_id)
-        if not transaction: raise ValueError("Transaction not found")
+        if not transaction:
+            raise ValueError("Transaction not found")
 
         wallet = db.query(Wallet).filter(Wallet.WalletID == transaction.WalletID, Wallet.UserID == user_id).first()
         if wallet:
@@ -167,8 +233,13 @@ class TransactionService:
                 wallet.CurrentBalance = Decimal(wallet.CurrentBalance) - Decimal(transaction.Amount)
             else:
                 wallet.CurrentBalance = Decimal(wallet.CurrentBalance) + Decimal(transaction.Amount)
-                self._apply_budget_spent_delta(db, user_id, transaction.CategoryID, transaction.TransactionDate,
-                                               -Decimal(transaction.Amount))
+                self._apply_budget_spent_delta(
+                    db,
+                    user_id,
+                    transaction.CategoryID,
+                    transaction.TransactionDate,
+                    -Decimal(transaction.Amount),
+                )
             wallet.UpdatedAt = datetime.now()
 
         self.transaction_repo.delete(db, transaction)
@@ -180,26 +251,13 @@ class TransactionService:
 
         if not from_wallet or not to_wallet:
             raise ValueError("Một hoặc cả hai ví không tồn tại.")
-
+        if from_wallet.WalletID == to_wallet.WalletID:
+            raise ValueError("Ví nguồn và ví đích phải khác nhau.")
         if Decimal(from_wallet.CurrentBalance) < data.amount:
             raise ValueError("Số dư ví nguồn không đủ.")
 
-        transfer_cat = db.query(Category).filter(
-            Category.CategoryName == "Chuyển tiền",
-            (Category.UserID == user_id) | (Category.UserID.is_(None))
-        ).first()
-
-        if not transfer_cat:
-            transfer_cat = Category(
-                CategoryID=f"CAT_SYS_{user_id[:4]}",
-                UserID=user_id,
-                CategoryName="Chuyển tiền",
-                Icon="bx bx-transfer-alt",
-                Color="#696cff",
-                IsDeleted=False
-            )
-            db.add(transfer_cat)
-            db.flush()
+        expense_cat = self._get_or_create_transfer_category(db, user_id, "expense")
+        income_cat = self._get_or_create_transfer_category(db, user_id, "income")
 
         base_id = self._generate_transaction_id(db)
         prefix = base_id[:-4]
@@ -211,31 +269,35 @@ class TransactionService:
                 TransactionID=base_id,
                 UserID=user_id,
                 WalletID=data.from_wallet_id,
-                CategoryID=transfer_cat.CategoryID,
+                CategoryID=expense_cat.CategoryID,
                 TransactionType="expense",
                 Amount=data.amount,
                 TransactionDate=data.transfer_date,
                 Note=f"Chuyển đến [{to_wallet.WalletName}]: {data.note or ''}".strip(),
-                IsRecurring=False
+                IsRecurring=False,
             )
 
             income_tx = Transaction(
                 TransactionID=next_id,
                 UserID=user_id,
                 WalletID=data.to_wallet_id,
-                CategoryID=transfer_cat.CategoryID,
+                CategoryID=income_cat.CategoryID,
                 TransactionType="income",
                 Amount=data.amount,
                 TransactionDate=data.transfer_date,
                 Note=f"Nhận từ [{from_wallet.WalletName}]: {data.note or ''}".strip(),
-                IsRecurring=False
+                IsRecurring=False,
             )
 
             from_wallet.CurrentBalance = Decimal(from_wallet.CurrentBalance) - data.amount
             to_wallet.CurrentBalance = Decimal(to_wallet.CurrentBalance) + data.amount
+            from_wallet.UpdatedAt = datetime.now()
+            to_wallet.UpdatedAt = datetime.now()
 
             db.add_all([expense_tx, income_tx])
             db.commit()
+            db.refresh(expense_tx)
+            db.refresh(income_tx)
 
             return {"expense": expense_tx, "income": income_tx}
 

@@ -164,6 +164,8 @@
     string currency(decimal value) => string.Format(System.Globalization.CultureInfo.GetCultureInfo("vi-VN"), "{0:N0}", value);
 
     var categories = Model?.Categories ?? new List<CategoryOverviewResponseDto>();
+    string normalizeCategoryType(string? value) => string.Equals(value, "income", StringComparison.OrdinalIgnoreCase) ? "income" : "expense";
+    string categoryTypeLabel(string? value) => normalizeCategoryType(value) == "income" ? T("Thu nhập", "Income") : T("Chi tiêu", "Expense");
 
     var overBudgetItems = categories.Where(x => x.budget?.status == "over").ToList();
     var overBudgetNames = string.Join(lang == "en" ? " and " : " và ", overBudgetItems.Select(x => x.category_name));
@@ -218,16 +220,23 @@
     </section>
 
     <div class="card mb-4">
-        <div class="card-header d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
-            <div>
-                <h5 class="mb-1">@T("Danh sách danh mục & Hạn mức", "Category & Budget List")</h5>
-                <p class="card-subtitle mb-0">
-                    @T("Quản lý danh mục chi tiêu và thiết lập hạn mức.", "Manage categories and set budgets.")
-                </p>
+        <div class="card-header category-toolbar-header">
+            <div class="category-toolbar-title-wrap">
+                <h5 class="category-toolbar-title mb-0">@T("Danh sách Danh mục", "Category list")</h5>
+                <p class="category-toolbar-subtitle mb-0">@T("Lọc nhanh theo loại và quản lý danh mục ngay tại chỗ.", "Quickly filter by type and manage categories in place.")</p>
             </div>
-            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
-                <i class="icon-base bx bx-plus me-1"></i> @T("Thêm danh mục", "Add Category")
-            </button>
+
+            <div class="category-toolbar-actions">
+                <div class="category-type-toggle" role="tablist" aria-label="@T("Category type filter", "Category type filter")">
+                    <button type="button" class="active" data-category-filter="all">@T("Tất cả", "All")</button>
+                    <button type="button" data-category-filter="expense">@T("Chi tiêu", "Expense")</button>
+                    <button type="button" data-category-filter="income">@T("Thu nhập", "Income")</button>
+                </div>
+
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
+                    <i class="icon-base bx bx-plus me-1"></i> @T("Thêm danh mục", "Add Category")
+                </button>
+            </div>
         </div>
 
         <div class="card-body">
@@ -252,13 +261,14 @@
                         if (status == "over") { cardCss += " over-budget"; }
                         var budgetType = budgetTypeLabel(budget?.period_type);
 
-                        <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                        <div class="col-6 col-md-4 col-lg-3 col-xl-2 category-card-col">
                             <button type="button" class="card category-card @cardCss text-start w-100 h-100"
                                     data-bs-toggle="modal" data-bs-target="#categoryDetailModal"
                                     data-category-id="@item.category_id"
                                     data-category-name="@item.category_name"
                                     data-category-color="@color"
                                     data-category-icon="@iconUrl"
+                                    data-category-type="@normalizeCategoryType(item.category_type)"
                                     data-category-is-default="@(item.is_default.ToString().ToLower())"
                                     data-category-can-edit="@(item.can_edit.ToString().ToLower())"
                                     data-category-can-delete="@(item.can_delete.ToString().ToLower())"
@@ -283,6 +293,9 @@
                                         }
                                     </div>
                                     <div class="category-name fw-bold">@item.category_name</div>
+                                    <div class="mt-1">
+                                        <span class="badge category-type-badge @($"category-type-badge--{normalizeCategoryType(item.category_type)}")">@categoryTypeLabel(item.category_type)</span>
+                                    </div>
 
                                     <div class="text-muted mt-1" style="font-size: 0.75rem;">
                                         <i class="bx bx-transfer-alt align-middle me-1"></i>@item.transaction_count @T("giao dịch", "transactions")
@@ -326,6 +339,9 @@
                         <div class="alert alert-info mb-0">@T("Chưa có dữ liệu danh mục để hiển thị.", "No categories found.")</div>
                     </div>
                 }
+            </div>
+            <div id="categoryFilterEmptyState" class="alert alert-light border mt-3 mb-0 d-none">
+                @T("Không có danh mục nào thuộc nhóm đang chọn.", "No categories match the selected type.")
             </div>
         </div>
     </div>
@@ -428,6 +444,15 @@
                             <div class="col-12">
                                 <label class="form-label">@T("Tên danh mục", "Category name")</label>
                                 <input type="text" id="addCategoryName" class="form-control category-field-input" placeholder="Ví dụ: Lương, Mua sắm..." />
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label">@T("Loại danh mục", "Category type")</label>
+                                <div class="category-type-toggle category-type-toggle--field" role="tablist" aria-label="@T("Category type", "Category type")">
+                                    <button type="button" class="active" data-category-type-target="add" data-category-type-value="expense">@T("Chi tiêu", "Expense")</button>
+                                    <button type="button" data-category-type-target="add" data-category-type-value="income">@T("Thu nhập", "Income")</button>
+                                </div>
+                                <input type="hidden" id="addCategoryType" value="expense" />
                             </div>
 
                             <div class="col-12">
@@ -541,6 +566,15 @@
                                     </div>
 
                                     <div class="col-12">
+                                        <label class="form-label">@T("Loại danh mục", "Category type")</label>
+                                        <div class="category-type-toggle category-type-toggle--field" role="tablist" aria-label="@T("Category type", "Category type")">
+                                            <button type="button" class="active" data-category-type-target="detail" data-category-type-value="expense">@T("Chi tiêu", "Expense")</button>
+                                            <button type="button" data-category-type-target="detail" data-category-type-value="income">@T("Thu nhập", "Income")</button>
+                                        </div>
+                                        <input type="hidden" id="detailCategoryType" value="expense" />
+                                    </div>
+
+                                    <div class="col-12">
                                         <label class="form-label">@T("Màu sắc", "Color")</label>
                                         <div class="category-color-toolbar category-color-toolbar--stack">
                                             <div class="category-color-presets category-color-presets--inline d-flex gap-2 flex-wrap">
@@ -620,6 +654,12 @@
                                             <i class="bx bx-plus me-1"></i>@T("Thêm hạn mức", "Add budget")
                                         </button>
                                     </div>
+                                </div>
+
+                                <div id="incomeBudgetLockedState" class="category-budget-empty d-none">
+                                    <div class="category-budget-empty__icon"><i class="bx bx-trending-up"></i></div>
+                                    <div class="category-budget-empty__title">@T("Danh mục thu nhập không có hạn mức", "Income categories do not use budgets")</div>
+                                    <p class="category-budget-empty__text">@T("Hạn mức chỉ áp dụng cho danh mục chi tiêu. Bạn vẫn có thể đổi loại danh mục ở khung bên trái.", "Budgets are only available for expense categories. You can still change the category type on the left.")</p>
                                 </div>
 
                                 <div id="noBudgetState" class="category-budget-empty d-none">

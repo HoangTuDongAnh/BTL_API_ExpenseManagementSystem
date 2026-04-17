@@ -2,3 +2,95 @@
 @import url('./fragments/analytics-overview.css');
 @import url('./fragments/transaction-ledger.css');
 @import url('./fragments/transaction-modals.css');
+
+/* Transaction page adjustments for category type and modal layout */
+.tx-filter-segmented {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+}
+
+.tx-filter-segmented button {
+    white-space: nowrap;
+}
+
+.tx-category-grid-scroll {
+    max-height: 232px;
+    overflow-y: auto;
+    padding-right: 4px;
+    align-content: flex-start;
+}
+
+.tx-category-grid-scroll::-webkit-scrollbar {
+    width: 6px;
+}
+
+.tx-category-grid-scroll::-webkit-scrollbar-thumb {
+    background: rgba(105, 108, 255, 0.25);
+    border-radius: 999px;
+}
+
+.tx-preview-note-card {
+    margin-top: 16px;
+}
+
+.tx-preview-note-card textarea {
+    min-height: 96px;
+    resize: vertical;
+}
+
+#addTransactionModal .tx-modal-layout,
+#transactionDetailModal .tx-modal-layout {
+    align-items: flex-start;
+}
+
+#addTransactionModal .tx-modal-preview,
+#transactionDetailModal .tx-modal-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+#addTransactionModal .tx-preview-meta-compact,
+#transactionDetailModal .tx-preview-meta-compact {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+#addTransactionModal .tx-preview-meta-compact div,
+#transactionDetailModal .tx-preview-meta-compact div {
+    min-height: 74px;
+}
+
+#addTransactionModal .tx-form-card,
+#transactionDetailModal .tx-form-card {
+    margin-bottom: 16px;
+}
+
+#addTransactionModal .tx-form-card:last-child,
+#transactionDetailModal .tx-form-card:last-child {
+    margin-bottom: 0;
+}
+
+#addTransactionModal .tx-category-chip.d-none,
+#transactionDetailModal .tx-category-chip.d-none {
+    display: none !important;
+}
+
+#addTransactionModal .tx-category-chip[disabled],
+#transactionDetailModal .tx-category-chip[disabled] {
+    pointer-events: none;
+}
+
+@media (max-width: 991.98px) {
+    .tx-filter-segmented {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    #addTransactionModal .tx-preview-meta-compact,
+    #transactionDetailModal .tx-preview-meta-compact {
+        grid-template-columns: 1fr;
+    }
+}

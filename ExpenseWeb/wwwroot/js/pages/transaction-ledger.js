@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
     filtered: [],
     page: 1,
     pageSize: 5,
-    charts: { income: null, expense: null },
+    charts: { breakdown: null },
     detailId: null,
     selectedCalendarDate: null,
     reopenDayDrawerOnDetailClose: false
@@ -206,6 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
       categoryIcon: category?.icon || raw.category_icon || 'bx bx-category',
       categoryColor: category?.color || raw.category_color || '#8592A3',
       transactionType: raw.transaction_type,
+      isTransfer: !!raw.isTransfer,
       amountValue: amount,
       amountText: `${signedPrefix}${amount.toLocaleString(locale)} ${currency}`,
       transactionDate: String(raw.transaction_date || '').slice(0, 10),
@@ -233,7 +234,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function filterByBaseConditions(items) {
     return items.filter((item) => {
-      if (state.type !== 'all' && item.transactionType !== state.type) return false;
+      if (state.type === 'transfer') {
+        if (!item.isTransfer) return false;
+      } else if (state.type !== 'all') {
+        if (item.isTransfer) return false;
+        if (item.transactionType !== state.type) return false;
+      }
       if (state.walletId !== 'all' && item.walletId !== state.walletId) return false;
       if (state.keyword) {
         const haystack = `${item.note} ${item.categoryName} ${item.walletName}`.toLowerCase();
@@ -317,13 +323,13 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>`;
   }
 
-  function buildCategoryGroups(type) {
+  function buildCategoryGroups() {
     const bucket = new Map();
-    state.filtered.filter((item) => item.transactionType === type).forEach((item) => {
-      const key = item.categoryId || item.categoryName;
+    state.filtered.forEach((item) => {
+      const key = item.categoryId || item.categoryName || item.id;
       if (!bucket.has(key)) {
         bucket.set(key, {
-          name: item.categoryName,
+          name: item.categoryName || t('Khác', 'Other'),
           value: 0,
           color: item.categoryColor || '#8592A3',
           icon: item.categoryIcon || ''
@@ -331,59 +337,253 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       bucket.get(key).value += Number(item.amountValue || 0);
     });
-    return [...bucket.values()].sort((left, right) => right.value - left.value).slice(0, 5);
+    return [...bucket.values()].sort((left, right) => right.value - left.value).slice(0, 6);
   }
 
-  async function renderChart(kind, canvasId, totalId, legendId) {
-    const canvas = qs(canvasId);
-    if (!canvas) return;
+  function currentBreakdownCopy() {
+    switch (state.type) {
+      case 'expense':
+        return {
+          eyebrow: t('Cơ cấu chi tiêu', 'Expense breakdown'),
+          title: t('Danh mục chi tiêu trong kỳ đang xem', 'Expense categories in the current period'),
+          subtitle: t('Biểu đồ tròn cho biết nhóm chi tiêu nổi bật, còn danh sách bên cạnh giúp bạn đọc nhanh số tiền và tỷ trọng của từng danh mục.', 'The doughnut chart highlights top expense groups, while the side panel summarizes amount and share for each category.'),
+          summary: t('Danh mục phát sinh', 'Active categories'),
+          centerLabel: t('Tổng chi trong kỳ', 'Total expense in period'),
+          centerMetaSuffix: t('danh mục phát sinh', 'active categories')
+        };
+      case 'income':
+        return {
+          eyebrow: t('Cơ cấu thu nhập', 'Income breakdown'),
+          title: t('Danh mục thu nhập trong kỳ đang xem', 'Income categories in the current period'),
+          subtitle: t('Biểu đồ tròn hiển thị nguồn thu nổi bật trong bộ lọc hiện tại để bạn so sánh tỷ trọng từng nhóm.', 'The doughnut chart shows the most significant income sources in the current filter so you can compare each group\'s share.'),
+          summary: t('Danh mục phát sinh', 'Active categories'),
+          centerLabel: t('Tổng thu trong kỳ', 'Total income in period'),
+          centerMetaSuffix: t('danh mục phát sinh', 'active categories')
+        };
+      case 'transfer':
+        return {
+          eyebrow: t('Cơ cấu chuyển ví', 'Transfer breakdown'),
+          title: t('Luồng chuyển ví trong kỳ đang xem', 'Wallet transfer groups in the current period'),
+          subtitle: t('Dữ liệu chuyển ví được gom theo nhóm hiển thị để bạn theo dõi các lần điều chuyển tiền giữa các ví.', 'Transfers are grouped for the selected period so you can quickly review money moved between wallets.'),
+          summary: t('Danh mục phát sinh', 'Active categories'),
+          centerLabel: t('Tổng chuyển trong kỳ', 'Total transfers in period'),
+          centerMetaSuffix: t('nhóm phát sinh', 'active groups')
+        };
+      default:
+        return {
+          eyebrow: t('Cơ cấu giao dịch', 'Transaction breakdown'),
+          title: t('Danh mục giao dịch trong kỳ đang xem', 'Transaction categories in the current period'),
+          subtitle: t('Biểu đồ tròn và danh sách bên cạnh sẽ đổi theo lựa chọn lọc phía trên để bạn xem nhanh tỷ trọng từng nhóm danh mục.', 'The doughnut chart and side list update with the filter above so you can quickly compare category shares.'),
+          summary: t('Danh mục phát sinh', 'Active categories'),
+          centerLabel: t('Tổng giao dịch trong kỳ', 'Total in period'),
+          centerMetaSuffix: t('danh mục phát sinh', 'active categories')
+        };
+    }
+  }
 
-    const groups = buildCategoryGroups(kind);
-    const total = groups.reduce((sum, item) => sum + item.value, 0);
-    if (qs(totalId)) qs(totalId).textContent = formatMoney(total);
-    renderLegend(qs(legendId), groups);
+  function updateBreakdownCenter(chart, activeIndex = null) {
+    const shell = chart?.canvas?.parentElement;
+    if (!shell) return;
 
-    if (window.TransactionDonutCharts?.render) {
-      state.charts[kind] = await window.TransactionDonutCharts.render({
-        canvas,
-        chart: state.charts[kind],
-        items: groups,
-        locale
+    let center = shell.querySelector('.tx-breakdown-center');
+    if (!center) {
+      center = document.createElement('div');
+      center.className = 'tx-breakdown-center';
+      shell.appendChild(center);
+    }
+
+    const items = chart.$items || [];
+    const defaultState = chart.$defaultCenter || {
+      label: currentBreakdownCopy().centerLabel,
+      value: 0,
+      meta: `0 ${currentBreakdownCopy().centerMetaSuffix}`
+    };
+    const active = Number.isInteger(activeIndex) && items[activeIndex] ? items[activeIndex] : null;
+    const total = items.reduce((sum, item) => sum + Number(item.value || 0), 0);
+    const stateCenter = active
+      ? {
+          label: active.name,
+          value: Number(active.value || 0),
+          meta: total > 0
+            ? `${((Number(active.value || 0) / total) * 100).toFixed(2).replace(/\.00$/, '')}% ${t('tỷ trọng trong kỳ', 'share in period')}`
+            : `0% ${t('tỷ trọng trong kỳ', 'share in period')}`
+        }
+      : defaultState;
+
+    center.innerHTML = `
+      <span class="tx-breakdown-center__label">${escapeHtml(stateCenter.label)}</span>
+      <strong class="tx-breakdown-center__value">${escapeHtml(formatMoney(stateCenter.value))}</strong>
+      <span class="tx-breakdown-center__meta">${escapeHtml(stateCenter.meta)}</span>`;
+  }
+
+  function setBreakdownLegendActive(activeIndex = null, colors = []) {
+    qsa('#transactionBreakdownLegend .legend-row').forEach((row, index) => {
+      const isActive = activeIndex === index;
+      row.classList.toggle('is-active', isActive);
+      row.style.setProperty('--legend-active-color', colors[index] || '#d9e5f6');
+    });
+  }
+
+  function bindBreakdownLegendHover(chart, colors) {
+    qsa('#transactionBreakdownLegend .legend-row').forEach((row) => {
+      row.addEventListener('mouseenter', () => {
+        const index = Number(row.dataset.legendIndex);
+        if (!Number.isInteger(index)) return;
+        const meta = chart.getDatasetMeta(0);
+        const element = meta?.data?.[index];
+        if (!element) return;
+        chart.setActiveElements([{ datasetIndex: 0, index }]);
+        chart.tooltip?.setActiveElements([{ datasetIndex: 0, index }], { x: element.x, y: element.y });
+        chart.update();
+        updateBreakdownCenter(chart, index);
+        setBreakdownLegendActive(index, colors);
       });
+
+      row.addEventListener('mouseleave', () => {
+        chart.setActiveElements([]);
+        chart.tooltip?.setActiveElements([], { x: 0, y: 0 });
+        chart.update();
+        updateBreakdownCenter(chart, null);
+        setBreakdownLegendActive(null, colors);
+      });
+    });
+  }
+
+  function renderBreakdownLegend(container, groups) {
+    if (!container) return;
+    if (!groups.length) {
+      container.innerHTML = `
+        <div class="tx-breakdown-empty">
+          <span class="tx-breakdown-empty__icon"><i class="bx bx-pie-chart-alt-2"></i></span>
+          <h3>${t('Chưa có dữ liệu phù hợp', 'No matching data yet')}</h3>
+          <p>${t('Biểu đồ sẽ hiển thị khi bộ lọc hiện tại có giao dịch hợp lệ.', 'The doughnut chart will appear once the current filter has matching transactions.')}</p>
+        </div>`;
       return;
     }
 
-    if (state.charts[kind]) {
-      state.charts[kind].destroy();
-      state.charts[kind] = null;
+    const total = groups.reduce((sum, item) => sum + Number(item.value || 0), 0);
+    container.innerHTML = groups.map((item, index) => `
+      <div class="legend-row" data-legend-index="${index}">
+        <div class="legend-left">
+          <span class="legend-icon tx-legend-icon" style="--legend-color:${item.color}; background:${alphaColor(item.color, 0.12)}; color:${item.color}">${iconMarkup(item.icon, item.name)}</span>
+          <div>
+            <strong>${escapeHtml(item.name)}</strong>
+            <small>${t('Tỷ trọng trong kỳ', 'Share in period')}</small>
+          </div>
+        </div>
+        <div class="legend-right">
+          <strong>${total > 0 ? `${((item.value / total) * 100).toFixed(2).replace(/\.00$/, '')}%` : '0%'}</strong>
+          <small>${formatMoney(item.value)}</small>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function renderBreakdownChart() {
+    const canvas = qs('transactionBreakdownChart');
+    if (!canvas) return;
+
+    const groups = buildCategoryGroups();
+    const copy = currentBreakdownCopy();
+    const wrap = canvas.parentElement;
+    if (qs('txBreakdownEyebrow')) qs('txBreakdownEyebrow').textContent = copy.eyebrow;
+    if (qs('txBreakdownTitle')) qs('txBreakdownTitle').textContent = copy.title;
+    if (qs('txBreakdownSubtitle')) qs('txBreakdownSubtitle').textContent = copy.subtitle;
+    if (qs('txBreakdownSummaryLabel')) qs('txBreakdownSummaryLabel').textContent = copy.summary;
+    if (qs('transactionBreakdownCount')) qs('transactionBreakdownCount').textContent = String(groups.length);
+    renderBreakdownLegend(qs('transactionBreakdownLegend'), groups);
+
+    if (state.charts.breakdown) {
+      state.charts.breakdown.destroy();
+      state.charts.breakdown = null;
     }
 
-    state.charts[kind] = new Chart(canvas, {
+    const labels = groups.map((item) => item.name);
+    const series = groups.map((item) => Number(item.value || 0));
+    const colors = groups.map((item) => item.color || '#696cff');
+
+    if (!groups.length) {
+      state.charts.breakdown = new Chart(canvas, {
+        type: 'doughnut',
+        data: {
+          labels: [t('Không có dữ liệu', 'No data')],
+          datasets: [{
+            data: [1],
+            backgroundColor: ['#edf1f7'],
+            borderWidth: 0,
+            hoverOffset: 0,
+            spacing: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '63%',
+          plugins: { legend: { display: false }, tooltip: { enabled: false } }
+        }
+      });
+      state.charts.breakdown.$items = [];
+      state.charts.breakdown.$defaultCenter = {
+        label: copy.centerLabel,
+        value: 0,
+        meta: `0 ${copy.centerMetaSuffix}`
+      };
+      updateBreakdownCenter(state.charts.breakdown, null);
+      setBreakdownLegendActive(null, colors);
+      if (wrap) wrap.style.cursor = 'default';
+      return;
+    }
+
+    state.charts.breakdown = new Chart(canvas, {
       type: 'doughnut',
       data: {
-        labels: groups.map((item) => item.name),
+        labels,
         datasets: [{
-          data: groups.map((item) => item.value),
-          backgroundColor: groups.map((item) => item.color),
+          data: series,
+          backgroundColor: colors,
           borderColor: '#ffffff',
           borderWidth: 4,
-          hoverOffset: 6
+          hoverOffset: 8,
+          spacing: 2
         }]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        cutout: '66%',
+        cutout: '63%',
+        layout: { padding: 10 },
         plugins: {
           legend: { display: false },
           tooltip: {
             callbacks: {
-              label: (ctx) => `${ctx.label}: ${formatMoney(ctx.raw)}`
+              label: (ctx) => {
+                const total = series.reduce((sum, value) => sum + Number(value || 0), 0);
+                const value = Number(ctx.parsed || 0);
+                const percent = total ? (value / total) * 100 : 0;
+                return `${ctx.label}: ${formatMoney(value)} (${percent.toFixed(1).replace(/\.0$/, '')}%)`;
+              }
             }
           }
+        },
+        onHover(event, activeElements, chart) {
+          const activeIndex = activeElements?.length ? activeElements[0].index : null;
+          updateBreakdownCenter(chart, activeIndex);
+          setBreakdownLegendActive(activeIndex, colors);
+          chart.canvas.style.cursor = activeElements?.length ? 'pointer' : 'default';
         }
       }
     });
+
+    state.charts.breakdown.$items = groups;
+    state.charts.breakdown.$defaultCenter = {
+      label: copy.centerLabel,
+      value: series.reduce((sum, value) => sum + Number(value || 0), 0),
+      meta: `${groups.length} ${copy.centerMetaSuffix}`
+    };
+
+    updateBreakdownCenter(state.charts.breakdown, null);
+    setBreakdownLegendActive(null, colors);
+    bindBreakdownLegendHover(state.charts.breakdown, colors);
   }
 
   function renderPagination() {
@@ -1100,8 +1300,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function refresh() {
     refreshFilteredState();
     renderPeriodAssist();
-    renderChart('income', 'incomeDonutChart', 'incomeDonutTotal', 'incomeLegend');
-    renderChart('expense', 'expenseDonutChart', 'expenseDonutTotal', 'expenseLegend');
+    renderBreakdownChart();
     renderList();
     renderCalendar();
     syncAddPreview();

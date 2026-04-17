@@ -135,3 +135,111 @@
     align-items: flex-start;
   }
 }
+
+.category-toolbar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.category-toolbar-title-wrap {
+  min-width: 220px;
+}
+
+.category-toolbar-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #233446;
+}
+
+.category-toolbar-subtitle {
+  margin-top: .22rem;
+  font-size: .85rem;
+  color: #8592a3;
+}
+
+.category-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: .85rem;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.category-type-toggle {
+  display: inline-flex;
+  gap: .35rem;
+  background: #f3f5fb;
+  padding: .42rem;
+  border-radius: 999px;
+  width: max-content;
+  max-width: 100%;
+  position: relative;
+  z-index: 2;
+}
+
+.category-type-toggle--field {
+  width: max-content;
+}
+
+.category-type-toggle button {
+  border: 0;
+  background: transparent;
+  color: #5e6b7b;
+  font-weight: 700;
+  padding: .7rem 1.15rem;
+  border-radius: 999px;
+  white-space: nowrap;
+  transition: background .2s ease, color .2s ease, box-shadow .2s ease;
+  pointer-events: auto;
+}
+
+.category-type-toggle button:hover {
+  color: #233446;
+}
+
+.category-type-toggle button.active {
+  background: linear-gradient(135deg,#7f82ff 0%,#5d69ff 100%);
+  color: #fff;
+  box-shadow: 0 10px 22px rgba(105,108,255,.28);
+}
+
+.category-type-toggle button:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 767.98px) {
+  .category-toolbar-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .category-type-toggle {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .category-type-toggle button {
+    padding: .65rem 1rem;
+  }
+}
+
+.category-type-badge {
+  border-radius: 999px;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.category-type-badge--expense {
+  color: #b76e00;
+  background: rgba(255, 171, 0, 0.14);
+}
+
+.category-type-badge--income {
+  color: #0f8f54;
+  background: rgba(113, 221, 55, 0.16);
+}

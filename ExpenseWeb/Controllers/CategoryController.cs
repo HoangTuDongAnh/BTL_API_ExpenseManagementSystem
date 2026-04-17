@@ -75,6 +75,7 @@ namespace ExpenseWeb.Controllers
 
             try
             {
+                request.category_type = NormalizeCategoryType(request.category_type);
                 await _categoryApiService.CreateCategoryAsync(token, request);
                 return Json(new { success = true, message = "Tạo danh mục thành công." });
             }
@@ -95,6 +96,7 @@ namespace ExpenseWeb.Controllers
 
             try
             {
+                request.category_type = NormalizeCategoryType(request.category_type);
                 await _categoryApiService.UpdateCategoryAsync(token, id, request);
                 return Json(new { success = true, message = "Cập nhật danh mục thành công." });
             }
@@ -148,6 +150,12 @@ namespace ExpenseWeb.Controllers
 
             try
             {
+                var category = (await _categoryApiService.GetCategoriesAsync(token)).FirstOrDefault(x => x.category_id == request.category_id);
+                if (category != null && string.Equals(category.category_type, "income", StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest(new { success = false, message = "Danh mục thu nhập không thể thiết lập hạn mức." });
+                }
+
                 var now = DateTime.Now;
                 var periodType = request.period_type?.Trim().ToLower() ?? "month";
                 var year = request.period_year ?? now.Year;
@@ -219,6 +227,12 @@ namespace ExpenseWeb.Controllers
             {
                 return BadRequest(new { success = false, message = ExtractApiMessage(ex.Message, "Không tải được danh sách hạn mức.") });
             }
+        }
+
+
+        private static string NormalizeCategoryType(string? value)
+        {
+            return string.Equals(value, "income", StringComparison.OrdinalIgnoreCase) ? "income" : "expense";
         }
 
         private static string ExtractApiMessage(string rawMessage, string fallback)

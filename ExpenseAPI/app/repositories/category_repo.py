@@ -1,17 +1,26 @@
-﻿from sqlalchemy import or_
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.models.category import Category
 
 
 class CategoryRepository:
-    def get_all_by_user(self, db: Session, user_id: str, include_deleted: bool = False) -> list[Category]:
+    def get_all_by_user(
+        self,
+        db: Session,
+        user_id: str,
+        include_deleted: bool = False,
+        category_type: str | None = None,
+    ) -> list[Category]:
         query = db.query(Category).filter(
             or_(Category.UserID == user_id, Category.UserID.is_(None))
         )
 
         if not include_deleted:
             query = query.filter(Category.IsDeleted == False)
+
+        if category_type:
+            query = query.filter(Category.CategoryType == category_type)
 
         return query.order_by(Category.IsDefault.desc(), Category.CreatedAt.asc()).all()
 
