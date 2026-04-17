@@ -106,7 +106,6 @@
             {
                 <div class="alert alert-info wallet-empty-state mb-0">@T("Bạn chưa có ví nào. Hãy tạo ví đầu tiên để bắt đầu ghi nhận thu chi.", "You do not have a wallet yet. Create your first wallet to start tracking money.")</div>
             }
-            </div>
         </div>
     </section>
 
@@ -325,71 +324,72 @@
             </div>
         </article>
 
-    <section class="card dashboard-report-card mb-4">
-        <div class="card-body">
-            <div class="dashboard-card-head compact">
-                <div>
-                    <span class="dashboard-card-eyebrow">@T("Cảnh báo nhanh", "Quick alerts")</span>
-                    <h2 class="dashboard-card-title">@T("Ngân sách cần chú ý", "Budgets to review")</h2>
+        <section class="card dashboard-report-card mb-4">
+            <div class="card-body">
+                <div class="dashboard-card-head compact">
+                    <div>
+                        <span class="dashboard-card-eyebrow">@T("Cảnh báo nhanh", "Quick alerts")</span>
+                        <h2 class="dashboard-card-title">@T("Ngân sách cần chú ý", "Budgets to review")</h2>
+                    </div>
+                    <a class="dashboard-link-action" asp-controller="Category" asp-action="Index">@T("Quản lý danh mục và budget", "Open categories & budgets") <i class="bx bx-right-arrow-alt"></i></a>
                 </div>
-                <a class="dashboard-link-action" asp-controller="Category" asp-action="Index">@T("Quản lý danh mục và budget", "Open categories & budgets") <i class="bx bx-right-arrow-alt"></i></a>
-            </div>
 
-            <div id="dashboardBudgetPanel">
-                @if (warningBudgets.Any())
-                {
-                    <div class="budget-alert-grid" id="dashboardBudgetAlerts">
-                        @foreach (var item in warningBudgets)
-                        {
-                            var statusClass = item.Status == "over" ? "over" : item.Status == "reached" ? "reached" : "warning";
-                            var statusText = item.Status == "over"
+                <div id="dashboardBudgetPanel">
+                    @if (warningBudgets.Any())
+                    {
+                        <div class="budget-alert-grid" id="dashboardBudgetAlerts">
+                            @foreach (var item in warningBudgets)
+                            {
+                                var statusClass = item.Status == "over" ? "over" : item.Status == "reached" ? "reached" : "warning";
+                                var statusText = item.Status == "over"
                                 ? T("Đã vượt mức", "Over budget")
                                 : item.Status == "reached"
-                                    ? T("Đã chạm mức", "Reached limit")
-                                    : T("Sắp chạm mức", "Near limit");
-                            var percentageText = Math.Round(item.PercentageUsed, 0).ToString("0");
-                            <article class="budget-alert-card @statusClass">
-                                <div class="budget-alert-head">
-                                    <div class="budget-alert-title-wrap">
-                                        <span class="budget-alert-dot" style="background:@(string.IsNullOrWhiteSpace(item.CategoryColor) ? "#696cff" : item.CategoryColor)"></span>
-                                        <div>
-                                            <h3>@item.CategoryName</h3>
-                                            <p>@statusText</p>
+                                ? T("Đã chạm mức", "Reached limit")
+                                : T("Sắp chạm mức", "Near limit");
+                                var percentageText = Math.Round(item.PercentageUsed, 0).ToString("0");
+                                <article class="budget-alert-card @statusClass">
+                                    <div class="budget-alert-head">
+                                        <div class="budget-alert-title-wrap">
+                                            <span class="budget-alert-dot" style="background:@(string.IsNullOrWhiteSpace(item.CategoryColor) ? "#696cff" : item.CategoryColor)"></span>
+                                            <div>
+                                                <h3>@item.CategoryName</h3>
+                                                <p>@statusText</p>
+                                            </div>
                                         </div>
+                                        <span class="budget-alert-badge">@percentageText%</span>
                                     </div>
-                                    <span class="budget-alert-badge">@percentageText%</span>
-                                </div>
-                                <div class="budget-alert-bar"><span style="width:@Math.Min(item.PercentageUsed, 100).ToString(System.Globalization.CultureInfo.InvariantCulture)%"></span></div>
-                                <div class="budget-alert-meta">
-                                    <span>@item.SpentAmount.ToString("N0") / @item.LimitAmount.ToString("N0")</span>
-                                    <span>@T("Còn lại", "Remaining"): @item.RemainingAmount.ToString("N0")</span>
-                                </div>
-                            </article>
-                        }
-                    </div>
-                }
-                else
-                {
-                    <div class="dashboard-empty-state small-empty alert-empty-ok">
-                        <span class="dashboard-empty-icon success"><i class="bx bx-check-shield"></i></span>
-                        <h3>@T("Chưa có ngân sách nào vượt ngưỡng", "No budgets need attention")</h3>
-                        <p>@T("Hiện chưa có danh mục nào vượt hoặc gần chạm mức cảnh báo trong tháng này.", "No budget category is over or near its warning threshold this month.")</p>
-                    </div>
-                }
+                                    <div class="budget-alert-bar"><span style="width:@Math.Min(item.PercentageUsed, 100).ToString(System.Globalization.CultureInfo.InvariantCulture)%"></span></div>
+                                    <div class="budget-alert-meta">
+                                        <span>@item.SpentAmount.ToString("N0") / @item.LimitAmount.ToString("N0")</span>
+                                        <span>@T("Còn lại", "Remaining"): @item.RemainingAmount.ToString("N0")</span>
+                                    </div>
+                                </article>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="dashboard-empty-state small-empty alert-empty-ok">
+                            <span class="dashboard-empty-icon success"><i class="bx bx-check-shield"></i></span>
+                            <h3>@T("Chưa có ngân sách nào vượt ngưỡng", "No budgets need attention")</h3>
+                            <p>@T("Hiện chưa có danh mục nào vượt hoặc gần chạm mức cảnh báo trong tháng này.", "No budget category is over or near its warning threshold this month.")</p>
+                        </div>
+                    }
+                </div>
             </div>
-        </div>
-    </section>
+        </section>
 </div>
+
 <div class="modal fade category-modal mimo-popup-shell wallet-modal wallet-modal-unified wallet-modal-popup" id="addWalletModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-xl wallet-modal-dialog">
         <div class="modal-content wallet-modal-content-shell mimo-popup-content">
             <button type="button" class="mimo-popup-close" data-bs-dismiss="modal" aria-label="Close"><i class="bx bx-x"></i></button>
             <div class="modal-header wallet-modal-header mimo-popup-header border-bottom-0">
                 <div class="wallet-modal-hero mimo-popup-hero mimo-popup-hero--simple">
-                <div>
-                    <h4 class="wallet-modal-title">@T("Thêm ví mới", "Add new wallet")</h4>
-                    <p class="wallet-modal-subtitle mb-0">@T("Tạo một ví để theo dõi tiền mặt, tài khoản ngân hàng hoặc quỹ cá nhân. Biểu mẫu được giữ gọn và đồng nhất với popup các trang khác.", "Create a wallet to track cash, bank accounts, or personal funds. The form stays compact and visually aligned with other popups.")</p>
-                </div>
+                    <div>
+                        <h4 class="wallet-modal-title">@T("Thêm ví mới", "Add new wallet")</h4>
+                        <p class="wallet-modal-subtitle mb-0">@T("Tạo một ví để theo dõi tiền mặt, tài khoản ngân hàng hoặc quỹ cá nhân. Biểu mẫu được giữ gọn và đồng nhất với popup các trang khác.", "Create a wallet to track cash, bank accounts, or personal funds. The form stays compact and visually aligned with other popups.")</p>
+                    </div>
                 </div>
             </div>
             <div class="modal-body wallet-modal-body-shell mimo-popup-body">
@@ -413,13 +413,7 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">@T("Loại tiền", "Currency")</label>
-                            <select id="addWalletCurrencyCode" class="form-select wallet-input">
-                                <option value="VND">VND</option>
-                                <option value="USD">USD</option>
-                                <option value="EUR">EUR</option>
-                                <option value="JPY">JPY</option>
-                                <option value="KRW">KRW</option>
-                            </select>
+                            <input type="text" id="addWalletCurrencyCode" class="form-control wallet-input" value="VND" readonly />
                         </div>
                         <div class="col-md-6">
                             <div class="wallet-switch-card h-100">
@@ -447,11 +441,11 @@
             <button type="button" class="mimo-popup-close" data-bs-dismiss="modal" aria-label="Close"><i class="bx bx-x"></i></button>
             <div class="modal-header wallet-modal-header mimo-popup-header border-bottom-0">
                 <div class="wallet-modal-hero wallet-modal-hero-with-badge mimo-popup-hero">
-                <div>
-                    <h4 class="wallet-modal-title" id="detailWalletTitle">@T("Chi tiết ví", "Wallet details")</h4>
-                    <p class="wallet-modal-subtitle mb-0"><span id="detailWalletId">-</span></p>
-                </div>
-                <span class="wallet-hero-badge" id="detailWalletBadge">@T("Ví thường", "Standard wallet")</span>
+                    <div>
+                        <h4 class="wallet-modal-title" id="detailWalletTitle">@T("Chi tiết ví", "Wallet details")</h4>
+                        <p class="wallet-modal-subtitle mb-0"><span id="detailWalletId">-</span></p>
+                    </div>
+                    <span class="wallet-hero-badge" id="detailWalletBadge">@T("Ví thường", "Standard wallet")</span>
                 </div>
             </div>
             <div class="modal-body wallet-modal-body-shell mimo-popup-body">
@@ -473,13 +467,7 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">@T("Loại tiền", "Currency")</label>
-                            <select id="detailWalletCurrencySelect" class="form-select wallet-input">
-                                <option value="VND">VND</option>
-                                <option value="USD">USD</option>
-                                <option value="EUR">EUR</option>
-                                <option value="JPY">JPY</option>
-                                <option value="KRW">KRW</option>
-                            </select>
+                            <input type="text" id="detailWalletCurrencySelect" class="form-control wallet-input" value="VND" readonly />
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">@T("Số dư hiện tại", "Current balance")</label>
