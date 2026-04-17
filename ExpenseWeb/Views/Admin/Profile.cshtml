@@ -125,31 +125,35 @@
     </div>
 </div>
 
-<div class="modal fade mimo-popup-shell avatar-picker-modal" id="defaultAvatarModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">@T("Chọn ảnh đại diện mặc định", "Choose Default Avatar")</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+<div class="modal fade category-modal mimo-popup-shell avatar-picker-modal" id="defaultAvatarModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content mimo-popup-content">
+            <button type="button" class="mimo-popup-close" data-bs-dismiss="modal" aria-label="Close"><i class="bx bx-x"></i></button>
+            <div class="modal-header mimo-popup-header border-bottom-0">
+                <div class="mimo-popup-hero mimo-popup-hero--simple w-100">
+                    <div class="mimo-popup-header-copy">
+                        <h4 class="mimo-popup-title mb-1">@T("Chọn ảnh đại diện mặc định", "Choose default avatar")</h4>
+                        <p class="mimo-popup-subtitle mb-0">@T("Thư viện hiển thị theo dạng 3x3 để đồng bộ với các popup khác trong hệ thống.", "The library is displayed in a 3x3 layout to stay consistent with the other popups in the system.")</p>
+                    </div>
+                </div>
             </div>
-            <div class="modal-body">
+            <div class="modal-body mimo-popup-body avatar-picker-body">
                 <div class="avatar-picker-grid">
                     @if (ViewBag.DefaultAvatars != null && ((List<string>)ViewBag.DefaultAvatars).Any())
                     {
+                        var avatarIndex = 0;
                         foreach (var defaultUrl in (List<string>)ViewBag.DefaultAvatars)
                         {
-                            <div class="avatar-picker-cell">
-                                <img src="@defaultUrl" class="default-avatar-option avatar-picker-item"
-                                     style="width: 80px; height: 80px; object-fit: cover; cursor: pointer; border: 3px solid transparent; transition: all 0.2s ease-in-out;"
-                                     data-url="@defaultUrl"
-                                     onmouseover="this.style.borderColor='#696cff'; this.style.transform='scale(1.1)';"
-                                     onmouseout="this.style.borderColor='transparent'; this.style.transform='scale(1)';" />
+                            avatarIndex++;
+                            <div class="avatar-picker-card">
+                                <img src="@defaultUrl" class="default-avatar-option avatar-picker-item" data-url="@defaultUrl" alt="avatar-@avatarIndex" />
+                                <div class="avatar-picker-label">@T("Mẫu", "Avatar") @avatarIndex</div>
                             </div>
                         }
                     }
                     else
                     {
-                        <div class="text-center text-muted">@T("Chưa có ảnh mặc định trong hệ thống.", "No default avatars available.")</div>
+                        <div class="text-center text-muted py-4">@T("Chưa có ảnh mặc định trong hệ thống.", "No default avatars available.")</div>
                     }
                 </div>
             </div>

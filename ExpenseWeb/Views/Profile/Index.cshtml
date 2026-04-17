@@ -137,17 +137,19 @@
     </div>
 </div>
 
-<div class="modal fade profile-avatar-picker" id="defaultAvatarModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade category-modal mimo-popup-shell avatar-picker-modal" id="defaultAvatarModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <div>
-                    <h5 class="modal-title">@T("Chọn ảnh đại diện mặc định", "Choose default avatar")</h5>
-                    <p class="modal-subtitle">@T("Thư viện hiển thị theo dạng 3x3 để đồng bộ với các popup khác trong hệ thống.", "The library is displayed in a 3x3 layout to stay consistent with the other popups in the system.")</p>
+        <div class="modal-content mimo-popup-content">
+            <button type="button" class="mimo-popup-close" data-bs-dismiss="modal" aria-label="Close"><i class="bx bx-x"></i></button>
+            <div class="modal-header mimo-popup-header border-bottom-0">
+                <div class="mimo-popup-hero mimo-popup-hero--simple w-100">
+                    <div class="mimo-popup-header-copy">
+                        <h4 class="mimo-popup-title mb-1">@T("Chọn ảnh đại diện mặc định", "Choose default avatar")</h4>
+                        <p class="mimo-popup-subtitle mb-0">@T("Thư viện hiển thị theo dạng 3x3 để đồng bộ với các popup khác trong hệ thống.", "The library is displayed in a 3x3 layout to stay consistent with the other popups in the system.")</p>
+                    </div>
                 </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body mimo-popup-body avatar-picker-body">
                 @if (avatarLibrary.Any())
                 {
                     <div class="avatar-picker-grid">

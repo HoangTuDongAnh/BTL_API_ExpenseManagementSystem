@@ -139,28 +139,29 @@
 
 .wallet-modal-close {
   position: absolute;
-  top: 18px;
-  right: 18px;
-  z-index: 3;
-  width: 42px;
-  height: 42px;
-  border: 1px solid rgba(67, 89, 113, 0.14);
-  border-radius: 14px;
+  top: 16px;
+  right: 16px;
+  z-index: 6;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(180, 191, 211, 0.9);
+  border-radius: 999px;
   background: #fff;
-  color: #6d7b90;
+  color: #7a8798;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.4rem;
+  font-size: 1.35rem;
+  box-shadow: 0 10px 22px rgba(67, 89, 113, 0.08);
 }
 
 .wallet-modal-hero {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
-  padding: 26px 28px 20px;
-  margin: 18px 18px 0;
+  padding: 18px 24px;
+  margin: 0;
   border: 1px solid rgba(105, 108, 255, 0.12);
   border-radius: 24px;
   background: linear-gradient(180deg, #f8f9ff 0%, #edf2f7 100%);
@@ -192,7 +193,7 @@
 }
 
 .wallet-modal-body-shell {
-  padding: 18px 18px 10px;
+  padding: 20px 18px 0;
 }
 
 .wallet-form-card {

@@ -1,4 +1,4 @@
-
+﻿
 (function () {
   function q(root, selector) {
     if (!root || !selector) return null;

@@ -358,19 +358,19 @@
         </div>
     </section>
 </div>
-<div class="modal fade wallet-modal wallet-modal-unified mimo-popup" id="addWalletModal" tabindex="-1" aria-hidden="true" data-popup-base="true" data-popup-source-header=".wallet-modal-hero" data-popup-source-close=".wallet-modal-close" data-popup-title=".wallet-modal-title" data-popup-subtitle=".wallet-modal-subtitle">
+<div class="modal fade category-modal mimo-popup-shell wallet-modal wallet-modal-unified wallet-modal-popup" id="addWalletModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-xl wallet-modal-dialog">
-        <div class="modal-content wallet-modal-content-shell">
-            <button type="button" class="wallet-modal-close" data-bs-dismiss="modal" aria-label="Close">
-                <i class="bx bx-x"></i>
-            </button>
-            <div class="wallet-modal-hero">
+        <div class="modal-content wallet-modal-content-shell mimo-popup-content">
+            <button type="button" class="mimo-popup-close" data-bs-dismiss="modal" aria-label="Close"><i class="bx bx-x"></i></button>
+            <div class="modal-header wallet-modal-header mimo-popup-header border-bottom-0">
+                <div class="wallet-modal-hero mimo-popup-hero mimo-popup-hero--simple">
                 <div>
                     <h4 class="wallet-modal-title">@T("Thêm ví mới", "Add new wallet")</h4>
                     <p class="wallet-modal-subtitle mb-0">@T("Tạo một ví để theo dõi tiền mặt, tài khoản ngân hàng hoặc quỹ cá nhân. Biểu mẫu được giữ gọn và đồng nhất với popup các trang khác.", "Create a wallet to track cash, bank accounts, or personal funds. The form stays compact and visually aligned with other popups.")</p>
                 </div>
+                </div>
             </div>
-            <div class="modal-body wallet-modal-body-shell">
+            <div class="modal-body wallet-modal-body-shell mimo-popup-body">
                 <div id="walletActionAlert" class="alert alert-danger d-none"></div>
                 <section class="wallet-form-card">
                     <div class="wallet-form-card-head">
@@ -419,20 +419,20 @@
     </div>
 </div>
 
-<div class="modal fade wallet-modal wallet-modal-unified mimo-popup" id="walletDetailModal" tabindex="-1" aria-hidden="true" data-popup-base="true" data-popup-source-header=".wallet-modal-hero" data-popup-source-close=".wallet-modal-close" data-popup-title=".wallet-modal-title" data-popup-subtitle=".wallet-modal-subtitle" data-popup-extra=".wallet-hero-badge">
+<div class="modal fade category-modal mimo-popup-shell wallet-modal wallet-modal-unified wallet-modal-popup" id="walletDetailModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-xl wallet-modal-dialog">
-        <div class="modal-content wallet-modal-content-shell">
-            <button type="button" class="wallet-modal-close" data-bs-dismiss="modal" aria-label="Close">
-                <i class="bx bx-x"></i>
-            </button>
-            <div class="wallet-modal-hero wallet-modal-hero-with-badge">
+        <div class="modal-content wallet-modal-content-shell mimo-popup-content">
+            <button type="button" class="mimo-popup-close" data-bs-dismiss="modal" aria-label="Close"><i class="bx bx-x"></i></button>
+            <div class="modal-header wallet-modal-header mimo-popup-header border-bottom-0">
+                <div class="wallet-modal-hero wallet-modal-hero-with-badge mimo-popup-hero">
                 <div>
                     <h4 class="wallet-modal-title" id="detailWalletTitle">@T("Chi tiết ví", "Wallet details")</h4>
                     <p class="wallet-modal-subtitle mb-0"><span id="detailWalletId">-</span></p>
                 </div>
                 <span class="wallet-hero-badge" id="detailWalletBadge">@T("Ví thường", "Standard wallet")</span>
+                </div>
             </div>
-            <div class="modal-body wallet-modal-body-shell">
+            <div class="modal-body wallet-modal-body-shell mimo-popup-body">
                 <div id="detailWalletActionAlert" class="alert alert-danger d-none"></div>
                 <input type="hidden" id="detailWalletIdValue" />
 
