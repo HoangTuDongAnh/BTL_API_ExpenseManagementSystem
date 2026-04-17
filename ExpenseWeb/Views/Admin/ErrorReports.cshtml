@@ -138,26 +138,24 @@
     </div>
 </div>
 
-<div class="modal fade" id="requestDetailModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade mimo-popup-shell" id="requestDetailModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="false" style="background-color: rgba(0,0,0,0.6);">
     <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
-        <div class="modal-content">
-            <div class="modal-header border-bottom pb-3">
-                <h5 class="modal-title"><i class="bx bx-detail me-2 text-primary"></i>@T("Chi tiết yêu cầu", "Request Details")</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body" id="modalDetailContent">
-            </div>
-        </div>
-    </div>
-</div>
+        <div class="modal-content mimo-popup-content">
 
-<div class="modal fade" id="mediaViewerModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
-        <div class="modal-content bg-transparent border-0 shadow-none">
-            <div class="modal-header border-0 pb-0 justify-content-end">
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button type="button" class="mimo-popup-close" data-bs-dismiss="modal" aria-label="Close">
+                <i class="bx bx-x"></i>
+            </button>
+
+            <div class="modal-header mimo-popup-header border-bottom-0">
+                <div class="mimo-popup-hero mimo-popup-hero--simple w-100">
+                    <div class="mimo-popup-header-copy">
+                        <h4 class="mimo-popup-title mb-1"><i class="bx bx-detail me-2 text-primary"></i>@T("Chi tiết yêu cầu", "Request Details")</h4>
+                        <p class="mimo-popup-subtitle mb-0">@T("Xem xét, theo dõi và phản hồi vấn đề từ người dùng.", "Review, track and respond to user issues.")</p>
+                    </div>
+                </div>
             </div>
-            <div class="modal-body text-center p-0" id="mediaViewerContent">
+
+            <div class="modal-body mimo-popup-body" id="modalDetailContent">
             </div>
         </div>
     </div>
@@ -166,6 +164,7 @@
 @section Scripts {
     <script>
         $(document).ready(function () {
+
             $('.support-item-row').on('click', function () {
                 const requestId = $(this).data('id');
                 const $container = $('#modalDetailContent');
@@ -195,31 +194,7 @@
                 });
             });
 
-            $(document).on('click', '.view-media-btn', function(e) {
-                e.preventDefault();
-                var type = $(this).data('type');
-                var src = $(this).data('src');
-                var $content = $('#mediaViewerContent');
-
-                $content.empty();
-
-                if (type === 'image') {
-                    $content.html('<img src="' + src + '" class="rounded shadow" style="width: 100%; height: 80vh; object-fit: contain; background-color: rgba(0,0,0,0.2);" />');
-                } else if (type === 'video') {
-                    $content.html(`
-                        <video controls autoplay class="rounded shadow" style="width: 100%; height: 80vh; object-fit: contain; background-color: rgba(0,0,0,0.2);">
-                            <source src="${src}" type="video/mp4">
-                            @T("Trình duyệt của bạn không hỗ trợ thẻ video.", "Your browser does not support the video tag.")
-                        </video>
-                    `);
-                }
-
-                $('#mediaViewerModal').modal('show');
-            });
-
-            $('#mediaViewerModal').on('hidden.bs.modal', function () {
-                $('#mediaViewerContent').empty();
-            });
+           
         });
     </script>
 }
