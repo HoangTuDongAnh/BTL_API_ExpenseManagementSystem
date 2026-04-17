@@ -135,16 +135,41 @@ namespace ExpenseWeb.Controllers
             }
         }
 
+        [HttpPost]
+        public async Task<IActionResult> TransferAjax([FromBody] TransferCreateRequestDto request)
+        {
+            var token = HttpContext.Session.GetString("AccessToken");
+            if (string.IsNullOrWhiteSpace(token))
+                return Unauthorized(new { success = false, message = "Phiên đăng nhập đã hết hạn." });
+
+            if (!ModelState.IsValid)
+            {
+                var firstError = ModelState.Values.SelectMany(v => v.Errors).FirstOrDefault()?.ErrorMessage;
+                return BadRequest(new { success = false, message = firstError ?? "Dữ liệu không hợp lệ." });
+            }
+
+            if (request.from_wallet_id == request.to_wallet_id)
+                return BadRequest(new { success = false, message = "Ví nguồn và ví đích không được trùng nhau." });
+
+            try
+            {
+                var result = await _transactionApiService.TransferAsync(token, request);
+                return Json(new { success = true, message = "Chuyển tiền thành công.", data = result });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = ExtractApiMessage(ex.Message, "Không thể chuyển tiền.") });
+            }
+        }
+
         private async Task<TransactionPageViewModel> BuildPageViewModelAsync(string token)
         {
             var viewModel = new TransactionPageViewModel();
 
             try
             {
-                // Lấy song song dữ liệu từ API
                 var transactionsTask = _transactionApiService.GetTransactionsAsync(token);
 
-                // Lấy danh mục ĐANG HOẠT ĐỘNG (False) để đổ vào Form thêm mới
                 var categoriesTask = _categoryApiService.GetCategoriesAsync(token, false);
 
                 var walletsTask = _walletApiService.GetWalletsAsync(token);
@@ -154,7 +179,6 @@ namespace ExpenseWeb.Controllers
                 viewModel.Categories = categoriesTask.Result;
                 viewModel.Wallets = walletsTask.Result;
 
-                // Build danh sách hiển thị
                 viewModel.Transactions = BuildTransactionItems(
                     transactionsTask.Result,
                     viewModel.Categories,
@@ -169,46 +193,48 @@ namespace ExpenseWeb.Controllers
         }
 
         private static List<TransactionItemViewModel> BuildTransactionItems(
-            List<TransactionResponseDto> transactions,
-            List<CategoryResponseDto> categories,
-            List<WalletResponseDto> wallets)
+    List<TransactionResponseDto> transactions,
+    List<CategoryResponseDto> categories,
+    List<WalletResponseDto> wallets)
         {
-            return transactions
-                .Select(t =>
+            var culture = CultureInfo.GetCultureInfo("vi-VN");
+
+            return transactions.Select(t =>
+            {
+                var category = categories.FirstOrDefault(x => x.category_id == t.category_id);
+                var wallet = wallets.FirstOrDefault(x => x.wallet_id == t.wallet_id);
+
+                // Nhận diện nếu là chuyển khoản
+                bool isTransfer = (category?.category_name == "Chuyển tiền") ||
+                                  (t.note != null && (t.note.StartsWith("Chuyển đến") || t.note.StartsWith("Nhận từ")));
+
+                var currency = wallet?.currency ?? "VND";
+                var signedAmount = t.transaction_type == "income" ? t.amount : -t.amount;
+
+                return new TransactionItemViewModel
                 {
-                    var category = categories.FirstOrDefault(x => x.category_id == t.category_id);
-                    var wallet = wallets.FirstOrDefault(x => x.wallet_id == t.wallet_id);
+                    TransactionId = t.transaction_id,
+                    WalletId = t.wallet_id,
+                    WalletName = wallet?.wallet_name ?? "N/A",
+                    CategoryId = t.category_id,
+                    // Thay đổi hiển thị nếu là Chuyển khoản
+                    CategoryName = isTransfer ? "Chuyển khoản" : (category?.category_name ?? "Khác"),
+                    CategoryIcon = isTransfer ? "bx bx-transfer-alt" : (category?.icon ?? "bx bx-category"),
+                    CategoryColor = isTransfer ? "#696cff" : (category?.color ?? "#8592A3"),
 
-                    var currency = wallet?.currency ?? "VND";
-                    var culture = CultureInfo.GetCultureInfo("vi-VN");
-                    var signedAmount = t.transaction_type == "income" ? t.amount : -t.amount;
-
-                    return new TransactionItemViewModel
-                    {
-                        TransactionId = t.transaction_id,
-                        WalletId = t.wallet_id,
-                        WalletName = wallet?.wallet_name ?? "N/A",
-                        CategoryId = t.category_id,
-
-                        // Nếu không tìm thấy category (do logic chuyển sang Khác chưa kịp map hoặc lỗi đồng bộ)
-                        // thì hiển thị mặc định là "Khác"
-                        CategoryName = category?.category_name ?? "Khác",
-                        CategoryIcon = category?.icon ?? "bx bx-category",
-                        CategoryColor = category?.color ?? "#8592A3",
-
-                        TransactionType = t.transaction_type,
-                        AmountValue = t.amount,
-                        AmountText = $"{signedAmount.ToString("+#,##0;-#,##0;0", culture)} {currency}",
-                        TransactionDate = t.transaction_date,
-                        TransactionDateText = t.transaction_date.ToString("dd/MM/yyyy"),
-                        Note = t.note ?? string.Empty,
-                        RecurringBadgeText = t.is_recurring ? MapRecurringLabel(t.recur_interval) : "Một lần",
-                        Currency = currency
-                    };
-                })
-                .OrderByDescending(x => x.TransactionDate)
-                .ThenByDescending(x => x.TransactionId)
-                .ToList();
+                    TransactionType = t.transaction_type,
+                    AmountValue = t.amount,
+                    AmountText = $"{signedAmount.ToString("+#,##0;-#,##0;0", culture)} {currency}",
+                    TransactionDate = t.transaction_date,
+                    TransactionDateText = t.transaction_date.ToString("dd/MM/yyyy"),
+                    Note = t.note ?? string.Empty,
+                    RecurringBadgeText = t.is_recurring ? MapRecurringLabel(t.recur_interval) : "Một lần",
+                    Currency = currency
+                };
+            })
+            .OrderByDescending(x => x.TransactionDate)
+            .ThenByDescending(x => x.TransactionId)
+            .ToList();
         }
 
         private static void NormalizeCreateRequest(TransactionCreateRequestDto request)

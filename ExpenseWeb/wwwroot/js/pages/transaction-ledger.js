@@ -758,57 +758,127 @@ document.addEventListener('DOMContentLoaded', () => {
     if (qs('detailTypeText')) qs('detailTypeText').textContent = type === 'income' ? t('Thu nhập', 'Income') : t('Chi tiêu', 'Expense');
   }
 
-  function applyTypeToggle(containerId, hiddenInputId, initialValue, onChange) {
-    const container = qs(containerId);
-    const hidden = qs(hiddenInputId);
-    if (!container || !hidden) return;
+    function applyTypeToggle(containerId, hiddenInputId, initialValue, onChange) {
+        const container = document.getElementById(containerId);
+        const hidden = document.getElementById(hiddenInputId);
+        if (!container || !hidden) return;
 
-    const update = (value) => {
-      hidden.value = value;
-      qsa('button[data-value]', container).forEach((button) => {
-        button.classList.toggle('active', button.dataset.value === value);
-      });
-      if (typeof onChange === 'function') onChange();
-    };
+        // Lấy danh sách buttons
+        const buttons = container.querySelectorAll('button[data-value]');
 
-    qsa('button[data-value]', container).forEach((button) => {
-      button.addEventListener('click', () => update(button.dataset.value || 'expense'));
-    });
+        const update = (value) => {
+            hidden.value = value;
+            buttons.forEach((btn) => {
+                btn.classList.toggle('active', btn.dataset.value === value);
+            });
+            // Gọi callback để cập nhật tờ hóa đơn Preview
+            if (typeof onChange === 'function') onChange();
+        };
 
-    update(initialValue);
-  }
+        buttons.forEach((btn) => {
+            // Gán sự kiện click và dùng preventDefault để tránh lỗi Form
+            btn.onclick = (e) => {
+                e.preventDefault();
+                update(btn.dataset.value);
+            };
+        });
 
-  function selectCategory(mode, button) {
-    const grid = qs(mode === 'add' ? 'addCategoryGrid' : 'detailCategoryGrid');
-    const idInput = qs(mode === 'add' ? 'addTransactionCategoryId' : 'detailEditCategoryId');
-    const iconInput = qs(mode === 'add' ? 'addTransactionCategoryIcon' : 'detailEditCategoryIcon');
-    const colorInput = qs(mode === 'add' ? 'addTransactionCategoryColor' : 'detailEditCategoryColor');
-    if (!grid || !idInput || !iconInput || !colorInput || !button) return;
-
-    qsa('.tx-category-chip', grid).forEach((chip) => chip.classList.remove('active'));
-    button.classList.add('active');
-    idInput.value = button.dataset.id || '';
-    iconInput.value = button.dataset.icon || '';
-    colorInput.value = button.dataset.color || '';
-    if (mode === 'add') {
-      syncAddPreview();
-    } else {
-      syncDetailPreview();
+        // Chạy lần đầu để set trạng thái default
+        update(initialValue);
     }
-  }
 
-  function resetAddForm() {
-    if (qs('addTransactionWallet')) qs('addTransactionWallet').selectedIndex = 0;
-    if (qs('addTransactionAmount')) qs('addTransactionAmount').value = '';
-    if (qs('addTransactionNote')) qs('addTransactionNote').value = '';
-    if (qs('addTransactionRecurrence')) qs('addTransactionRecurrence').value = '';
-    if (addDatePicker) addDatePicker.setDate(state.anchorDate, true);
-    applyTypeToggle('addTypeSwitch', 'addTransactionType', 'expense', syncAddPreview);
+    function selectCategory(mode, button) {
+        const isAdd = mode === 'add';
 
-    const firstCategory = qs('#addCategoryGrid .tx-category-chip');
-    if (firstCategory) selectCategory('add', firstCategory);
-    syncAddPreview();
-  }
+        const gridId = isAdd ? 'addCategoryGrid' : 'detailCategoryGrid';
+        const idInputId = isAdd ? 'addTransactionCategoryId' : 'detailEditCategoryId';
+        const iconInputId = isAdd ? 'addTransactionCategoryIcon' : 'detailEditCategoryIcon';
+        const colorInputId = isAdd ? 'addTransactionCategoryColor' : 'detailEditCategoryColor';
+
+        const grid = qs(gridId);
+        const idInput = qs(idInputId);
+        const iconInput = qs(iconInputId);
+        const colorInput = qs(colorInputId);
+
+        if (!grid || !idInput || !button) return;
+
+        qsa('.tx-category-chip', grid).forEach((chip) => {
+            chip.classList.remove('active');
+        });
+
+        button.classList.add('active');
+
+        idInput.value = button.dataset.id || '';
+
+        if (iconInput) iconInput.value = button.dataset.icon || 'bx bx-category';
+        if (colorInput) colorInput.value = button.dataset.color || '#8592A3';
+
+        button.style.transition = "transform 0.1s ease";
+        button.style.transform = "scale(0.94)";
+
+        setTimeout(() => {
+            button.style.transform = "scale(1)";
+        }, 100);
+
+        if (isAdd) {
+            syncAddPreview();
+        } else {
+            syncDetailPreview();
+        }
+    }
+
+    function resetAddForm() {
+        const walletSelect = qs('addTransactionWallet');
+        if (walletSelect) {
+            const defaultOption = Array.from(walletSelect.options).find(opt => opt.dataset.isDefault === 'true');
+            if (defaultOption) {
+                walletSelect.value = defaultOption.value;
+            } else {
+                walletSelect.selectedIndex = 0;
+            }
+        }
+
+        if (qs('addTransactionAmount')) qs('addTransactionAmount').value = '';
+        if (qs('addTransactionNote')) qs('addTransactionNote').value = '';
+
+        applyTypeToggle('addTypeSwitch', 'addTransactionType', 'expense', syncAddPreview);
+
+        const firstCategory = qs('#addCategoryGrid .tx-category-chip');
+        if (firstCategory) selectCategory('add', firstCategory);
+
+        syncAddPreview();
+    }
+
+    function switchAddModalMode(mode) {
+        const isTransfer = (mode === 'transfer');
+
+        qs('addTransactionPanel')?.classList.toggle('d-none', isTransfer);
+        qs('addTransferPanel')?.classList.toggle('d-none', !isTransfer);
+        qs('addTransactionPreviewPanel')?.classList.toggle('d-none', isTransfer);
+        qs('addTransferPreviewPanel')?.classList.toggle('d-none', !isTransfer);
+
+        qs('btnSaveTransactionStatic')?.classList.toggle('d-none', isTransfer);
+        qs('btnSaveTransferStatic')?.classList.toggle('d-none', !isTransfer);
+
+        const titleEl = qs('addModalTitle');
+        const subtitleEl = qs('addModalSubtitle');
+
+        if (isTransfer) {
+            if (titleEl) titleEl.textContent = t('Chuyển tiền giữa ví', 'Wallet Transfer');
+            if (subtitleEl) subtitleEl.textContent = t('Hệ thống sẽ tạo 2 giao dịch chi/thu liên kết.', 'Creates linked expense and income transactions.');
+
+            resetTransferForm();
+        } else {
+            if (titleEl) titleEl.textContent = t('Thêm giao dịch', 'Add Transaction');
+            if (subtitleEl) subtitleEl.textContent = t('Ghi lại chi tiêu hoặc thu nhập mới.', 'Record a new expense or income.');
+
+            resetAddForm();
+        }
+
+        qsa('#addModalModeTabs .tx-mode-tab').forEach(tab => {
+            tab.classList.toggle('active', tab.dataset.mode === mode);
+        });
+    }
 
   function populateDetailForm(transactionId) {
     const transaction = getTransaction(transactionId);
@@ -1038,87 +1108,195 @@ document.addEventListener('DOMContentLoaded', () => {
     if (state.detailId) syncDetailPreview();
   }
 
-  function bindEvents() {
-    qsa('#transactionTypeTabs button[data-type]').forEach((button) => {
-      button.addEventListener('click', () => {
-        qsa('#transactionTypeTabs button[data-type]').forEach((item) => item.classList.remove('active'));
-        button.classList.add('active');
-        state.type = button.dataset.type || 'all';
-        refresh();
-      });
-    });
+    function bindEvents() {
+        qsa('#transactionTypeTabs button[data-type]').forEach((button) => {
+            button.addEventListener('click', () => {
+                qsa('#transactionTypeTabs button[data-type]').forEach((item) => item.classList.remove('active'));
+                button.classList.add('active');
+                state.type = button.dataset.type || 'all';
+                refresh();
+            });
+        });
 
-    if (qs('walletFilter')) {
-      qs('walletFilter').addEventListener('change', () => {
-        state.walletId = qs('walletFilter').value || 'all';
-        refresh();
-      });
+        qs('walletFilter')?.addEventListener('change', () => {
+            state.walletId = qs('walletFilter').value || 'all';
+            refresh();
+        });
+
+        qs('transactionSearchInput')?.addEventListener('input', () => {
+            state.keyword = (qs('transactionSearchInput').value || '').trim().toLowerCase();
+            refresh();
+        });
+
+        qs('periodFilter')?.addEventListener('change', () => {
+            state.period = qs('periodFilter').value || 'today';
+            if (state.period === 'custom' && !state.from && !state.to) {
+                state.from = formatIso(addDays(state.anchorDate, -6));
+                state.to = formatIso(state.anchorDate);
+                if (fromPicker) fromPicker.setDate(state.from, true);
+                if (toPicker) toPicker.setDate(state.to, true);
+            }
+            refresh();
+        });
+
+        qs('dayPrevBtn')?.addEventListener('click', () => moveAnchor(-1));
+        qs('dayNextBtn')?.addEventListener('click', () => moveAnchor(1));
+        qs('calendarPrevBtn')?.addEventListener('click', () => {
+            state.calendarMonth = addMonths(state.calendarMonth, -1);
+            renderCalendar();
+        });
+        qs('calendarNextBtn')?.addEventListener('click', () => {
+            state.calendarMonth = addMonths(state.calendarMonth, 1);
+            renderCalendar();
+        });
+
+        qsa('#addModalModeTabs .tx-mode-tab').forEach((tab) => {
+            tab.addEventListener('click', () => {
+                switchAddModalMode(tab.dataset.mode);
+            });
+        });
+
+        addModalEl?.addEventListener('hidden.bs.modal', () => {
+            switchAddModalMode('transaction');
+        });
+
+        applyTypeToggle('addTypeSwitch', 'addTransactionType', 'expense', syncAddPreview);
+        applyTypeToggle('detailTypeSwitch', 'detailEditType', 'expense', syncDetailPreview);
+
+        ['addTransactionWallet', 'addTransactionAmount', 'addTransactionDate', 'addTransactionRecurrence', 'addTransactionNote']
+            .forEach((id) => qs(id)?.addEventListener('input', syncAddPreview));
+        ['addTransactionWallet', 'addTransactionRecurrence'].forEach((id) => qs(id)?.addEventListener('change', syncAddPreview));
+
+        ['detailEditWallet', 'detailEditAmount', 'detailEditDate', 'detailEditRecurrence', 'detailEditNote']
+            .forEach((id) => qs(id)?.addEventListener('input', syncDetailPreview));
+        ['detailEditWallet', 'detailEditRecurrence'].forEach((id) => qs(id)?.addEventListener('change', syncDetailPreview));
+
+        ['transferFromWallet', 'transferToWallet', 'transferAmount', 'transferDate', 'transferNote']
+            .forEach((id) => {
+                qs(id)?.addEventListener('input', syncTransferPreview);
+                qs(id)?.addEventListener('change', syncTransferPreview);
+            });
+
+        qsa('#addCategoryGrid .tx-category-chip').forEach((button) => {
+            button.addEventListener('click', () => selectCategory('add', button));
+        });
+        qsa('#detailCategoryGrid .tx-category-chip').forEach((button) => {
+            button.addEventListener('click', () => selectCategory('detail', button));
+        });
+
+        qs('btnSaveTransactionStatic')?.addEventListener('click', createTransaction);
+        qs('btnSaveTransferStatic')?.addEventListener('click', createTransfer);
+        qs('btnUpdateTransactionStatic')?.addEventListener('click', updateTransaction);
+        qs('btnDeleteTransactionStatic')?.addEventListener('click', () => deleteTransaction());
+        qsa('.tx-export-btn').forEach((button) => button.addEventListener('click', exportVisibleTransactions));
+
+        detailModalEl?.addEventListener('hidden.bs.modal', () => {
+            if (state.reopenDayDrawerOnDetailClose && state.selectedCalendarDate) {
+                renderDayDrawer(state.selectedCalendarDate);
+                if (dayOffcanvas) dayOffcanvas.show();
+            }
+            state.reopenDayDrawerOnDetailClose = false;
+        });
+
+        addModalEl?.addEventListener('shown.bs.modal', () => {
+            if (qs('addTransactionPanel').classList.contains('d-none')) {
+                syncTransferPreview();
+            } else {
+                syncAddPreview();
+            }
+        });
+
+        detailModalEl?.addEventListener('shown.bs.modal', syncDetailPreview);
     }
 
-    if (qs('transactionSearchInput')) {
-      qs('transactionSearchInput').addEventListener('input', () => {
-        state.keyword = (qs('transactionSearchInput').value || '').trim().toLowerCase();
-        refresh();
-      });
+    const transferDatePicker = qs('transferDate') ? flatpickr(qs('transferDate'), {
+        ...fpBaseConfig,
+        defaultDate: state.anchorDate
+    }) : null;
+
+    function syncTransferPreview() {
+        const fromSel = qs('transferFromWallet');
+        const toSel = qs('transferToWallet');
+        const amount = Number(qs('transferAmount')?.value || 0);
+
+        const fromName = fromSel?.options[fromSel.selectedIndex]?.text || '---';
+        const toName = toSel?.options[toSel.selectedIndex]?.text || '---';
+
+        if (qs('transferPreviewFromName')) qs('transferPreviewFromName').textContent = fromName;
+        if (qs('transferPreviewToName')) qs('transferPreviewToName').textContent = toName;
+        if (qs('transferPreviewAmount')) qs('transferPreviewAmount').textContent = formatMoney(amount);
+
+        const sameWallet = fromSel?.value && toSel?.value && fromSel.value === toSel.value;
+        qs('transferSameWalletError')?.classList.toggle('d-none', !sameWallet);
     }
 
-    if (qs('periodFilter')) {
-      qs('periodFilter').addEventListener('change', () => {
-        state.period = qs('periodFilter').value || 'today';
-        if (state.period === 'custom' && !state.from && !state.to) {
-          state.from = formatIso(addDays(state.anchorDate, -6));
-          state.to = formatIso(state.anchorDate);
-          if (fromPicker) fromPicker.setDate(state.from, true);
-          if (toPicker) toPicker.setDate(state.to, true);
+    function resetTransferForm() {
+        const fromSel = qs('transferFromWallet');
+        const toSel = qs('transferToWallet');
+
+        if (fromSel) {
+            const defaultOpt = Array.from(fromSel.options).find(opt => opt.dataset.isDefault === 'true');
+            if (defaultOpt) {
+                fromSel.value = defaultOpt.value;
+            } else {
+                fromSel.selectedIndex = 0;
+            }
         }
-        refresh();
-      });
+
+        if (toSel && fromSel) {
+            const otherOpt = Array.from(toSel.options).find(opt => opt.value !== fromSel.value);
+            if (otherOpt) {
+                toSel.value = otherOpt.value;
+            } else {
+                toSel.selectedIndex = 1;
+            }
+        }
+
+        if (qs('transferAmount')) qs('transferAmount').value = '';
+        if (qs('transferNote')) qs('transferNote').value = '';
+        if (transferDatePicker) transferDatePicker.setDate(state.anchorDate, true);
+
+        qs('transferSameWalletError')?.classList.add('d-none');
+
+        syncTransferPreview();
     }
 
-    if (qs('dayPrevBtn')) qs('dayPrevBtn').addEventListener('click', () => moveAnchor(-1));
-    if (qs('dayNextBtn')) qs('dayNextBtn').addEventListener('click', () => moveAnchor(1));
-    if (qs('calendarPrevBtn')) qs('calendarPrevBtn').addEventListener('click', () => {
-      state.calendarMonth = addMonths(state.calendarMonth, -1);
-      renderCalendar();
-    });
-    if (qs('calendarNextBtn')) qs('calendarNextBtn').addEventListener('click', () => {
-      state.calendarMonth = addMonths(state.calendarMonth, 1);
-      renderCalendar();
-    });
+    async function createTransfer() {
+        const payload = {
+            from_wallet_id: qs('transferFromWallet')?.value,
+            to_wallet_id: qs('transferToWallet')?.value,
+            amount: Number(qs('transferAmount')?.value || 0),
+            transfer_date: qs('transferDate')?.value,
+            note: (qs('transferNote')?.value || '').trim() || null
+        };
 
-    applyTypeToggle('addTypeSwitch', 'addTransactionType', 'expense', syncAddPreview);
-    applyTypeToggle('detailTypeSwitch', 'detailEditType', 'expense', syncDetailPreview);
+        if (payload.from_wallet_id === payload.to_wallet_id) {
+            alert(t('Ví nguồn và đích không được trùng nhau.', 'Source and destination wallets must be different.'));
+            return;
+        }
+        if (payload.amount <= 0) {
+            alert(t('Vui lòng nhập số tiền hợp lệ.', 'Please enter a valid amount.'));
+            return;
+        }
 
-    ['addTransactionWallet', 'addTransactionAmount', 'addTransactionDate', 'addTransactionRecurrence', 'addTransactionNote']
-      .forEach((id) => qs(id)?.addEventListener('input', syncAddPreview));
-    ['detailEditWallet', 'detailEditAmount', 'detailEditDate', 'detailEditRecurrence', 'detailEditNote']
-      .forEach((id) => qs(id)?.addEventListener('input', syncDetailPreview));
-    ['addTransactionWallet', 'addTransactionRecurrence'].forEach((id) => qs(id)?.addEventListener('change', syncAddPreview));
-    ['detailEditWallet', 'detailEditRecurrence'].forEach((id) => qs(id)?.addEventListener('change', syncDetailPreview));
+        try {
+            const result = await jsonFetch('/Transaction/TransferAjax', {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
 
-    qsa('#addCategoryGrid .tx-category-chip').forEach((button) => {
-      button.addEventListener('click', () => selectCategory('add', button));
-    });
-    qsa('#detailCategoryGrid .tx-category-chip').forEach((button) => {
-      button.addEventListener('click', () => selectCategory('detail', button));
-    });
+            if (result.success) {
+                if (result.data.expense) replaceTransaction(result.data.expense);
+                if (result.data.income) replaceTransaction(result.data.income);
 
-    if (qs('btnSaveTransactionStatic')) qs('btnSaveTransactionStatic').addEventListener('click', createTransaction);
-    if (qs('btnUpdateTransactionStatic')) qs('btnUpdateTransactionStatic').addEventListener('click', updateTransaction);
-    if (qs('btnDeleteTransactionStatic')) qs('btnDeleteTransactionStatic').addEventListener('click', () => deleteTransaction());
-    qsa('.tx-export-btn').forEach((button) => button.addEventListener('click', exportVisibleTransactions));
-
-    detailModalEl?.addEventListener('hidden.bs.modal', () => {
-      if (state.reopenDayDrawerOnDetailClose && state.selectedCalendarDate) {
-        renderDayDrawer(state.selectedCalendarDate);
-        if (dayOffcanvas) dayOffcanvas.show();
-      }
-      state.reopenDayDrawerOnDetailClose = false;
-    });
-
-    addModalEl?.addEventListener('shown.bs.modal', syncAddPreview);
-    detailModalEl?.addEventListener('shown.bs.modal', syncDetailPreview);
-  }
+                addModal.hide();
+                showToast('transactionToastSaved');
+                refresh();
+            }
+        } catch (error) {
+            alert(error.message);
+        }
+    }
 
   resetAddForm();
   bindEvents();
