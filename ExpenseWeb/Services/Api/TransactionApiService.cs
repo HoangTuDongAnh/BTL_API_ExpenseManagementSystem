@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -77,6 +78,22 @@ namespace ExpenseWeb.Services.Api
 
             if (!response.IsSuccessStatusCode)
                 throw new InvalidOperationException(body);
+        }
+
+        public async Task<TransferResponseDto> TransferAsync(string token, TransferCreateRequestDto request)
+        {
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var response = await _httpClient.PostAsJsonAsync("transactions/transfer", request);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                throw new Exception(error);
+            }
+
+            return await response.Content.ReadFromJsonAsync<TransferResponseDto>()
+                   ?? throw new Exception("Không thể đọc dữ liệu trả về từ API.");
         }
     }
 }
