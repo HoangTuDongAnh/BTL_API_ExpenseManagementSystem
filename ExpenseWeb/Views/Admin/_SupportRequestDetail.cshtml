@@ -22,153 +22,133 @@
     };
 }
 
-<div class="support-detail">
+<div class="row g-4 mb-4">
 
-    <div class="d-flex align-items-center gap-3 mb-4">
-        @if (!string.IsNullOrWhiteSpace(Model.UserAvatar))
-        {
-            <img src="@Model.UserAvatar" alt="avatar" class="rounded-circle" width="48" height="48" style="object-fit:cover;" />
-        }
-        else
-        {
-            <div class="avatar-initial rounded-circle bg-label-primary d-flex align-items-center justify-content-center" style="width:48px;height:48px;font-size:1.2rem;font-weight:600;">
-                @(Model.UserFullName?.Length > 0 ? Model.UserFullName[0].ToString().ToUpper() : "?")
+    <div class="col-lg-7 col-12 d-flex">
+        <div class="card w-100 border shadow-none h-100">
+            <div class="card-body d-flex flex-column">
+
+                <div class="d-flex align-items-center gap-3 mb-3 pb-3 border-bottom">
+                    @if (!string.IsNullOrWhiteSpace(Model.UserAvatar))
+                    {
+                        <img src="@Model.UserAvatar" alt="avatar" class="rounded-circle" width="45" height="45" style="object-fit:cover;" />
+                    }
+                    else
+                    {
+                        <div class="avatar-initial rounded-circle bg-label-primary d-flex align-items-center justify-content-center" style="width:45px;height:45px;font-size:1.1rem;font-weight:600;">
+                            @(Model.UserFullName?.Length > 0 ? Model.UserFullName[0].ToString().ToUpper() : "?")
+                        </div>
+                    }
+                    <div>
+                        <div class="fw-bold text-heading">@Model.UserFullName</div>
+                        <small class="text-muted">@Model.UserEmail</small>
+                    </div>
+                </div>
+
+                <div class="mb-3 d-flex flex-wrap gap-2">
+                    <span class="badge bg-label-secondary font-monospace">@Model.SupportRequestId</span>
+                    <span class="badge @StatusBadgeClass(Model.Status)">@Model.StatusLabel</span>
+                    <span class="badge @PriorityBadgeClass(Model.Priority)">@Model.PriorityLabel</span>
+                    <span class="badge bg-label-info">@Model.SupportTypeLabel</span>
+                </div>
+
+                <div class="flex-grow-1 d-flex flex-column">
+                    <h6 class="fw-bold text-dark mb-2">@Model.Subject</h6>
+
+                    <div class="p-3 bg-lighter rounded text-dark flex-grow-1" style="white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow-y: auto; scrollbar-width: thin;">@Model.Message</div>
+                </div>
+
             </div>
-        }
-        <div>
-            <div class="fw-bold text-heading">@Model.UserFullName</div>
-            <small class="text-muted">@Model.UserEmail</small>
         </div>
     </div>
 
-    <div class="mb-3 d-flex flex-wrap gap-2 align-items-center">
-        <span class="badge bg-label-secondary font-monospace">@Model.SupportRequestId</span>
-        <span class="badge @StatusBadgeClass(Model.Status)">@Model.StatusLabel</span>
-        <span class="badge @PriorityBadgeClass(Model.Priority)">@Model.PriorityLabel</span>
-        <span class="badge bg-label-info">@Model.SupportTypeLabel</span>
-    </div>
+    <div class="col-lg-5 col-12 d-flex">
+        <div class="card w-100 border shadow-none h-100">
+            <div class="card-body d-flex flex-column">
 
-    <div class="mb-3">
-        <div class="text-muted small mb-1">@T("Tiêu đề", "Subject")</div>
-        <div class="fw-bold text-dark">@Model.Subject</div>
-    </div>
+                <div class="mb-3 pb-3 border-bottom small text-muted d-flex flex-column gap-1">
+                    <div class="d-flex justify-content-between"><span>@T("Gửi lúc", "Sent at"):</span> <strong>@Model.CreatedAt.ToString("dd/MM/yyyy HH:mm")</strong></div>
+                    @if (Model.ViewedAt.HasValue)
+                    {
+                        <div class="d-flex justify-content-between"><span>@T("Đã xem", "Viewed at"):</span> <strong>@Model.ViewedAt.Value.ToString("dd/MM/yyyy HH:mm")</strong></div>
+                    }
+                    @if (Model.RepliedAt.HasValue)
+                    {
+                        <div class="d-flex justify-content-between"><span>@T("Phản hồi", "Replied at"):</span> <strong>@Model.RepliedAt.Value.ToString("dd/MM/yyyy HH:mm")</strong></div>
+                    }
+                </div>
 
-    <div class="mb-3">
-        <div class="text-muted small mb-1">@T("Nội dung", "Message")</div>
-        <div class="p-3 bg-light rounded" style="white-space: pre-wrap; word-break: break-word;">@Model.Message</div>
-    </div>
-
-    <div class="mb-3 d-flex flex-column gap-1">
-        <small class="text-muted"><i class="bx bx-time me-1"></i>@T("Gửi lúc", "Sent at"): <strong>@Model.CreatedAt.ToString("dd/MM/yyyy HH:mm")</strong></small>
-        @if (Model.ViewedAt.HasValue)
-        {
-            <small class="text-muted"><i class="bx bx-show me-1"></i>@T("Đã xem", "Viewed at"): <strong>@Model.ViewedAt.Value.ToString("dd/MM/yyyy HH:mm")</strong></small>
-        }
-        @if (Model.RepliedAt.HasValue)
-        {
-            <small class="text-muted"><i class="bx bx-reply me-1"></i>@T("Phản hồi lúc", "Replied at"): <strong>@Model.RepliedAt.Value.ToString("dd/MM/yyyy HH:mm")</strong></small>
-        }
-        @if (Model.ClosedAt.HasValue)
-        {
-            <small class="text-muted"><i class="bx bx-lock me-1"></i>@T("Đóng lúc", "Closed at"): <strong>@Model.ClosedAt.Value.ToString("dd/MM/yyyy HH:mm")</strong></small>
-        }
-    </div>
-
-    @if (Model.Attachments.Count > 0)
-    {
-        <div class="mb-3">
-            <div class="text-muted small mb-2">@T("Tệp đính kèm", "Attachments") (@Model.Attachments.Count)</div>
-            <div class="support-attachment-grid">
-                @foreach (var attachment in Model.Attachments)
-                {
-                    <div class="support-attachment-card">
-                        @if (attachment.IsImage)
-                        {
-                            <img src="@attachment.FileUrl" alt="@attachment.FileName" class="support-attachment-preview view-media-btn" data-type="image" data-src="@attachment.FileUrl" style="cursor: pointer;" title="@T("Nhấn để xem lớn", "Click to view larger")" />
-                        }
-                        else if (attachment.IsVideo)
-                        {
-                            <div class="position-relative view-media-btn" data-type="video" data-src="@attachment.FileUrl" style="cursor: pointer;" title="@T("Nhấn để xem lớn", "Click to view larger")">
-                                <video class="support-attachment-video" preload="metadata" style="pointer-events: none;">
-                                    <source src="@attachment.FileUrl" type="@attachment.FileType" />
-                                </video>
-                                <div class="position-absolute top-50 start-50 translate-middle text-white" style="background: rgba(0,0,0,0.4); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
-                                    <i class="bx bx-play ms-1 fs-3"></i>
+                <h6 class="text-muted small fw-bold text-uppercase mb-2">@T("Tệp đính kèm", "Attachments")</h6>
+                <div class="flex-grow-1">
+                    @if (Model.Attachments.Count > 0)
+                    {
+                        <div class="pe-2" style="max-height: 200px; overflow-y: auto; scrollbar-width: thin;">
+                            @foreach (var attachment in Model.Attachments)
+                            {
+                                <div class="d-flex gap-3 align-items-center mb-2 p-2 border rounded">
+                                    @if (attachment.IsImage)
+                                    {
+                                        <img src="@attachment.FileUrl" class="rounded view-media-btn" data-type="image" data-src="@attachment.FileUrl" style="width: 60px; height: 60px; object-fit: cover; cursor: zoom-in;" />
+                                    }
+                                    else
+                                    {
+                                        <div class="bg-lighter rounded d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;"><i class="bx bx-file fs-3 text-muted"></i></div>
+                                    }
+                                    <div class="flex-grow-1" style="min-width: 0;">
+                                        <div class="text-truncate fw-medium small mb-1">@attachment.FileName</div>
+                                        <a href="javascript:void(0);" class="small text-primary text-decoration-none view-media-btn" data-type="@(attachment.IsImage ? "image" : "video")" data-src="@attachment.FileUrl">@T("Mở xem", "View")</a>
+                                    </div>
                                 </div>
-                            </div>
-                        }
-                        else
-                        {
-                            <div class="support-attachment-preview d-flex align-items-center justify-content-center">
-                                <i class="bx bx-file fs-1 text-muted"></i>
-                            </div>
-                        }
-
-                        <div class="support-attachment-body">
-                            <div class="support-attachment-name" title="@attachment.FileName">@attachment.FileName</div>
-                            <div class="support-attachment-meta">
-                                @if (!string.IsNullOrWhiteSpace(attachment.DisplaySize))
-                                {
-                                    <span>@attachment.DisplaySize</span>
-                                }
-                            </div>
-
-                            @if (attachment.IsImage || attachment.IsVideo)
-                            {
-                                <a href="javascript:void(0);" class="small text-primary text-decoration-none view-media-btn" data-type="@(attachment.IsImage ? "image" : "video")" data-src="@attachment.FileUrl">
-                                    @T("Mở xem", "View")
-                                </a>
-                            }
-                            else
-                            {
-                                <a href="@attachment.FileUrl" target="_blank" class="small text-primary text-decoration-none">
-                                    @T("Tải xuống", "Download")
-                                </a>
                             }
                         </div>
-                    </div>
-                }
+                    }
+                    else
+                    {
+                        <div class="d-flex flex-column align-items-center justify-content-center h-100 bg-lighter rounded" style="border: 2px dashed #d9dee3; min-height: 150px;">
+                            <i class="bx bx-image-alt text-muted mb-2" style="font-size: 2.5rem; opacity: 0.5;"></i>
+                            <span class="text-muted small fw-medium">@T("Không có tệp đính kèm", "No attachments")</span>
+                        </div>
+                    }
+                </div>
+
             </div>
         </div>
-    }
+    </div>
+</div>
 
-    @if (!string.IsNullOrWhiteSpace(Model.AdminReply))
-    {
-        <div class="mb-4">
-            <div class="text-muted small mb-1">@T("Phản hồi của quản trị viên", "Admin Reply")</div>
-            <div class="p-3 border-start border-3 border-success bg-light rounded" style="white-space: pre-wrap; word-break: break-word;">
-                @Model.AdminReply
+<div class="card w-100 border shadow-none mb-1">
+    <div class="card-body">
+
+        @if (!string.IsNullOrWhiteSpace(Model.AdminReply))
+        {
+            <div class="mb-3">
+                <div class="text-muted small mb-2 fw-bold text-uppercase">@T("Lịch sử phản hồi", "Reply History")</div>
+                <div class="p-3 border-start border-3 border-success bg-lighter rounded text-dark" style="white-space: pre-wrap;">@Model.AdminReply</div>
             </div>
-        </div>
-    }
+        }
 
-    @if (Model.Status != "closed")
-    {
-        <hr class="my-3" />
-        <div>
-            <div class="fw-semibold mb-2"><i class="bx bx-reply me-1 text-primary"></i>@T("Gửi phản hồi", "Send Reply")</div>
+        @if (Model.Status != "closed")
+        {
+            @if (!string.IsNullOrWhiteSpace(Model.AdminReply))
+            {
+                <hr class="my-3 text-muted" />
+            }
+
+            <div class="fw-semibold mb-2"><i class="bx bx-reply me-2 text-primary"></i>@T(string.IsNullOrWhiteSpace(Model.AdminReply) ? "Gửi phản hồi cho người dùng" : "Cập nhật phản hồi", "Send Reply")</div>
             <form method="post" asp-action="ReplySupport" asp-controller="Admin">
                 <input type="hidden" name="supportRequestId" value="@Model.SupportRequestId" />
 
-                <textarea name="adminReply" class="form-control mb-2" rows="4"
-                      placeholder="@T("Nhập nội dung phản hồi...", "Enter reply content...")"
-                      style="resize:vertical;">@Model.AdminReply</textarea>
+                <textarea name="adminReply" class="form-control mb-3" rows="2" placeholder="@T("Nhập nội dung bạn muốn phản hồi...", "Type your reply...")" style="resize:none;">@(string.IsNullOrWhiteSpace(Model.AdminReply) ? "" : Model.AdminReply)</textarea>
 
-                <div class="d-flex gap-2 flex-wrap">
-                    <button type="submit" name="status" value="replied" class="btn btn-primary btn-sm">
-                        <i class="bx bx-send me-1"></i>@T("Gửi phản hồi", "Send Reply")
-                    </button>
+                <div class="d-flex gap-2 justify-content-end">
                     @if (Model.Status == "pending")
                     {
-                        <button type="submit" name="status" value="viewed" class="btn btn-outline-warning btn-sm">
-                            <i class="bx bx-show me-1"></i>@T("Đánh dấu đã xem", "Mark as Viewed")
-                        </button>
+                        <button type="submit" name="status" value="viewed" class="btn btn-outline-warning"><i class="bx bx-show me-1"></i>@T("Đánh dấu đang xử lý", "Mark Processing")</button>
                     }
-                    <button type="submit" name="status" value="closed" class="btn btn-outline-secondary btn-sm">
-                        <i class="bx bx-lock me-1"></i>@T("Đóng yêu cầu", "Close Request")
-                    </button>
+                    <button type="submit" name="status" value="closed" class="btn btn-outline-secondary"><i class="bx bx-lock-alt me-1"></i>@T("Đóng yêu cầu", "Close Request")</button>
+                    <button type="submit" name="status" value="replied" class="btn btn-primary px-4"><i class="bx bxs-paper-plane me-1"></i>@T("Gửi phản hồi", "Send Reply")</button>
                 </div>
             </form>
-        </div>
-    }
+        }
+    </div>
 </div>
