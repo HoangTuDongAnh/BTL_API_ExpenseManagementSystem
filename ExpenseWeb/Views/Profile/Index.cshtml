@@ -1,4 +1,4 @@
-﻿@model ExpenseWeb.Models.ViewModels.Profile.ProfilePageViewModel
+@model ExpenseWeb.Models.ViewModels.Profile.ProfilePageViewModel
 @using System.Linq
 @{
     var lang = (Context.Request.Query["lang"].FirstOrDefault() ?? ViewBag.Lang as string ?? "vi").ToLower();
@@ -17,37 +17,37 @@
     <link rel="stylesheet" href="~/css/pages/page.profile.css" asp-append-version="true" />
 }
 
-<div class="container-xxl flex-grow-1 container-p-y">
+<div class="container-xxl flex-grow-1 container-p-y profile-page-shell">
     <section class="dashboard-hero mb-4">
         <div class="dashboard-hero-copy hero-copy-single">
             <span class="dashboard-hero-eyebrow">@T("Quản lý tài khoản", "Account management")</span>
             <h1 class="dashboard-hero-title">@T("Hồ sơ cá nhân", "My profile")</h1>
             <p class="dashboard-hero-text">
-                @T("Cập nhật tên, ảnh đại diện và các thông tin cơ bản trong một khu vực gọn gàng để việc quản lý tài khoản thuận tiện hơn.", "Update your name, avatar, and basic information in one tidy place for easier account management.")
+                @T("Cập nhật ảnh đại diện và thông tin cá nhân của bạn trong bố cục trực quan, gọn gàng và hiện đại hơn.", "Update your avatar and personal information in a cleaner, more modern layout.")
             </p>
         </div>
     </section>
 
-    <div class="card profile-shell-card mb-4">
-        <div class="profile-shell-header">
-            <div class="profile-shell-title">
-                <div class="profile-title-icon"><i class="bx bx-user-circle"></i></div>
-                <div>
-                    <h2 class="profile-title-heading">@T("Thông tin cơ bản", "Basic information")</h2>
-                    <p class="profile-title-desc">@T("Cập nhật họ tên, số điện thoại và ảnh đại diện của bạn.", "Update your full name, phone number, and avatar.")</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="profile-panel">
-            <div class="profile-grid">
-                <div class="profile-avatar-card">
-                    <div class="profile-avatar-stage" title="@T("Click để xem ảnh phóng to", "Click to zoom in")" data-bs-toggle="modal" data-bs-target="#viewAvatarModal">
-                        <img src="@avatarUrl" alt="user-avatar" class="profile-avatar-img" id="uploadedAvatar" />
+    <section class="profile-main-wrap mb-4">
+        <div class="profile-main-card">
+            <div class="profile-layout-grid">
+                <aside class="profile-avatar-card">
+                    <div class="profile-avatar-card__top">
+                        <span class="profile-card-chip">@T("Ảnh đại diện", "Avatar")</span>
+                        <h2 class="profile-avatar-title">@T("Cập nhật ảnh hồ sơ", "Update profile photo")</h2>
+                        <p class="profile-avatar-text">
+                            @T("Chọn ảnh từ máy hoặc dùng nhanh một ảnh mặc định để làm mới hồ sơ của bạn.", "Choose a photo from your device or use a default avatar to refresh your profile.")
+                        </p>
                     </div>
 
-                    <div class="profile-avatar-note">
-                        @T("Bạn có thể tải ảnh từ máy hoặc chọn nhanh một ảnh mặc định trong thư viện bên dưới.", "Upload a photo from your device or quickly choose a default avatar from the library below.")
+                    <div class="profile-avatar-card__center">
+                        <button type="button"
+                                class="profile-avatar-stage"
+                                title="@T("Click để xem ảnh phóng to", "Click to zoom in")"
+                                data-bs-toggle="modal"
+                                data-bs-target="#viewAvatarModal">
+                            <img src="@avatarUrl" alt="user-avatar" class="profile-avatar-img" id="uploadedAvatar" />
+                        </button>
                     </div>
 
                     <div class="profile-avatar-actions">
@@ -59,34 +59,39 @@
                             <i class="bx bx-image me-2"></i>@T("Dùng ảnh mặc định", "Use default avatar")
                         </button>
                     </div>
-                </div>
+                </aside>
 
                 <div class="profile-info-card">
-                    <form id="formProfileSettings" method="post" enctype="multipart/form-data" onsubmit="return false">
+                    <div class="profile-info-head">
+                        <span class="profile-card-chip">@T("Thông tin cá nhân", "Personal information")</span>
+                        <h2 class="profile-info-title">@T("Thông tin tài khoản", "Account details")</h2>
+                        <p class="profile-info-text">
+                            @T("Cập nhật họ tên và số điện thoại của bạn trong bố cục gọn gàng, dễ nhìn hơn.", "Update your name and phone number in a cleaner and easier-to-read layout.")
+                        </p>
+                    </div>
+
+                    <form id="formProfileSettings" method="post" enctype="multipart/form-data" class="profile-form" onsubmit="return false">
                         <input type="hidden" id="avatarUrl" name="Avatar" value="@Model.Avatar" />
 
                         <div class="profile-form-grid">
-                            <div>
+                            <div class="profile-field">
                                 <label for="lastName" class="form-label">@T("Họ và tên đệm", "Last name")</label>
                                 <input class="form-control profile-input" type="text" name="lastName" id="lastName" value="@Model.LastName" placeholder="@T("Nguyễn Văn", "Nguyen Van")" />
                             </div>
 
-                            <div>
+                            <div class="profile-field">
                                 <label for="firstName" class="form-label">@T("Tên", "First name")</label>
                                 <input class="form-control profile-input" type="text" id="firstName" name="firstName" value="@Model.FirstName" autofocus placeholder="@T("A", "A")" />
                             </div>
 
-                            <div>
+                            <div class="profile-field">
                                 <label for="email" class="form-label">E-mail</label>
                                 <input class="form-control profile-input profile-input-readonly" type="email" id="email" name="email" value="@Model.Email" readonly title="@T("Email không thể thay đổi", "Email cannot be changed")" />
                             </div>
 
-                            <div>
+                            <div class="profile-field">
                                 <label class="form-label" for="phoneNumber">@T("Số điện thoại", "Phone number")</label>
-                                <div class="input-group profile-input-group">
-                                    <span class="input-group-text">VN (+84)</span>
-                                    <input type="text" id="phoneNumber" name="phoneNumber" class="form-control profile-input" value="@Model.PhoneNumber" placeholder="09xx xxx xxx" />
-                                </div>
+                                <input type="text" id="phoneNumber" name="phoneNumber" class="form-control profile-input" value="@Model.PhoneNumber" placeholder="09xx xxx xxx" />
                             </div>
                         </div>
 
@@ -100,9 +105,9 @@
                 </div>
             </div>
         </div>
-    </div>
+    </section>
 
-    <div class="danger-card">
+    <section class="danger-card">
         <div class="danger-header">
             <div class="danger-title">
                 <div class="danger-icon"><i class="bx bx-error-circle"></i></div>
@@ -123,7 +128,7 @@
                 <i class="bx bx-trash me-2"></i>@T("Xóa tài khoản", "Delete account")
             </button>
         </div>
-    </div>
+    </section>
 </div>
 
 <div class="modal fade" id="viewAvatarModal" tabindex="-1" aria-hidden="true">
@@ -165,7 +170,7 @@
                 }
                 else
                 {
-                    <div class="text-center text-muted py-4">@T("Chưa có ảnh mặc định trong hệ thống.", "No default avatars available.")</div>
+                    <div class="text-center text-muted py-4">@T("Chưa có ảnh mặc định trong hệ thống.", "No default avatars are available yet.")</div>
                 }
             </div>
         </div>
