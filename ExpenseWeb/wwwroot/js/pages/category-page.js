@@ -1,4 +1,4 @@
-document.addEventListener("DOMContentLoaded", function () {
+﻿document.addEventListener("DOMContentLoaded", function () {
     const addModalEl = document.getElementById("addCategoryModal");
     const detailModalEl = document.getElementById("categoryDetailModal");
     const addModal = addModalEl ? new bootstrap.Modal(addModalEl) : null;
@@ -13,13 +13,20 @@ document.addEventListener("DOMContentLoaded", function () {
     const deleteBaseUrl = document.getElementById("categoryDeleteBaseUrl")?.value || "";
     const saveBudgetUrl = document.getElementById("categorySaveBudgetUrl")?.value || "";
     const budgetsByCategoryUrl = document.getElementById("categoryBudgetsByCategoryUrl")?.value || "";
+    const deleteBudgetsByCategoryUrl = document.getElementById("categoryDeleteBudgetsByCategoryUrl")?.value || "/Category/DeleteBudgetsByCategory";
 
     const state = {
         currentCategory: null,
-        currentFilter: 'all',
         budgets: [],
         activeBudgetId: null,
-        defaultIcon: document.querySelector(".category-icon-option-detail")?.dataset.icon || document.getElementById("detailHeadIcon")?.getAttribute("src") || ""
+        defaultIcon: document.querySelector(".category-icon-option-detail")?.dataset.icon || document.getElementById("detailHeadIcon")?.getAttribute("src") || "",
+        detailInitialType: "expense",
+        pendingBudgetRemoval: false,
+        warningDialogOpen: false,
+        originalBudgets: [],
+        draftBudgets: [],
+        budgetCache: new Map(),
+        budgetLoadToken: 0
     };
 
     function getCurrentCategoryCard() {
@@ -61,73 +68,53 @@ document.addEventListener("DOMContentLoaded", function () {
         return String(value || '').toLowerCase() === 'income' ? 'income' : 'expense';
     }
 
-    function setCategoryTypeSelection(target, value) {
-        const normalized = normalizeCategoryType(value);
-        const hidden = document.getElementById(`${target}CategoryType`);
-        if (hidden) hidden.value = normalized;
+    function categoryTypeLabel(value) {
+        return normalizeCategoryType(value) === 'income' ? 'Thu nhập' : 'Chi tiêu';
+    }
 
-        document.querySelectorAll(`[data-category-type-target="${target}"]`).forEach(function (btn) {
-            btn.classList.toggle('active', normalizeCategoryType(btn.dataset.categoryTypeValue) === normalized);
+    function setCategoryTypeToggle(target, value, canEdit = true) {
+        const normalized = normalizeCategoryType(value);
+        const hiddenInput = document.getElementById(target === 'detail' ? 'detailCategoryType' : 'addCategoryType');
+        if (hiddenInput) hiddenInput.value = normalized;
+
+        document.querySelectorAll(`[data-category-type-target="${target}"]`).forEach(function (button) {
+            const isActive = (button.dataset.categoryTypeValue || '') === normalized;
+            button.classList.toggle('active', isActive);
+            button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+            button.disabled = !canEdit;
         });
 
         if (target === 'detail') {
-            updateBudgetAvailabilityUI(normalized);
+            syncDetailBudgetAvailability();
             updateDetailPreview();
         }
     }
 
-    function getCategoryTypeLabel(value) {
-        const normalized = normalizeCategoryType(value);
-        const targetBtn = document.querySelector(`[data-category-type-target="detail"][data-category-type-value="${normalized}"]`)
-            || document.querySelector(`[data-category-type-target="add"][data-category-type-value="${normalized}"]`);
-        return (targetBtn?.textContent || (normalized === 'income' ? 'Thu nhập' : 'Chi tiêu')).trim();
-    }
-
-    function applyCategoryFilter(filterValue) {
-        const normalizedFilter = ['all', 'expense', 'income'].includes(String(filterValue || '').toLowerCase())
-            ? String(filterValue || '').toLowerCase()
-            : 'all';
-        state.currentFilter = normalizedFilter;
-
-        document.querySelectorAll('[data-category-filter]').forEach(function (btn) {
-            btn.classList.toggle('active', (btn.dataset.categoryFilter || 'all') === normalizedFilter);
-        });
-
-        let visibleCount = 0;
-        document.querySelectorAll('.category-card[data-category-id]').forEach(function (card) {
-            const cardType = normalizeCategoryType(card.dataset.categoryType);
-            const shouldShow = normalizedFilter === 'all' || cardType === normalizedFilter;
-            const col = card.closest('.col-6, .col-sm-6, .col-md-4, .col-lg-3, .col-xl-2, .category-card-col') || card.parentElement;
-            if (col) {
-                col.classList.toggle('d-none', !shouldShow);
-            }
-            if (shouldShow) visibleCount += 1;
-        });
-
-        const emptyState = document.getElementById('categoryFilterEmptyState');
-        if (emptyState) emptyState.classList.toggle('d-none', visibleCount > 0);
-    }
-
-    function updateBudgetAvailabilityUI(categoryType) {
-        const isIncome = normalizeCategoryType(categoryType) === 'income';
-        const lockState = document.getElementById('incomeBudgetLockedState');
+    function syncDetailBudgetAvailability() {
+        const currentType = normalizeCategoryType(document.getElementById('detailCategoryType')?.value);
+        const locked = currentType === 'income';
         const noBudgetState = document.getElementById('noBudgetState');
         const hasBudgetState = document.getElementById('hasBudgetState');
-        const openBtn = document.getElementById('btnOpenBudgetEditor');
-        const childPanel = document.getElementById('budgetChildOverlay');
+        const lockedState = document.getElementById('incomeBudgetLockedState');
+        const budgetPanel = document.querySelector('.category-budget-panel');
+        const addBudgetButton = document.getElementById('btnOpenBudgetEditor');
 
-        if (lockState) lockState.classList.toggle('d-none', !isIncome);
-        if (openBtn) {
-            openBtn.disabled = isIncome;
-            openBtn.classList.toggle('d-none', isIncome);
+        budgetPanel?.classList.toggle('is-disabled', locked);
+        if (addBudgetButton) addBudgetButton.disabled = locked;
+        if (lockedState) lockedState.classList.toggle('d-none', !locked);
+
+        if (locked) {
+            noBudgetState?.classList.add('d-none');
+            hasBudgetState?.classList.add('d-none');
+            closeBudgetChildDialog();
+            return;
         }
-        if (isIncome) {
-            if (noBudgetState) noBudgetState.classList.add('d-none');
-            if (hasBudgetState) hasBudgetState.classList.add('d-none');
-            if (childPanel && !childPanel.classList.contains('d-none')) closeBudgetChildDialog();
-        } else {
-            renderDetailBudgetSummary();
-        }
+
+        const workingBudgets = getWorkingBudgets();
+        state.budgets = workingBudgets;
+        const hasItems = Array.isArray(workingBudgets) && workingBudgets.length > 0;
+        noBudgetState?.classList.toggle('d-none', hasItems);
+        hasBudgetState?.classList.toggle('d-none', !hasItems);
     }
 
     function buildUpdateUrl(id) {
@@ -141,6 +128,172 @@ document.addEventListener("DOMContentLoaded", function () {
     function buildCategoryBudgetsUrl(categoryId) {
         const connector = budgetsByCategoryUrl.includes("?") ? "&" : "?";
         return `${budgetsByCategoryUrl}${connector}categoryId=${encodeURIComponent(categoryId)}`;
+    }
+
+    function escapeHtml(value) {
+        return String(value || "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+    }
+
+    function ensureTypeWarningDialog() {
+        let overlay = document.getElementById("categoryTypeWarningOverlay");
+        if (overlay) return overlay;
+
+        const host = detailModalEl?.querySelector('.modal-content') || detailModalEl || document.body;
+        overlay = document.createElement("div");
+        overlay.id = "categoryTypeWarningOverlay";
+        overlay.className = "category-subdialog category-warning-subdialog d-none";
+        overlay.setAttribute("aria-hidden", "true");
+        overlay.innerHTML = `
+            <div class="category-subdialog__backdrop" data-type-warning-close="true"></div>
+            <div class="category-subdialog__panel category-warning-subdialog__panel" role="dialog" aria-modal="true" aria-labelledby="categoryTypeWarningTitle">
+                <div class="category-subdialog__header category-warning-subdialog__header">
+                    <div>
+                        <div class="category-section-title mb-1">
+                            <i class="bx bx-error-circle"></i>
+                            <span id="categoryTypeWarningTitle">Xác nhận thay đổi loại</span>
+                        </div>
+                        <div class="text-muted small">Thay đổi này chỉ là tạm thời cho đến khi bạn bấm <strong>Lưu thay đổi</strong> ở popup chi tiết.</div>
+                    </div>
+                    <button type="button" class="btn category-subdialog__close" id="btnCloseTypeWarning">&times;</button>
+                </div>
+                <div class="category-subdialog__body">
+                    <div class="category-warning-subdialog__hero">
+                        <div class="category-warning-subdialog__icon"><i class="bx bx-transfer-alt"></i></div>
+                        <div>
+                            <div class="category-warning-subdialog__eyebrow">Cảnh báo thay đổi loại</div>
+                            <h5 class="category-warning-subdialog__title mb-2">Chuyển danh mục sang Thu nhập?</h5>
+                            <p class="category-warning-subdialog__text mb-0">Các hạn mức hiện có của <strong id="categoryTypeWarningName">danh mục này</strong> sẽ chỉ bị xóa khi bạn bấm <strong>Lưu thay đổi</strong> ở popup chi tiết.</p>
+                        </div>
+                    </div>
+                    <div class="category-warning-subdialog__note">
+                        <i class="bx bx-info-circle"></i>
+                        <span>Bạn vẫn có thể đổi lại về Chi tiêu trước khi lưu và sẽ không mất hạn mức.</span>
+                    </div>
+                </div>
+                <div class="category-subdialog__footer category-warning-subdialog__footer">
+                    <button type="button" class="btn btn-outline-secondary" id="btnKeepExpenseType">Giữ nguyên</button>
+                    <button type="button" class="btn btn-warning" id="btnConfirmIncomeType">Vẫn chuyển sang Thu nhập</button>
+                </div>
+            </div>`;
+
+        host.appendChild(overlay);
+        overlay.querySelectorAll('[data-type-warning-close="true"], #btnCloseTypeWarning, #btnKeepExpenseType').forEach(function (el) {
+            el.addEventListener('click', function () {
+                closeTypeWarningDialog(true);
+            });
+        });
+        overlay.querySelector('#btnConfirmIncomeType')?.addEventListener('click', function () {
+            applyIncomeTypeChange();
+        });
+        return overlay;
+    }
+
+    function openTypeWarningDialog() {
+        const overlay = ensureTypeWarningDialog();
+        const categoryName = (document.getElementById('detailCategoryName')?.value || state.currentCategory?.name || 'danh mục').trim();
+        const nameEl = overlay.querySelector('#categoryTypeWarningName');
+        if (nameEl) nameEl.textContent = categoryName;
+        overlay.classList.remove('d-none');
+        overlay.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('category-subdialog-open');
+        detailModalEl?.classList.add('category-warning-open');
+        state.warningDialogOpen = true;
+    }
+
+    function closeTypeWarningDialog(restoreExpense) {
+        const overlay = document.getElementById('categoryTypeWarningOverlay');
+        if (!overlay) return;
+        overlay.classList.add('d-none');
+        overlay.setAttribute('aria-hidden', 'true');
+        state.warningDialogOpen = false;
+        if (!document.getElementById('budgetChildOverlay')?.classList.contains('d-none') && !document.getElementById('deleteChildOverlay')?.classList.contains('d-none')) {
+            // no-op; body class handled below
+        }
+        const anyOpen = [ 'budgetChildOverlay', 'deleteChildOverlay', 'categoryTypeWarningOverlay' ].some(function (id) {
+            const el = document.getElementById(id);
+            return el && !el.classList.contains('d-none');
+        });
+        if (!anyOpen) document.body.classList.remove('category-subdialog-open');
+        detailModalEl?.classList.remove('category-warning-open');
+        if (restoreExpense) {
+            setCategoryTypeToggle('detail', 'expense', document.getElementById('detailCategoryCanEdit')?.value === 'true');
+            state.pendingBudgetRemoval = false;
+        }
+    }
+
+    function applyIncomeTypeChange() {
+        closeTypeWarningDialog(false);
+        state.pendingBudgetRemoval = true;
+        setCategoryTypeToggle('detail', 'income', document.getElementById('detailCategoryCanEdit')?.value === 'true');
+    }
+
+    function resetDetailDraftState() {
+        state.pendingBudgetRemoval = false;
+        state.warningDialogOpen = false;
+        state.originalBudgets = [];
+        state.draftBudgets = [];
+        const overlay = document.getElementById('categoryTypeWarningOverlay');
+        if (overlay) {
+            overlay.classList.add('d-none');
+            overlay.setAttribute('aria-hidden', 'true');
+        }
+    }
+
+    async function deleteBudgetsForCategory(categoryId) {
+        if (!categoryId) return;
+        await sendJson(deleteBudgetsByCategoryUrl, 'POST', { category_id: categoryId });
+    }
+
+    function cloneBudgetItem(item) {
+        return item ? JSON.parse(JSON.stringify(item)) : item;
+    }
+
+    function normalizeBudgetDraft(item) {
+        const spent = Number(item?.spent_amount || 0);
+        const total = Number(item?.limit_amount || 0);
+        const percentage = total > 0 ? (spent * 100 / total) : 0;
+        let status = 'normal';
+        if (percentage > 100) status = 'over';
+        else if (percentage >= 100) status = 'reached';
+        return {
+            ...item,
+            spent_amount: spent,
+            limit_amount: total,
+            percentage_used: Number(percentage.toFixed(2)),
+            status
+        };
+    }
+
+    function getWorkingBudgets() {
+        return state.pendingBudgetRemoval ? [] : (state.draftBudgets || []);
+    }
+
+    async function persistDetailDraftChanges(categoryId, nextType) {
+        if (!categoryId) return;
+
+        if (state.detailInitialType === 'expense' && nextType === 'income' && state.pendingBudgetRemoval) {
+            await deleteBudgetsForCategory(categoryId);
+            return;
+        }
+
+        if (nextType === 'income') return;
+
+        for (const item of (state.draftBudgets || [])) {
+            await sendJson(saveBudgetUrl, 'POST', {
+                category_id: categoryId,
+                budget_id: item?.budget_id && !String(item.budget_id).startsWith('draft-') ? item.budget_id : null,
+                period_type: item.period_type,
+                period_year: Number(item.period_year),
+                period_month: item.period_month != null ? Number(item.period_month) : null,
+                period_week: item.period_week != null ? Number(item.period_week) : null,
+                limit_amount: Number(item.limit_amount || 0)
+            });
+        }
     }
 
     async function sendJson(url, method, payload) {
@@ -316,23 +469,24 @@ document.addEventListener("DOMContentLoaded", function () {
         const color = document.getElementById("detailCategoryColor")?.value || "#FFAB00";
         const iconInputValue = document.getElementById("detailCategoryIcon")?.value || "";
         const icon = iconInputValue || state.defaultIcon;
-        const categoryType = normalizeCategoryType(document.getElementById("detailCategoryType")?.value || "expense");
 
         const headIcon = document.getElementById("detailHeadIcon");
         const headWrap = document.getElementById("detailHeadIconWrap");
         const title = document.getElementById("detailCategoryTitle");
         const budgetText = document.getElementById("budgetCurrentCategoryText");
         const budgetDot = document.getElementById("budgetCurrentColorDot");
-        const typeBadge = document.getElementById("detailCategoryTypeBadge");
 
         if (title) title.textContent = name;
         if (budgetText) budgetText.textContent = name;
         if (headIcon && icon) headIcon.src = icon;
         if (headWrap) headWrap.style.background = hexToRgba(color, 0.14);
         if (budgetDot) budgetDot.style.background = color;
+
+        const currentType = normalizeCategoryType(document.getElementById("detailCategoryType")?.value || state.currentCategory?.type || "expense");
+        const typeBadge = document.getElementById("detailCategoryTypeBadge");
         if (typeBadge) {
-            typeBadge.textContent = getCategoryTypeLabel(categoryType);
-            typeBadge.className = `badge category-type-badge category-type-badge--${categoryType}`;
+            typeBadge.textContent = categoryTypeLabel(currentType);
+            typeBadge.className = currentType === "income" ? "badge category-type-badge category-type-badge--income" : "badge category-type-badge category-type-badge--expense";
         }
 
         setActiveColor(".category-color-preset-detail", color);
@@ -468,7 +622,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
         overlay.classList.add("d-none");
         overlay.setAttribute("aria-hidden", "true");
-        document.body.classList.remove("category-subdialog-open");
+        const anyOpen = ['budgetChildOverlay','deleteChildOverlay','categoryTypeWarningOverlay'].some(function (id) { const el = document.getElementById(id); return el && !el.classList.contains('d-none'); });
+        if (!anyOpen) document.body.classList.remove("category-subdialog-open");
     }
 
     function revealBudgetEditor(resetToNew) {
@@ -553,7 +708,7 @@ document.addEventListener("DOMContentLoaded", function () {
         grid.querySelectorAll(".category-budget-tile").forEach(function (button) {
             button.addEventListener("click", function () {
                 const budgetId = button.dataset.budgetId || "";
-                const budget = state.budgets.find(function (item) {
+                const budget = getWorkingBudgets().find(function (item) {
                     return item.budget_id === budgetId;
                 });
 
@@ -568,34 +723,35 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     function renderDetailBudgetSummary() {
-        const noBudgetState = document.getElementById("noBudgetState");
-        const hasBudgetState = document.getElementById("hasBudgetState");
-        const categoryType = normalizeCategoryType(document.getElementById("detailCategoryType")?.value || state.currentCategory?.type || "expense");
-        const hasItems = Array.isArray(state.budgets) && state.budgets.length > 0;
-
-        if (categoryType === 'income') {
-            noBudgetState?.classList.add("d-none");
-            hasBudgetState?.classList.add("d-none");
-            return;
-        }
-
-        noBudgetState?.classList.toggle("d-none", hasItems);
-        hasBudgetState?.classList.toggle("d-none", !hasItems);
+        syncDetailBudgetAvailability();
     }
 
     async function loadBudgetsForCurrentCategory() {
         if (!state.currentCategory?.id) return;
-        if (normalizeCategoryType(state.currentCategory.type) === 'income') {
-            state.budgets = [];
-            renderBudgetList(state.budgets);
-            updateBudgetAvailabilityUI('income');
-            return;
+        const categoryId = state.currentCategory.id;
+        const loadToken = ++state.budgetLoadToken;
+
+        const cached = state.budgetCache.get(categoryId);
+        if (Array.isArray(cached)) {
+            state.originalBudgets = cached.map(cloneBudgetItem);
+            state.draftBudgets = cached.map(cloneBudgetItem);
+            state.budgets = state.draftBudgets;
+            renderBudgetList(getWorkingBudgets());
+            renderDetailBudgetSummary();
+            syncDetailBudgetAvailability();
         }
-        const response = await fetchJson(buildCategoryBudgetsUrl(state.currentCategory.id));
-        state.budgets = Array.isArray(response.items) ? response.items : [];
-        renderBudgetList(state.budgets);
+
+        const response = await fetchJson(buildCategoryBudgetsUrl(categoryId));
+        if (loadToken !== state.budgetLoadToken || state.currentCategory?.id !== categoryId) return;
+
+        const fetched = Array.isArray(response.items) ? response.items.map(cloneBudgetItem) : [];
+        state.budgetCache.set(categoryId, fetched.map(cloneBudgetItem));
+        state.originalBudgets = fetched.map(cloneBudgetItem);
+        state.draftBudgets = fetched.map(cloneBudgetItem);
+        state.budgets = state.draftBudgets;
+        renderBudgetList(getWorkingBudgets());
         renderDetailBudgetSummary();
-        updateBudgetAvailabilityUI(state.currentCategory.type);
+        syncDetailBudgetAvailability();
     }
 
     function setDetailStateFromTrigger(trigger) {
@@ -603,12 +759,16 @@ document.addEventListener("DOMContentLoaded", function () {
         const categoryName = trigger.getAttribute("data-category-name") || "Danh mục";
         const categoryColor = trigger.getAttribute("data-category-color") || "#FFAB00";
         const categoryIcon = trigger.getAttribute("data-category-icon") || state.defaultIcon;
+        const categoryType = normalizeCategoryType(trigger.getAttribute("data-category-type") || "expense");
         const canEdit = trigger.getAttribute("data-category-can-edit") === "true";
         const canDelete = trigger.getAttribute("data-category-can-delete") === "true";
         const isDefault = trigger.getAttribute("data-category-is-default") === "true";
-        const categoryType = normalizeCategoryType(trigger.getAttribute("data-category-type") || "expense");
 
-        state.currentCategory = { id: categoryId, name: categoryName, color: categoryColor, icon: categoryIcon, type: categoryType };
+        state.currentCategory = { id: categoryId, name: categoryName, color: categoryColor, icon: categoryIcon, type: categoryType, isDefault };
+        state.detailInitialType = categoryType;
+        state.pendingBudgetRemoval = false;
+        state.originalBudgets = [];
+        state.draftBudgets = [];
 
         document.getElementById("detailCategoryId").textContent = categoryId;
         document.getElementById("detailCategoryName").value = categoryName;
@@ -616,7 +776,25 @@ document.addEventListener("DOMContentLoaded", function () {
         document.getElementById("detailCategoryIcon").value = categoryIcon || state.defaultIcon;
         document.getElementById("detailCategoryCanEdit").value = canEdit ? "true" : "false";
         document.getElementById("detailCategoryCanDelete").value = canDelete ? "true" : "false";
-        setCategoryTypeSelection("detail", categoryType);
+        setCategoryTypeToggle('detail', categoryType, canEdit);
+
+        const typeBadge = document.getElementById("detailCategoryTypeBadge");
+        if (typeBadge) {
+            typeBadge.textContent = categoryTypeLabel(categoryType);
+            typeBadge.className = categoryType === 'income' ? "badge category-type-badge category-type-badge--income" : "badge category-type-badge category-type-badge--expense";
+        }
+
+        const sourceText = document.getElementById("detailCategorySourceText");
+        if (sourceText) {
+            const currentLang = (document.documentElement.getAttribute("lang") || "vi").toLowerCase();
+            const defaultText = currentLang.startsWith("en")
+                ? (sourceText.dataset.defaultEn || sourceText.textContent || "")
+                : (sourceText.dataset.defaultVi || sourceText.textContent || "");
+            const customText = currentLang.startsWith("en")
+                ? (sourceText.dataset.customEn || sourceText.textContent || "")
+                : (sourceText.dataset.customVi || sourceText.textContent || "");
+            sourceText.textContent = isDefault ? defaultText : customText;
+        }
 
         const deleteButton = document.getElementById("btnDeleteCategoryStatic");
         const updateButton = document.getElementById("btnUpdateCategoryStatic");
@@ -628,7 +806,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (detailNameInput) detailNameInput.readOnly = !canEdit;
         if (detailColorInput) detailColorInput.disabled = !canEdit;
 
-        document.querySelectorAll('.category-color-preset-detail, .category-icon-option-detail, [data-category-type-target="detail"]').forEach(function (el) {
+        document.querySelectorAll(".category-color-preset-detail, .category-icon-option-detail").forEach(function (el) {
             if (!canEdit) {
                 el.classList.add("disabled");
                 el.style.pointerEvents = "none";
@@ -643,6 +821,35 @@ document.addEventListener("DOMContentLoaded", function () {
         updateDetailPreview();
         resetBudgetForm();
     }
+
+    document.querySelectorAll("[data-category-type-target]").forEach(function (button) {
+        button.addEventListener("click", function () {
+            const target = button.dataset.categoryTypeTarget || "add";
+            const value = button.dataset.categoryTypeValue || "expense";
+            const canEdit = target !== "detail" || document.getElementById("detailCategoryCanEdit")?.value === "true";
+            if (!canEdit) return;
+
+            if (target === 'detail') {
+                const currentType = normalizeCategoryType(document.getElementById('detailCategoryType')?.value || state.detailInitialType);
+                const nextType = normalizeCategoryType(value);
+                if (currentType === nextType) return;
+
+                if (nextType === 'income' && state.detailInitialType === 'expense' && Array.isArray(state.originalBudgets) && state.originalBudgets.length > 0) {
+                    openTypeWarningDialog();
+                    return;
+                }
+
+                if (nextType === 'expense') {
+                    state.pendingBudgetRemoval = false;
+                }
+
+                setCategoryTypeToggle(target, nextType, canEdit);
+                return;
+            }
+
+            setCategoryTypeToggle(target, value, canEdit);
+        });
+    });
 
     document.querySelectorAll(".category-color-preset").forEach(function (btn) {
         btn.addEventListener("click", function () {
@@ -692,21 +899,6 @@ document.addEventListener("DOMContentLoaded", function () {
         if (el) el.addEventListener("input", updateDetailPreview);
     });
 
-    document.querySelectorAll('[data-category-type-target]').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            const target = btn.dataset.categoryTypeTarget || 'add';
-            const hidden = document.getElementById(`${target}CategoryType`);
-            if (target === 'detail' && document.getElementById('detailCategoryCanEdit')?.value !== 'true') return;
-            setCategoryTypeSelection(target, btn.dataset.categoryTypeValue || hidden?.value || 'expense');
-        });
-    });
-
-    document.querySelectorAll('[data-category-filter]').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            applyCategoryFilter(btn.dataset.categoryFilter || 'all');
-        });
-    });
-
     ["budgetModalTimeType", "budgetModalYear", "budgetModalMonth", "budgetModalWeek", "budgetModalWeekDate"].forEach(function (id) {
         const el = document.getElementById(id);
         if (!el) return;
@@ -731,6 +923,7 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     });
     document.getElementById("btnOpenBudgetEditor")?.addEventListener("click", function () {
+        if (normalizeCategoryType(document.getElementById('detailCategoryType')?.value) === 'income') return;
         revealBudgetEditor(true);
     });
 
@@ -754,7 +947,6 @@ document.addEventListener("DOMContentLoaded", function () {
             const categoryName = (document.getElementById("addCategoryName")?.value || "").trim();
             const color = document.getElementById("addCategoryColor")?.value || "#FFAB00";
             const icon = document.getElementById("addCategoryIcon")?.value || "";
-            const categoryType = normalizeCategoryType(document.getElementById("addCategoryType")?.value || "expense");
 
             if (!categoryName) {
                 alert("Vui lòng nhập tên danh mục.");
@@ -763,7 +955,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
             btnSave.disabled = true;
             try {
-                await sendJson(createUrl, "POST", { category_name: categoryName, color, icon, category_type: categoryType });
+                const categoryType = normalizeCategoryType(document.getElementById('addCategoryType')?.value || 'expense');
+                await sendJson(createUrl, "POST", { category_name: categoryName, category_type: categoryType, color, icon });
                 addModal?.hide();
                 toastSaved?.show();
                 setTimeout(function () { window.location.reload(); }, 700);
@@ -787,7 +980,6 @@ document.addEventListener("DOMContentLoaded", function () {
             const categoryName = (document.getElementById("detailCategoryName")?.value || "").trim();
             const color = document.getElementById("detailCategoryColor")?.value || "#FFAB00";
             const icon = document.getElementById("detailCategoryIcon")?.value || state.defaultIcon;
-            const categoryType = normalizeCategoryType(document.getElementById("detailCategoryType")?.value || state.currentCategory?.type || "expense");
 
             if (!categoryId || !categoryName) {
                 alert("Dữ liệu danh mục chưa hợp lệ.");
@@ -796,7 +988,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
             btnUpdate.disabled = true;
             try {
-                await sendJson(buildUpdateUrl(categoryId), "PUT", { category_name: categoryName, color, icon, category_type: categoryType });
+                const categoryType = normalizeCategoryType(document.getElementById('detailCategoryType')?.value || state.currentCategory?.type || 'expense');
+                await sendJson(buildUpdateUrl(categoryId), "PUT", { category_name: categoryName, category_type: categoryType, color, icon });
+                await persistDetailDraftChanges(categoryId, categoryType);
                 toastUpdated?.show();
                 setTimeout(function () { window.location.reload(); }, 700);
             } catch (error) {
@@ -828,7 +1022,8 @@ document.addEventListener("DOMContentLoaded", function () {
         if (!overlay) return;
         overlay.classList.add("d-none");
         overlay.setAttribute("aria-hidden", "true");
-        document.body.classList.remove("category-subdialog-open");
+        const anyOpen = ['budgetChildOverlay','deleteChildOverlay','categoryTypeWarningOverlay'].some(function (id) { const el = document.getElementById(id); return el && !el.classList.contains('d-none'); });
+        if (!anyOpen) document.body.classList.remove("category-subdialog-open");
     }
 
     function buildReplacementCategoryOptions() {
@@ -846,10 +1041,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 };
             })
             .filter(function (item) {
-                const currentType = normalizeCategoryType(state.currentCategory?.type);
-                const itemCard = document.querySelector(`.category-card[data-category-id="${item.id}"]`);
-                const itemType = normalizeCategoryType(itemCard?.dataset.categoryType);
-                return item.id && item.id !== currentId && itemType === currentType;
+                return item.id && item.id !== currentId;
             })
             .sort(function (a, b) {
                 return a.name.localeCompare(b.name, "vi");
@@ -954,12 +1146,11 @@ document.addEventListener("DOMContentLoaded", function () {
     const btnSaveBudget = document.getElementById("btnSaveBudget");
     if (btnSaveBudget) {
         btnSaveBudget.addEventListener("click", async function () {
-            const categoryId = (document.getElementById("detailCategoryId")?.textContent || "").trim();
-            const categoryType = normalizeCategoryType(document.getElementById("detailCategoryType")?.value || state.currentCategory?.type || "expense");
-            if (categoryType === 'income') {
-                alert("Danh mục thu nhập không thể thiết lập hạn mức.");
+            if (normalizeCategoryType(document.getElementById('detailCategoryType')?.value) === 'income') {
+                alert('Danh mục thu nhập không thể thiết lập hạn mức.');
                 return;
             }
+            const categoryId = (document.getElementById("detailCategoryId")?.textContent || "").trim();
             const budgetId = document.getElementById("budgetModalBudgetId")?.value || "";
             const periodType = document.getElementById("budgetModalTimeType")?.value || "month";
             const amount = parseBudgetAmount(document.getElementById("budgetModalAmount")?.value || "");
@@ -982,30 +1173,57 @@ document.addEventListener("DOMContentLoaded", function () {
 
             btnSaveBudget.disabled = true;
             try {
-                await sendJson(saveBudgetUrl, "POST", {
-                    category_id: categoryId,
-                    budget_id: budgetId || null,
-                    period_type: periodType,
-                    period_year: year,
-                    period_month: month,
-                    period_week: week,
-                    limit_amount: amount
-                });
-
-                await loadBudgetsForCurrentCategory();
-                const savedBudget = state.budgets.find(function (item) {
+                const currentSpent = budgetId
+                    ? Number((state.draftBudgets || []).find(function (item) { return item.budget_id === budgetId; })?.spent_amount || 0)
+                    : 0;
+                const rawRange = (() => {
+                    if (periodType === 'week') {
+                        const start = getIsoWeekStartDate(year, week || 1);
+                        const end = new Date(start);
+                        end.setUTCDate(start.getUTCDate() + 6);
+                        return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) };
+                    }
+                    if (periodType === 'month') {
+                        const start = new Date(Date.UTC(year, (month || 1) - 1, 1));
+                        const end = new Date(Date.UTC(year, month || 1, 0));
+                        return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) };
+                    }
+                    const start = new Date(Date.UTC(year, 0, 1));
+                    const end = new Date(Date.UTC(year, 11, 31));
+                    return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) };
+                })();
+                const existingIndex = (state.draftBudgets || []).findIndex(function (item) {
+                    if (budgetId) return item.budget_id === budgetId;
                     return item.period_type === periodType
                         && Number(item.period_year || 0) === year
                         && Number(item.period_month || 0) === Number(month || 0)
                         && Number(item.period_week || 0) === Number(week || 0);
                 });
 
-                if (savedBudget) {
-                    fillBudgetForm(savedBudget);
+                const draftBudget = normalizeBudgetDraft({
+                    budget_id: budgetId || (existingIndex >= 0 ? state.draftBudgets[existingIndex].budget_id : `draft-${Date.now()}`),
+                    category_id: categoryId,
+                    period_type: periodType,
+                    period_year: year,
+                    period_month: month,
+                    period_week: week,
+                    start_date: rawRange.start,
+                    end_date: rawRange.end,
+                    limit_amount: amount,
+                    spent_amount: existingIndex >= 0 ? Number(state.draftBudgets[existingIndex].spent_amount || 0) : currentSpent
+                });
+
+                if (existingIndex >= 0) {
+                    state.draftBudgets.splice(existingIndex, 1, draftBudget);
                 } else {
-                    resetBudgetForm();
+                    state.draftBudgets.push(draftBudget);
                 }
 
+                state.budgets = state.draftBudgets;
+                renderBudgetList(getWorkingBudgets());
+                renderDetailBudgetSummary();
+                syncDetailBudgetAvailability();
+                fillBudgetForm(draftBudget);
                 toastSaved?.show();
                 closeBudgetChildDialog();
             } catch (error) {
@@ -1027,15 +1245,20 @@ document.addEventListener("DOMContentLoaded", function () {
         detailModalEl.addEventListener("hidden.bs.modal", function () {
             state.currentCategory = null;
             state.budgets = [];
+            state.originalBudgets = [];
+            state.draftBudgets = [];
             state.activeBudgetId = null;
+            state.detailInitialType = 'expense';
+            resetDetailDraftState();
             closeBudgetChildDialog();
+            document.body.classList.remove('category-subdialog-open');
         });
     }
 
-    setCategoryTypeSelection("add", document.getElementById("addCategoryType")?.value || "expense");
-    setCategoryTypeSelection("detail", document.getElementById("detailCategoryType")?.value || "expense");
+    setCategoryTypeToggle('add', document.getElementById('addCategoryType')?.value || 'expense', true);
+    setCategoryTypeToggle('detail', document.getElementById('detailCategoryType')?.value || 'expense', true);
     updateAddPreview();
     updateDetailPreview();
     resetBudgetForm();
-    applyCategoryFilter("all");
+    syncDetailBudgetAvailability();
 });

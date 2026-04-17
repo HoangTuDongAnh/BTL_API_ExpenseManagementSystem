@@ -53,14 +53,10 @@ namespace ExpenseWeb.Services.Api
             return JsonSerializer.Deserialize<List<CategoryOverviewResponseDto>>(body, _jsonOptions) ?? new List<CategoryOverviewResponseDto>();
         }
 
-        public async Task<List<CategoryResponseDto>> GetCategoriesAsync(string token, bool includeDeleted = false, string? categoryType = null)
+        public async Task<List<CategoryResponseDto>> GetCategoriesAsync(string token, bool includeDeleted = false)
         {
-            var query = new List<string>();
-            if (includeDeleted) query.Add("include_deleted=true");
-            if (!string.IsNullOrWhiteSpace(categoryType)) query.Add($"category_type={Uri.EscapeDataString(categoryType.Trim().ToLowerInvariant())}");
-
-            var url = query.Count > 0
-                ? $"{_baseUrl}/categories?{string.Join("&", query)}"
+            var url = includeDeleted
+                ? $"{_baseUrl}/categories?include_deleted=true"
                 : $"{_baseUrl}/categories";
 
             var request = CreateRequest(HttpMethod.Get, url, token);
@@ -153,5 +149,16 @@ namespace ExpenseWeb.Services.Api
 
             return JsonSerializer.Deserialize<BudgetResponseDto>(body, _jsonOptions);
         }
+
+        public async Task DeleteBudgetAsync(string token, string budgetId)
+        {
+            var request = CreateRequest(HttpMethod.Delete, $"{_baseUrl}/budgets/{budgetId}", token);
+            var response = await _httpClient.SendAsync(request);
+            var body = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+                throw new InvalidOperationException(body);
+        }
+
     }
 }
