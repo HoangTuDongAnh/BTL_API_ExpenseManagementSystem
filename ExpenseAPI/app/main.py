@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from app.core.database import Base, engine
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.models import user
 from app.models import wallet
@@ -7,7 +8,7 @@ from app.models import category
 from app.models import transaction
 from app.models import budget
 from app.models import support_request
-from app.models import support_attachment  # thêm dòng này
+from app.models import support_attachment
 
 Base.metadata.create_all(bind=engine)
 
@@ -25,6 +26,14 @@ app = FastAPI(
     title="ExpenseAPI",
     version="1.0.0",
     description="API for Personal Expense Management System",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Cho phép tất cả các nguồn trong lúc phát triển
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(auth_router)

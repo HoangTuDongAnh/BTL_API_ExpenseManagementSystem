@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-
+from sqlalchemy import func
 from app.models.user import User
 
 
@@ -24,3 +24,15 @@ class UserRepository:
     def delete(self, db: Session, user: User) -> None:
         db.delete(user)
         db.commit()
+
+    def count_all(self, db: Session) -> int:
+        return db.query(func.count(User.UserID)).scalar()
+
+    def count_active(self, db: Session) -> int:
+        return db.query(func.count(User.UserID)).filter(User.Status == "active").scalar()
+
+    def count_inactive(self, db: Session) -> int:
+        return db.query(func.count(User.UserID)).filter(User.Status != "active").scalar()
+
+    def get_recent_users(self, db: Session, limit: int = 5):
+        return db.query(User).order_by(User.UserID.desc()).limit(limit).all()

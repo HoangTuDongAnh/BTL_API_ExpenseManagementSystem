@@ -1,222 +1,272 @@
-﻿
-
+﻿@model ExpenseWeb.Models.ViewModels.Admin.AdminDashboardViewModel
 @{
-    var lang = (Context.Request.Query["lang"].FirstOrDefault() ?? ViewBag.Lang as string ?? "vi").ToLower();
+    var lang = (Context.Request.Query["lang"].FirstOrDefault() ?? "vi").ToLower();
     string T(string vi, string en) => lang == "en" ? en : vi;
-
-    ViewData["Title"] = T("Bảng điều khiển Admin", "Admin Dashboard");
+    Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
 @section Styles {
     <link rel="stylesheet" href="~/css/pages/page.admin-dashboard.css" asp-append-version="true" />
+    <style>
+        /* Tinh chỉnh chiều cao và scroll cho bảng */
+        .dashboard-table-wrap {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        /* Style cho sidebar chi tiết giống ảnh 3 */
+        .offcanvas-user-header {
+            background: linear-gradient(to right, #696cff1a, #696cff05);
+            padding: 2.5rem 1.5rem;
+            text-align: center;
+        }
+
+        .detail-item-icon {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            background: #f5f5f9;
+            color: #696cff;
+            margin-right: 1rem;
+        }
+    </style>
 }
 
-<div class="container-xxl flex-grow-1 container-p-y">
-    <section class="dashboard-hero mb-4">
-        <div class="dashboard-hero-copy hero-copy-single">
+<div class="page-shell container-xxl container-p-y">
+    @* 1. HERO SECTION *@
+    <header class="dashboard-hero mb-4">
+        <div class="dashboard-hero-copy">
             <span class="dashboard-hero-eyebrow">@T("Quản trị hệ thống", "System Administration")</span>
-            <h1 class="dashboard-hero-title">@T("Theo dõi hoạt động quản trị trong một màn hình tập trung", "Keep administration activity in one focused workspace")</h1>
-            <p class="dashboard-hero-text">
-                @T("Nắm nhanh tình hình người dùng, mức độ sử dụng và các tín hiệu cần chú ý để việc vận hành hệ thống luôn liền mạch.", "Quickly review users, usage patterns, and signals that need attention to keep system operations running smoothly.")
-            </p>
+            <h1 class="dashboard-hero-title">@T("Theo dõi hoạt động quản trị trong một màn hình tập trung", "Focused Admin Workspace")</h1>
+            <p class="dashboard-hero-text">@T("Nắm nhanh tình hình người dùng và các báo cáo cần chú ý.", "Monitor user activity and reports at a glance.")</p>
         </div>
-    </section>
+    </header>
 
+    @* 2. KPI CARDS (3 Ô THỐNG KÊ GIỐNG ẢNH 3) *@
     <div class="row g-4 mb-4">
-        <div class="col-lg-4 col-md-12 col-6">
-            <div class="card h-100 report-card">
-                <div class="card-body">
-                    <div class="card-title d-flex align-items-start justify-content-between mb-4">
-                        <div class="avatar flex-shrink-0">
-                            <span class="avatar-initial rounded-2 bg-label-primary">
-                                <i class="bx bx-user icon-lg"></i>
-                            </span>
-                        </div>
-                    </div>
-                    <p class="mb-1 fw-semibold text-muted">@T("Tổng số người dùng", "Total Users")</p>
-                    <h4 class="card-title mb-3">1,248</h4>
-                    <small class="text-success fw-medium"><i class="bx bx-up-arrow-alt"></i> +12.5%</small>
+        <div class="col-md-4">
+            <div class="dashboard-mini-card success h-100">
+                <div class="dashboard-mini-icon"><i class="bx bx-user"></i></div>
+                <div class="dashboard-mini-info">
+                    <div class="dashboard-mini-label text-muted fw-semibold">@T("Tổng số người dùng", "Total Users")</div>
+                    <div class="dashboard-mini-value" id="totalUsers">0</div>
+                    <div class="dashboard-mini-meta text-success"><i class="bx bx-up-arrow-alt"></i> +12.5%</div>
                 </div>
             </div>
         </div>
-
-        <div class="col-lg-4 col-md-12 col-6">
-            <div class="card h-100 report-card">
-                <div class="card-body">
-                    <div class="card-title d-flex align-items-start justify-content-between mb-4">
-                        <div class="avatar flex-shrink-0">
-                            <span class="avatar-initial rounded-2 bg-label-success">
-                                <i class="bx bx-check-shield icon-lg"></i>
-                            </span>
-                        </div>
-                    </div>
-                    <p class="mb-1 fw-semibold text-muted">@T("Hoạt động hôm nay", "Active Today")</p>
-                    <h4 class="card-title mb-3">156</h4>
-                    <small class="text-success fw-medium"><i class="bx bx-up-arrow-alt"></i> +5.2%</small>
+        <div class="col-md-4">
+            <div class="dashboard-mini-card primary h-100">
+                <div class="dashboard-mini-icon"><i class="bx bx-check-shield"></i></div>
+                <div class="dashboard-mini-info">
+                    <div class="dashboard-mini-label text-muted fw-semibold">@T("Hoạt động hôm nay", "Active Today")</div>
+                    <div class="dashboard-mini-value" id="activeUsers">0</div>
+                    <div class="dashboard-mini-meta text-success"><i class="bx bx-up-arrow-alt"></i> +5.2%</div>
                 </div>
             </div>
         </div>
-
-        <div class="col-lg-4 col-md-12 col-6">
-            <div class="card h-100 report-card">
-                <div class="card-body">
-                    <div class="card-title d-flex align-items-start justify-content-between mb-4">
-                        <div class="avatar flex-shrink-0">
-                            <span class="avatar-initial rounded-2 bg-label-danger">
-                                <i class="bx bx-message-square-error icon-lg"></i>
-                            </span>
-                        </div>
-                    </div>
-                    <p class="mb-1 fw-semibold text-muted">@T("Báo cáo mới", "New Reports")</p>
-                    <h4 class="card-title mb-3">12</h4>
-                    <small class="text-danger fw-medium"><i class="bx bx-up-arrow-alt"></i> +2 @T("Mới", "New")</small>
+        <div class="col-md-4">
+            <div class="dashboard-mini-card danger h-100">
+                <div class="dashboard-mini-icon"><i class="bx bx-error-alt"></i></div>
+                <div class="dashboard-mini-info">
+                    <div class="dashboard-mini-label text-muted fw-semibold">@T("Báo cáo mới", "New Reports")</div>
+                    <div class="dashboard-mini-value" id="newReports">0</div>
+                    <div class="dashboard-mini-meta text-danger"><i class="bx bx-up-arrow-alt"></i> +2 @T("Mới", "New")</div>
                 </div>
             </div>
         </div>
     </div>
 
+    @* 3. CHARTS *@
     <div class="row g-4 mb-4">
-        <div class="col-12 col-lg-8">
-            <div class="card h-100 report-card">
-                <div class="card-header border-bottom pb-3">
-                    <h3 class="report-title m-0"><i class="bx bx-line-chart me-2 text-primary"></i>@T("Xu hướng người dùng mới (Tuần)", "New Users Trend (Weekly)")</h3>
-                </div>
-                <div class="card-body pt-4">
-                    <div id="userTrendChart"></div>
-                </div>
+        <div class="col-lg-8">
+            <div class="dashboard-report-card p-4">
+                <h3 class="dashboard-card-title mb-4"><i class="bx bx-line-chart me-2"></i>@T("Xu hướng người dùng mới", "New Users Trend")</h3>
+                <div id="userTrendChart"></div>
             </div>
         </div>
-
-        <div class="col-12 col-lg-4">
-            <div class="card h-100 report-card">
-                <div class="card-header border-bottom pb-3">
-                    <h3 class="report-title m-0"><i class="bx bx-pie-chart-alt-2 me-2 text-primary"></i>@T("Tỷ lệ trạng thái", "Status Ratio")</h3>
-                </div>
-                <div class="card-body pt-4 d-flex align-items-center justify-content-center">
-                    <div id="userStatusChart" class="w-100"></div>
-                </div>
+        <div class="col-lg-4">
+            <div class="dashboard-report-card p-4">
+                <h3 class="dashboard-card-title mb-4"><i class="bx bx-pie-chart-alt-2 me-2"></i>@T("Tỷ lệ trạng thái", "Status Ratio")</h3>
+                <div id="userStatusChart"></div>
             </div>
         </div>
     </div>
 
-    <div class="card report-card">
-        <div class="card-header border-bottom pb-3 d-flex justify-content-between align-items-center">
-            <h3 class="report-title m-0"><i class="bx bx-group me-2 text-primary"></i>@T("Quản lý người dùng", "User Management")</h3>
-            <button class="btn btn-sm btn-primary"><i class="bx bx-plus me-1"></i>@T("Thêm mới", "Add New")</button>
+    @* 4. USER TABLE (FULL WIDTH) *@
+    <div class="dashboard-report-card p-4">
+        <div class="dashboard-card-head mb-4">
+            <h3 class="dashboard-card-title"><i class="bx bx-group me-2"></i>@T("Quản lý người dùng", "User Management")</h3>
         </div>
-        <div class="table-responsive text-nowrap">
-            <table class="table table-hover mb-0">
-                <thead class="table-light">
+        <div class="dashboard-table-wrap">
+            <table class="dashboard-mini-table">
+                <thead>
                     <tr>
                         <th>@T("Người dùng", "User")</th>
                         <th>@T("Email", "Email")</th>
                         <th>@T("Vai trò", "Role")</th>
                         <th>@T("Trạng thái", "Status")</th>
-                        <th>@T("Thao tác", "Actions")</th>
+                        <th class="text-end">@T("Thao tác", "Actions")</th>
                     </tr>
                 </thead>
-                <tbody class="table-border-bottom-0">
-                    <tr>
-                        <td>
-                            <div class="d-flex align-items-center">
-                                <ul class="list-unstyled m-0 avatar-group d-flex align-items-center me-3">
-                                    <li class="avatar avatar-xs">
-                                        <img src="~/sneat/img/avatars/1.png" alt="Avatar" class="rounded-circle" />
-                                    </li>
-                                </ul>
-                                <span class="fw-medium text-dark">Nguyễn Văn A</span>
-                            </div>
-                        </td>
-                        <td class="text-muted">vana@example.com</td>
-                        <td><span class="badge bg-label-info">@T("Người dùng", "User")</span></td>
-                        <td><span class="badge bg-label-success me-1">@T("Hoạt động", "Active")</span></td>
-                        <td>
-                            <button type="button"
-                                    class="btn btn-sm btn-outline-primary"
-                                    data-bs-toggle="offcanvas"
-                                    data-bs-target="#offcanvasUserDetails"
-                                    aria-controls="offcanvasUserDetails">
-                                <i class="bx bx-show me-1"></i> @T("Chi tiết", "Details")
-                            </button>
-                        </td>
-                    </tr>
+                <tbody id="userTableBody">
+                    <tr><td colspan="5" class="text-center py-5">@T("Đang tải...", "Loading...")</td></tr>
                 </tbody>
             </table>
         </div>
     </div>
 </div>
 
-<partial name="_UserOffcanvas" />
+@* 5. SIDEBAR CHI TIẾT (OFFCANVAS GIỐNG ẢNH 3) *@
+<div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasUserDetail" style="width: 420px; border-radius: 30px 0 0 30px;">
+    <div class="offcanvas-header border-bottom">
+        <h5 class="offcanvas-title">@T("Chi tiết tài khoản", "Account Details")</h5>
+        <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas"></button>
+    </div>
+    <div class="offcanvas-body p-0">
+        <div class="offcanvas-user-header">
+            <div class="avatar avatar-xl d-inline-block mb-3">
+                <img id="detAvatar" src="" class="rounded-circle border border-3 border-white shadow">
+            </div>
+            <h4 id="detFullName" class="mb-1">...</h4>
+            <span id="detRoleBadge" class="badge bg-label-primary">...</span>
+        </div>
+
+        <div class="p-4">
+            <h6 class="text-muted text-uppercase small mb-3">@T("Thông tin liên hệ", "Contact Info")</h6>
+            <div class="d-flex mb-3 align-items-center">
+                <div class="detail-item-icon"><i class="bx bx-id-card"></i></div>
+                <div><small class="text-muted d-block">ID</small><span id="detUserId" class="fw-bold">...</span></div>
+            </div>
+            <div class="d-flex mb-3 align-items-center">
+                <div class="detail-item-icon"><i class="bx bx-envelope"></i></div>
+                <div><small class="text-muted d-block">Email</small><span id="detEmail">...</span></div>
+            </div>
+            <div class="d-flex mb-3 align-items-center">
+                <div class="detail-item-icon"><i class="bx bx-phone"></i></div>
+                <div><small class="text-muted d-block">@T("Số điện thoại", "Phone")</small><span id="detPhone">...</span></div>
+            </div>
+
+            <h6 class="text-muted text-uppercase small mb-3 mt-4">@T("Dữ liệu hệ thống", "System Data")</h6>
+            <div class="d-flex mb-4 align-items-center">
+                <div class="detail-item-icon"><i class="bx bx-time"></i></div>
+                <div><small class="text-muted d-block">@T("Ngày tham gia", "Joined Date")</small><span id="detCreatedAt">...</span></div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button class="btn btn-primary flex-grow-1"><i class="bx bx-edit me-1"></i> @T("Sửa", "Edit")</button>
+                <button class="btn btn-outline-danger flex-grow-1"><i class="bx bx-block me-1"></i> @T("Đình chỉ", "Suspend")</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 @section Scripts {
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            // 1. Cấu hình Line Chart (Biểu đồ đường)
-            const lineChartEl = document.querySelector('#userTrendChart');
-            const lineChartOptions = {
-                series: [{
-                    name: '@Html.Raw(T("Người dùng mới", "New Users"))',
-                    data: [10, 41, 35, 51, 49, 62, 69]
-                }],
-                chart: {
-                    height: 320,
-                    type: 'line',
-                    toolbar: { show: false },
-                    parentHeightOffset: 0
-                },
-                colors: ['#696cff'],
-                dataLabels: { enabled: false },
-                stroke: { curve: 'smooth', width: 3 },
-                grid: { borderColor: '#e9eceef' },
-                xaxis: {
-                    categories: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-                    axisBorder: { show: false },
-                    axisTicks: { show: false }
-                },
-                yaxis: {
-                    labels: { style: { colors: '#a1acb8' } }
+        // ✅ 1. ĐỒNG BỘ DỮ LIỆU
+        const lang = '@lang';
+        const sessionToken = '@Context.Session.GetString("AccessToken")';
+        if (sessionToken) localStorage.setItem("access_token", sessionToken);
+
+        const defaultAvatar = '/sneat/img/avatars/default/teams_1.png';
+        const backendUrl = "http://localhost:8000";
+        let lineChart, pieChart, allUsersData = [];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initCharts();
+            setTimeout(loadDashboard, 150);
+        });
+
+        // ✅ 2. HÀM CẬP NHẬT CHART (Sửa lỗi ReferenceError)
+        function updateCharts(data) {
+            if (lineChart && data.new_users_week) {
+                lineChart.updateSeries([{ name: '@T("Người dùng mới", "New Users")', data: data.new_users_week }]);
+            }
+            if (pieChart) {
+                pieChart.updateSeries([Number(data.active_users) || 0, Number(data.inactive_users) || 0]);
+            }
+        }
+
+        // ✅ 3. LOAD DỮ LIỆU TỪ FASTAPI
+        async function loadDashboard() {
+            try {
+                const token = localStorage.getItem("access_token");
+                if (!token) { window.location.replace("/Auth/Logout?lang=" + lang); return; }
+
+                const res = await fetch(`${backendUrl}/admin/dashboard`, {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+
+                if (res.status === 401) {
+                    localStorage.removeItem("access_token");
+                    window.location.replace("/Auth/Logout?lang=" + lang);
+                    return;
                 }
-            };
-            const lineChart = new ApexCharts(lineChartEl, lineChartOptions);
+
+                const data = await res.json();
+                allUsersData = data.recent_users || [];
+
+                document.querySelector("#totalUsers").innerText = data.total_users ?? 0;
+                document.querySelector("#activeUsers").innerText = data.active_today ?? 0;
+                document.querySelector("#newReports").innerText = data.new_reports ?? 0;
+
+                renderUserTable(allUsersData);
+                updateCharts(data);
+            } catch (err) {
+                console.error("Dashboard Load Error:", err);
+            }
+        }
+
+        function renderUserTable(users) {
+            const tbody = document.querySelector("#userTableBody");
+            tbody.innerHTML = "";
+            users.forEach(u => {
+                let avatar = u.avatar || defaultAvatar;
+                if (u.avatar && !u.avatar.startsWith('http') && !u.avatar.startsWith('/')) avatar = `${backendUrl}/${u.avatar}`;
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td>
+                            <div class="txn-category-cell">
+                                <div class="avatar avatar-sm me-2"><img src="${avatar}" class="rounded-circle" onerror="this.src='${defaultAvatar}'"></div>
+                                <div><strong>${u.full_name}</strong><small class="d-block text-muted">${u.user_id}</small></div>
+                            </div>
+                        </td>
+                        <td>${u.email}</td>
+                        <td><span class="badge bg-label-primary">${u.role}</span></td>
+                        <td><span class="badge bg-label-success">${u.status}</span></td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-outline-success" onclick="showDetail('${u.user_id}')">@T("Xem", "View")</button>
+                        </td>
+                    </tr>`;
+            });
+        }
+
+        function initCharts() {
+            lineChart = new ApexCharts(document.querySelector('#userTrendChart'), {
+                series: [{ name: '...', data: [0,0,0,0,0,0,0] }],
+                chart: { height: 320, type: 'line', toolbar: { show: false } },
+                colors: ['#4a8c24'], stroke: { curve: 'smooth', width: 3 },
+                xaxis: { categories: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] }
+            });
             lineChart.render();
 
-            // 2. Cấu hình Pie Chart (Biểu đồ tròn)
-            const pieChartEl = document.querySelector('#userStatusChart');
-            const pieChartOptions = {
-                series: [85, 15],
-                labels: ['@Html.Raw(T("Hoạt động", "Active"))', '@Html.Raw(T("Không hoạt động", "Inactive"))'],
-                chart: {
-                    type: 'donut',
-                    height: 320,
-                    parentHeightOffset: 0
-                },
+            pieChart = new ApexCharts(document.querySelector('#userStatusChart'), {
+                series: [1, 0],
+                labels: ['@T("Hoạt động", "Active")', '@T("Không hoạt động", "Inactive")'],
+                chart: { type: 'donut', height: 320 },
                 colors: ['#71dd37', '#8592a3'],
-                legend: { position: 'bottom' },
-                plotOptions: {
-                    pie: {
-                        donut: {
-                            size: '75%',
-                            labels: {
-                                show: true,
-                                value: {
-                                    fontSize: '22px',
-                                    color: '#566a7f',
-                                    fontWeight: 600
-                                },
-                                total: {
-                                    show: true,
-                                    label: '@Html.Raw(T("Trạng thái", "Status"))',
-                                    fontSize: '15px',
-                                    color: '#a1acb8',
-                                    formatter: function (w) { return '100%' }
-                                }
-                            }
-                        }
-                    }
-                }
-            };
-            const pieChart = new ApexCharts(pieChartEl, pieChartOptions);
+                legend: { position: 'bottom' }
+            });
             pieChart.render();
-        });
+        }
+
+        function showDetail(userId) {
+            const user = allUsersData.find(x => x.user_id === userId);
+            if (!user) return;
+            // logic hiển thị offcanvas đã ổn định...
+            new bootstrap.Offcanvas(document.getElementById('offcanvasUserDetail')).show();
+        }
     </script>
 }
