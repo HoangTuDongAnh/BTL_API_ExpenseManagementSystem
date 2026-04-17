@@ -9,6 +9,7 @@
 
 @section Styles {
     <link rel="stylesheet" href="~/css/pages/page.support.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/pages/page.transaction.css" asp-append-version="true" />
 }
 
 <div class="container-xxl flex-grow-1 container-p-y">
@@ -40,7 +41,7 @@
 
     <div class="row g-4">
         <div class="col-12">
-            <div class="card support-shell-card">
+            <div class="card support-shell-card border-0 shadow-sm">
                 <div class="support-card-header">
                     <div class="support-card-title">
                         <div class="support-card-icon"><i class="bx bx-support"></i></div>
@@ -115,171 +116,181 @@
             </div>
         </div>
 
-        <div class="col-12">
-            <div class="card support-shell-card">
-                <div class="support-card-header">
-                    <div class="support-card-title">
-                        <div class="support-card-icon"><i class="bx bx-history"></i></div>
-                        <div>
-                            <h3 class="support-card-heading" style="font-size: 1.5rem;">@T("Lịch sử gần đây", "Recent history")</h3>
-                            <p class="support-card-desc">@T("Theo dõi trạng thái các yêu cầu hỗ trợ bạn đã gửi.", "Track the status of the support requests you have submitted.")</p>
-                        </div>
+        <div class="col-12 mt-4">
+            <div class="card tx-list-card mb-4">
+                <div class="card-header border-0 pb-0">
+                    <div class="tx-list-toolbar mb-3">
+                        <h3 style="font-size: 1.35rem; font-weight: 700; color: #3b4754; margin-bottom: 0;">@T("Lịch sử gần đây", "Recent history")</h3>
                     </div>
                 </div>
 
-                <div class="support-history-wrap">
-                    @if (Model.HistoryItems.Count == 0)
-                    {
-                        <div class="support-empty">@T("Chưa có yêu cầu hỗ trợ nào.", "No support requests found.")</div>
-                    }
-                    else
-                    {
-                        <div class="support-history-list">
-                            @foreach (var item in Model.HistoryItems)
-                            {
-                                var collapseId = "collapseSupport_" + item.SupportRequestId;
-                                var statusText = lang == "en"
-                                ? item.Status == "pending" ? "Pending"
-                                : item.Status == "viewed" ? "Processing"
-                                : item.Status == "replied" ? "Replied"
-                                : "Closed"
-                                : item.StatusLabel;
-                                var supportTypeText = lang == "en"
-                                ? item.SupportType == "bug" ? "System Bug"
-                                : item.SupportType == "transaction" ? "Transaction Support"
-                                : item.SupportType == "account" ? "Account Support"
-                                : item.SupportType == "feature" ? "Feature Request"
-                                : "Other"
-                                : item.SupportTypeLabel;
-                                var priorityText = lang == "en"
-                                ? item.Priority == "low" ? "Low"
-                                : item.Priority == "medium" ? "Medium"
-                                : item.Priority == "high" ? "High"
-                                : "Urgent"
-                                : item.PriorityLabel;
-                                <div class="support-history-item">
-                                    <div class="support-history-head" data-bs-toggle="collapse" data-bs-target="#@collapseId" aria-expanded="false" aria-controls="@collapseId" title="@T("Nhấn để xem chi tiết", "Click to view details")">
-                                        <div class="flex-grow-1">
-                                            <div class="support-history-title">
-                                                <span>@item.Subject</span>
-                                                <i class="bx bx-chevron-down text-muted"></i>
-                                            </div>
+                <div class="card-body" style="padding-top: 0;">
+                    <div class="table-responsive text-nowrap" style="min-height: 480px;">
 
-                                            <div class="support-meta-row">
-                                                <span class="badge @item.StatusBadgeClass">@statusText</span>
-                                                <span class="support-chip">@supportTypeText</span>
-                                                <span class="support-chip"><i class="bx bx-time-five"></i>@item.CreatedAt.ToString("HH:mm - dd-MM-yyyy")</span>
-                                            </div>
-                                        </div>
+                        @if (Model.HistoryItems.Count == 0)
+                        {
+                            <div class="tx-empty-state" style="padding: 6rem 0;">
+                                <div class="tx-empty-icon"><i class="bx bx-folder-open"></i></div>
+                                <h6>@T("Chưa có yêu cầu hỗ trợ nào", "No support requests")</h6>
+                                <p>@T("Hãy gửi yêu cầu đầu tiên của bạn ở form bên trên.", "Submit your first request using the form above.")</p>
+                            </div>
+                        }
+                        else
+                        {
+                            <table class="table table-hover mb-0" id="supportHistoryTable">
+                                <thead style="border-bottom: 2px solid #eaedf1;">
+                                    <tr>
+                                        <th class="border-0 text-muted" style="font-weight: 600; font-size: 0.75rem; letter-spacing: 0.5px; padding: 1.25rem 1.5rem; background: transparent;">@T("YÊU CẦU", "REQUEST")</th>
+                                        <th class="border-0 text-muted" style="font-weight: 600; font-size: 0.75rem; letter-spacing: 0.5px; padding: 1.25rem 1.5rem; background: transparent;">@T("DANH MỤC", "CATEGORY")</th>
+                                        <th class="border-0 text-muted" style="font-weight: 600; font-size: 0.75rem; letter-spacing: 0.5px; padding: 1.25rem 1.5rem; background: transparent;">@T("NGÀY GỬI", "DATE")</th>
+                                        <th class="border-0 text-muted" style="font-weight: 600; font-size: 0.75rem; letter-spacing: 0.5px; padding: 1.25rem 1.5rem; background: transparent;">@T("MỨC ĐỘ", "PRIORITY")</th>
+                                        <th class="border-0 text-muted" style="font-weight: 600; font-size: 0.75rem; letter-spacing: 0.5px; padding: 1.25rem 1.5rem; background: transparent;">@T("TRẠNG THÁI", "STATUS")</th>
+                                        <th class="border-0 text-muted text-end" style="font-weight: 600; font-size: 0.75rem; letter-spacing: 0.5px; padding: 1.25rem 1.5rem; background: transparent;">@T("THAO TÁC", "ACTION")</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="table-border-bottom-0" id="supportHistoryListShell">
+                                    @foreach (var item in Model.HistoryItems)
+                                    {
+                                        var statusText = lang == "en" ? (item.Status == "pending" ? "Pending" : item.Status == "viewed" ? "Processing" : item.Status == "replied" ? "Replied" : "Closed") : item.StatusLabel;
+                                        var supportTypeText = lang == "en" ? (item.SupportType == "bug" ? "System Bug" : item.SupportType == "transaction" ? "Transaction" : item.SupportType == "account" ? "Account" : item.SupportType == "feature" ? "Feature" : "Other") : item.SupportTypeLabel;
+                                        var priorityText = lang == "en" ? (item.Priority == "low" ? "Low" : item.Priority == "medium" ? "Medium" : item.Priority == "high" ? "High" : "Urgent") : item.PriorityLabel;
 
-                                        <div class="text-end flex-shrink-0">
-                                            <span class="support-chip support-priority-chip">@priorityText</span>
-                                            <span class="support-request-code">#@item.SupportRequestId</span>
-                                        </div>
-                                    </div>
-
-                                    <div class="collapse" id="@collapseId">
-                                        <div class="support-history-body">
-                                            <div class="support-body-panel">
-                                                <div>
-                                                    <div class="support-block-title">
-                                                        <i class="bx bx-message-square-detail"></i>
-                                                        <span>@T("Nội dung bạn đã gửi", "Message you sent")</span>
+                                        <tr class="support-row-item" style="border-bottom: 1px solid #eaedf1;">
+                                            <td style="padding: 1.25rem 1.5rem; vertical-align: middle;">
+                                                <div class="d-flex align-items-center">
+                                                    <div class="d-flex align-items-center justify-content-center rounded-circle me-3" style="width: 46px; height: 46px; background-color: #f0f3f9; color: #435971;">
+                                                        <i class="bx bx-message-square-detail" style="font-size: 1.4rem;"></i>
                                                     </div>
+                                                    <div class="d-flex flex-column">
+                                                        <strong style="color: #3b4754; font-size: 0.95rem; font-weight: 600;" class="mb-1 text-truncate" style="max-width: 250px;">@item.Subject</strong>
+                                                        <small class="text-muted font-monospace">#@item.SupportRequestId</small>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td style="padding: 1.25rem 1.5rem; vertical-align: middle;">
+                                                <span class="badge bg-label-info rounded-pill px-3 py-2" style="font-weight: 600;">@supportTypeText</span>
+                                            </td>
+                                            <td style="padding: 1.25rem 1.5rem; vertical-align: middle;">
+                                                <span style="color: #3b4754; font-weight: 600;">@item.CreatedAt.ToString("dd-MM-yyyy")</span>
+                                            </td>
+                                            <td style="padding: 1.25rem 1.5rem; vertical-align: middle;">
+                                                <span style="color: #3b4754; font-weight: 600;">@priorityText</span>
+                                            </td>
+                                            <td style="padding: 1.25rem 1.5rem; vertical-align: middle;">
+                                                <span class="badge @item.StatusBadgeClass rounded-pill px-3 py-2" style="font-weight: 600;">@statusText</span>
+                                            </td>
+                                            <td style="padding: 1.25rem 1.5rem; vertical-align: middle; text-align: right;">
+                                                <button type="button" class="btn btn-sm btn-icon rounded-circle view-detail-btn" style="border: 1px solid #71dd37; color: #71dd37; background: transparent; width: 38px; height: 38px;" data-id="@item.SupportRequestId" title="@T("Xem chi tiết", "View Details")">
+                                                    <i class="bx bx-show" style="font-size: 1.2rem;"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
 
-                                                    @if (!string.IsNullOrWhiteSpace(item.Message))
+                                        <template id="tpl_detail_@item.SupportRequestId">
+                                            <div class="row g-4 mb-4">
+                                                <div class="col-lg-7 col-12 d-flex">
+                                                    <div class="card w-100 border shadow-none h-100">
+                                                        <div class="card-body d-flex flex-column">
+                                                            <div class="mb-3 d-flex flex-wrap gap-2 pb-3 border-bottom">
+                                                                <span class="badge bg-label-secondary font-monospace">#@item.SupportRequestId</span>
+                                                                <span class="badge @item.StatusBadgeClass">@statusText</span>
+                                                                <span class="badge bg-label-info">@supportTypeText</span>
+                                                            </div>
+                                                            <div class="flex-grow-1 d-flex flex-column">
+                                                                <div class="text-muted small fw-bold mb-1">@T("TIÊU ĐỀ", "SUBJECT")</div>
+                                                                <h6 class="fw-bold text-dark mb-3">@item.Subject</h6>
+                                                                <div class="text-muted small fw-bold mb-1">@T("NỘI DUNG", "MESSAGE")</div>
+                                                                <div class="p-3 bg-lighter rounded text-dark flex-grow-1" style="white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow-y: auto; scrollbar-width: thin;">@(string.IsNullOrWhiteSpace(item.Message) ? T("(Không có nội dung)", "(No message)") : item.Message)</div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="col-lg-5 col-12 d-flex">
+                                                    <div class="card w-100 border shadow-none h-100">
+                                                        <div class="card-body d-flex flex-column">
+                                                            <div class="mb-3 pb-3 border-bottom small text-muted d-flex flex-column gap-1">
+                                                                <div class="d-flex justify-content-between"><span>@T("Gửi lúc:", "Sent:")</span> <strong class="text-dark">@item.CreatedAt.ToString("HH:mm - dd/MM/yyyy")</strong></div>
+                                                                @if (item.RepliedAt.HasValue)
+                                                                {
+                                                                    <div class="d-flex justify-content-between"><span>@T("Phản hồi lúc:", "Replied:")</span> <strong class="text-success">@item.RepliedAt.Value.ToString("HH:mm - dd/MM/yyyy")</strong></div>
+                                                                }
+                                                            </div>
+                                                            <h6 class="text-muted small fw-bold mb-2">@T("TỆP ĐÍNH KÈM", "ATTACHMENTS")</h6>
+                                                            <div class="flex-grow-1">
+                                                                @if (item.Attachments != null && item.Attachments.Count > 0)
+                                                                {
+                                                                    <div class="pe-2" style="max-height: 180px; overflow-y: auto; scrollbar-width: thin;">
+                                                                        @foreach (var att in item.Attachments)
+                                                                        {
+                                                                            <div class="d-flex gap-3 align-items-center mb-2 p-2 border rounded">
+                                                                                @if (att.IsImage)
+                                                                                {
+                                                                                    <img src="@att.FileUrl" class="rounded view-media-btn" data-type="image" data-src="@att.FileUrl" style="width: 50px; height: 50px; object-fit: cover; cursor: zoom-in;" />
+                                                                                }
+                                                                                else if (att.IsVideo)
+                                                                                {
+
+                                                                                    <div class="bg-dark rounded d-flex align-items-center justify-content-center view-media-btn" data-type="video" data-src="@att.FileUrl" style="width: 50px; height: 50px; cursor: zoom-in;"><i class="bx bx-play text-white fs-3"></i></div>
+                                                                                }
+                                                                                else
+                                                                                {
+
+                                                                                    <div class="bg-lighter rounded d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;"><i class="bx bx-file fs-4 text-muted"></i></div>
+                                                                                }
+                                                                                <div class="flex-grow-1" style="min-width: 0;">
+                                                                                    <div class="text-truncate fw-medium small mb-1">@att.FileName</div>
+                                                                                    <a href="javascript:void(0);" class="small text-primary text-decoration-none view-media-btn" data-type="@(att.IsImage ? "image" : "video")" data-src="@att.FileUrl">@T("Mở xem", "View")</a>
+                                                                                </div>
+                                                                            </div>
+                                                                        }
+                                                                    </div>
+                                                                }
+                                                                else
+                                                                {
+                                                                    <div class="d-flex flex-column align-items-center justify-content-center h-100 bg-lighter rounded" style="border: 2px dashed #d9dee3; min-height: 120px;">
+                                                                        <i class="bx bx-image-alt text-muted mb-2" style="font-size: 2rem; opacity: 0.5;"></i>
+                                                                        <span class="text-muted small">@T("Không có tệp đính kèm", "No attachments")</span>
+                                                                    </div>
+                                                                }
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="card w-100 border shadow-none mb-1">
+                                                <div class="card-body">
+                                                    <div class="text-muted small mb-2 fw-bold">@T("PHẢN HỒI TỪ ADMIN", "ADMIN REPLY")</div>
+                                                    @if (!string.IsNullOrWhiteSpace(item.AdminReply))
                                                     {
-                                                        <p class="support-message-text">@item.Message</p>
+                                                        <div class="p-3 border-start border-3 border-success bg-lighter rounded text-dark" style="white-space: pre-wrap;">@item.AdminReply</div>
                                                     }
                                                     else
                                                     {
-                                                        <p class="support-message-text fst-italic">@T("(Chưa tải được nội dung từ API)", "(Failed to load content from API)")</p>
+                                                        <div class="p-3 bg-lighter rounded text-muted fst-italic text-center">@T("Hệ thống đang xử lý, vui lòng kiên nhẫn đợi...", "Processing, please wait...")</div>
                                                     }
                                                 </div>
-
-                                                @if (item.Attachments != null && item.Attachments.Any())
-                                                {
-                                                    <div class="mt-4">
-                                                        <div class="support-block-title">
-                                                            <i class="bx bx-paperclip"></i>
-                                                            <span>@T("Tệp đính kèm", "Attachments")</span>
-                                                        </div>
-
-                                                        <div class="support-attachment-grid">
-                                                            @foreach (var attachment in item.Attachments)
-                                                            {
-                                                                <div class="support-attachment-card">
-                                                                    @if (attachment.IsImage)
-                                                                    {
-                                                                        <img src="@attachment.FileUrl" alt="@attachment.FileName" class="support-attachment-preview view-media-btn" data-type="image" data-src="@attachment.FileUrl" style="cursor: pointer;" title="@T("Nhấn để xem lớn", "Click to view larger")" />
-                                                                    }
-                                                                    else if (attachment.IsVideo)
-                                                                    {
-                                                                        <div class="position-relative view-media-btn" data-type="video" data-src="@attachment.FileUrl" style="cursor: pointer;" title="@T("Nhấn để xem lớn", "Click to view larger")">
-                                                                            <video class="support-attachment-video" preload="metadata" style="pointer-events: none;">
-                                                                                <source src="@attachment.FileUrl" type="@attachment.FileType" />
-                                                                            </video>
-                                                                            <div class="position-absolute top-50 start-50 translate-middle text-white" style="background: rgba(0,0,0,0.4); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
-                                                                                <i class="bx bx-play ms-1 fs-3"></i>
-                                                                            </div>
-                                                                        </div>
-                                                                    }
-                                                                    else
-                                                                    {
-                                                                        <div class="support-attachment-preview d-flex align-items-center justify-content-center">
-                                                                            <i class="bx bx-file fs-1 text-muted"></i>
-                                                                        </div>
-                                                                    }
-
-                                                                    <div class="support-attachment-body">
-                                                                        <div class="support-attachment-name" title="@attachment.FileName">@attachment.FileName</div>
-                                                                        <div class="support-attachment-meta">
-                                                                            @if (!string.IsNullOrWhiteSpace(attachment.DisplaySize))
-                                                                            {
-                                                                                <span>@attachment.DisplaySize</span>
-                                                                            }
-                                                                        </div>
-
-                                                                        @if (attachment.IsImage || attachment.IsVideo)
-                                                                        {
-                                                                            <a href="javascript:void(0);" class="small text-primary text-decoration-none view-media-btn" data-type="@(attachment.IsImage ? "image" : "video")" data-src="@attachment.FileUrl">
-                                                                                @T("Mở xem", "View")
-                                                                            </a>
-                                                                        }
-                                                                        else
-                                                                        {
-                                                                            <a href="@attachment.FileUrl" target="_blank" class="small text-primary text-decoration-none">
-                                                                                @T("Tải xuống", "Download")
-                                                                            </a>
-                                                                        }
-                                                                    </div>
-                                                                </div>
-                                                            }
-                                                        </div>
-                                                    </div>
-                                                }
-
-                                                @if (!string.IsNullOrWhiteSpace(item.AdminReply))
-                                                {
-                                                    <div class="support-admin-reply">
-                                                        <div class="d-flex justify-content-between align-items-center gap-3 mb-2 flex-wrap">
-                                                            <div class="support-block-title mb-0 text-success">
-                                                                <i class="bx bx-support"></i>
-                                                                <span>@T("Phản hồi từ admin", "Reply from admin")</span>
-                                                            </div>
-                                                            @if (item.RepliedAt.HasValue)
-                                                            {
-                                                                <span class="small text-success">@item.RepliedAt.Value.ToString("HH:mm - dd/MM")</span>
-                                                            }
-                                                        </div>
-                                                        <p class="support-message-text text-dark mb-0">@item.AdminReply</p>
-                                                    </div>
-                                                }
                                             </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            }
+                                        </template>
+                                    }
+                                </tbody>
+                            </table>
+
+                            <div class="tx-empty-state d-none" id="supportEmptyState" style="margin-top: 4rem;">
+                                <div class="tx-empty-icon"><i class="bx bx-folder-open"></i></div>
+                                <h6>@T("Không có yêu cầu hỗ trợ", "No support requests")</h6>
+                                <p>@T("Trang này chưa có dữ liệu hiển thị.", "No data available on this page.")</p>
+                            </div>
+                        }
+                    </div>
+
+                    @if (Model.HistoryItems.Count > 0)
+                    {
+                        <div class="d-flex justify-content-between align-items-center mt-4 border-top pt-3">
+                            <span class="text-muted small" id="paginationInfo"></span>
+                            <div class="transaction-pagination d-flex align-items-center gap-2" id="paginationControls">
+                            </div>
                         </div>
                     }
                 </div>
@@ -288,14 +299,19 @@
     </div>
 </div>
 
-<div class="modal fade" id="mediaViewerModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade mimo-popup-shell" id="requestUserDetailModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="false" style="background-color: rgba(0,0,0,0.6);">
     <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
-        <div class="modal-content bg-transparent border-0 shadow-none">
-            <div class="modal-header border-0 pb-0 justify-content-end">
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        <div class="modal-content mimo-popup-content">
+            <button type="button" class="mimo-popup-close" data-bs-dismiss="modal" aria-label="Close"><i class="bx bx-x"></i></button>
+            <div class="modal-header mimo-popup-header border-bottom-0">
+                <div class="mimo-popup-hero mimo-popup-hero--simple w-100">
+                    <div class="mimo-popup-header-copy">
+                        <h4 class="mimo-popup-title mb-1"><i class="bx bx-detail me-2 text-primary"></i>@T("Chi tiết yêu cầu", "Request Details")</h4>
+                        <p class="mimo-popup-subtitle mb-0">@T("Xem lại nội dung bạn đã gửi và phản hồi từ ban quản trị.", "Review your request and admin's reply.")</p>
+                    </div>
+                </div>
             </div>
-            <div class="modal-body text-center p-0" id="mediaViewerContent">
-            </div>
+            <div class="modal-body mimo-popup-body" id="modalUserDetailContent"></div>
         </div>
     </div>
 </div>
@@ -303,31 +319,96 @@
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
     <script>
-        $(document).ready(function() {
-            $(document).on('click', '.view-media-btn', function(e) {
-                e.preventDefault();
-                var type = $(this).data('type');
-                var src = $(this).data('src');
-                var $content = $('#mediaViewerContent');
+        document.addEventListener("DOMContentLoaded", function () {
+            const rowsPerPage = 5;
+            const table = document.getElementById('supportHistoryTable');
+            const tableBody = document.getElementById('supportHistoryListShell');
+            const emptyState = document.getElementById('supportEmptyState');
 
-                $content.empty();
+            if (tableBody) {
+                const rows = Array.from(tableBody.querySelectorAll('.support-row-item'));
+                const actualPages = Math.ceil(rows.length / rowsPerPage);
+                const totalPages = Math.max(3, actualPages);
+                const paginationControls = document.getElementById('paginationControls');
+                const paginationInfo = document.getElementById('paginationInfo');
 
-                if (type === 'image') {
-                    $content.html('<img src="' + src + '" class="rounded shadow" style="width: 100%; height: 80vh; object-fit: contain; background-color: rgba(0,0,0,0.2);" />');
-                } else if (type === 'video') {
-                    $content.html(`
-                        <video controls autoplay class="rounded shadow" style="width: 100%; height: 80vh; object-fit: contain; background-color: rgba(0,0,0,0.2);">
-                            <source src="${src}">
-                            @T("Trình duyệt của bạn không hỗ trợ thẻ video.", "Your browser does not support the video tag.")
-                        </video>
-                    `);
+                function displayPage(page) {
+                    if (page < 1 || page > totalPages) return;
+
+                    let hasVisible = false;
+                    rows.forEach((row, index) => {
+                        const isVisible = (Math.floor(index / rowsPerPage) + 1 === page);
+                        row.style.display = isVisible ? '' : 'none';
+                        if (isVisible) hasVisible = true;
+                    });
+
+                    if (!hasVisible) {
+                        table.style.display = 'none';
+                        emptyState.classList.remove('d-none');
+                    } else {
+                        table.style.display = '';
+                        emptyState.classList.add('d-none');
+                    }
+
+                    // TÍNH TOÁN VÀ ĐIỀN CHỮ CHUẨN CHỈNH
+                    if (paginationInfo) {
+                        const start = rows.length === 0 ? 0 : (page - 1) * rowsPerPage + 1;
+                        const end = Math.min(page * rowsPerPage, rows.length);
+                        const strDisplay = '@Html.Raw(T("Hiển thị", "Showing"))';
+                        const strOfTotal = '@Html.Raw(T("trong tổng số", "of total"))';
+                        const strReq = '@Html.Raw(T("yêu cầu", "requests"))';
+                        paginationInfo.innerHTML = `${strDisplay} <span class="fw-bold text-dark">${start} - ${end}</span> ${strOfTotal} <span class="fw-bold text-dark">${rows.length}</span> ${strReq}`;
+                    }
+
+                    if (!paginationControls) return;
+                    paginationControls.innerHTML = '';
+
+                    const prevLi = document.createElement('div');
+                    prevLi.innerHTML = `<i class="bx bx-chevron-left" style="font-size: 1.3rem;"></i>`;
+                    prevLi.style.cssText = `width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; cursor: ${page === 1 ? 'not-allowed' : 'pointer'}; color: ${page === 1 ? '#c9cdd4' : '#697a8d'}; border-radius: 50%;`;
+                    if (page > 1) prevLi.addEventListener('click', () => displayPage(page - 1));
+                    paginationControls.appendChild(prevLi);
+
+                    let startPage = Math.max(1, page - 1);
+                    let endPage = startPage + 2;
+                    if (endPage > totalPages) {
+                        endPage = totalPages;
+                        startPage = Math.max(1, endPage - 2);
+                    }
+
+                    for (let i = startPage; i <= endPage; i++) {
+                        const li = document.createElement('div');
+                        const isActive = i === page;
+
+                        li.style.cssText = isActive
+                            ? 'background-color: #696cff; color: white; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; font-weight: 600; cursor: pointer; box-shadow: 0 2px 4px rgba(105, 108, 255, 0.4);'
+                            : 'background-color: white; border: 1px solid #d9dee3; color: #697a8d; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; font-weight: 600; cursor: pointer;';
+
+                        li.innerHTML = i;
+                        li.addEventListener('click', () => displayPage(i));
+                        paginationControls.appendChild(li);
+                    }
+
+                    const nextLi = document.createElement('div');
+                    nextLi.innerHTML = `<i class="bx bx-chevron-right" style="font-size: 1.3rem;"></i>`;
+                    nextLi.style.cssText = `width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; cursor: ${page === totalPages ? 'not-allowed' : 'pointer'}; color: ${page === totalPages ? '#c9cdd4' : '#697a8d'}; border-radius: 50%;`;
+                    if (page < totalPages) nextLi.addEventListener('click', () => displayPage(page + 1));
+                    paginationControls.appendChild(nextLi);
                 }
 
-                $('#mediaViewerModal').modal('show');
+                displayPage(1);
+            }
+
+            $('.view-detail-btn').on('click', function () {
+                const reqId = $(this).data('id');
+                const templateHtml = $('#tpl_detail_' + reqId).html();
+
+                $('#modalUserDetailContent').html(templateHtml);
+                $('#requestUserDetailModal').modal('show');
             });
 
-            $('#mediaViewerModal').on('hidden.bs.modal', function () {
-                $('#mediaViewerContent').empty();
+            $('#requestUserDetailModal').on('hidden.bs.modal', function () {
+                $('#modalUserDetailContent').empty();
             });
         });
     </script>
