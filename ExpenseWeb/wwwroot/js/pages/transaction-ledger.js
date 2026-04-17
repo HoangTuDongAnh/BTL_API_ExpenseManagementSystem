@@ -17,7 +17,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const wallets = parseJson('tx-wallets-json');
 
   const state = {
-    type: 'all',
+    breakdownType: 'expense',
+    ledgerType: 'all',
     walletId: 'all',
     keyword: '',
     period: 'today',
@@ -25,7 +26,8 @@ document.addEventListener('DOMContentLoaded', () => {
     to: null,
     anchorDate: startOfDay(findLatestDate(transactions) || new Date()),
     calendarMonth: monthStart(findLatestDate(transactions) || new Date()),
-    filtered: [],
+    filteredBreakdown: [],
+    filteredList: [],
     page: 1,
     pageSize: 5,
     charts: { breakdown: null },
@@ -53,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ...fpBaseConfig,
     onChange: (selectedDates, dateStr) => {
       state.from = dateStr || null;
-      if (state.period === 'custom') refresh();
+      if (state.period === 'custom') { state.page = 1; refresh(); }
     }
   }) : null;
 
@@ -61,7 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ...fpBaseConfig,
     onChange: (selectedDates, dateStr) => {
       state.to = dateStr || null;
-      if (state.period === 'custom') refresh();
+      if (state.period === 'custom') { state.page = 1; refresh(); }
     }
   }) : null;
 
@@ -232,20 +234,31 @@ document.addEventListener('DOMContentLoaded', () => {
     if (index >= 0) transactions.splice(index, 1);
   }
 
-  function filterByBaseConditions(items) {
+  function filterByWallet(items) {
     return items.filter((item) => {
-      if (state.type === 'transfer') {
-        if (!item.isTransfer) return false;
-      } else if (state.type !== 'all') {
-        if (item.isTransfer) return false;
-        if (item.transactionType !== state.type) return false;
-      }
       if (state.walletId !== 'all' && item.walletId !== state.walletId) return false;
-      if (state.keyword) {
-        const haystack = `${item.note} ${item.categoryName} ${item.walletName}`.toLowerCase();
-        if (!haystack.includes(state.keyword)) return false;
+      return true;
+    });
+  }
+
+  function filterByType(items, type = 'all') {
+    return items.filter((item) => {
+      if (type === 'transfer') {
+        return item.isTransfer;
+      }
+      if (type !== 'all') {
+        if (item.isTransfer) return false;
+        return item.transactionType === type;
       }
       return true;
+    });
+  }
+
+  function filterByKeyword(items, keyword = '') {
+    if (!keyword) return items;
+    return items.filter((item) => {
+      const haystack = `${item.note} ${item.categoryName} ${item.walletName}`.toLowerCase();
+      return haystack.includes(keyword);
     });
   }
 
@@ -288,9 +301,22 @@ document.addEventListener('DOMContentLoaded', () => {
       .sort((left, right) => `${right.transactionDate}${right.id}`.localeCompare(`${left.transactionDate}${left.id}`));
   }
 
+  function getBreakdownItems() {
+    return applyPeriodFilter(filterByType(filterByWallet(transactions), state.breakdownType));
+  }
+
+  function getLedgerItems() {
+    return applyPeriodFilter(filterByKeyword(filterByType(filterByWallet(transactions), state.ledgerType), state.keyword));
+  }
+
+  function getCalendarItems() {
+    return filterByWallet(transactions);
+  }
+
   function refreshFilteredState() {
-    state.filtered = applyPeriodFilter(filterByBaseConditions(transactions));
-    const totalPages = Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
+    state.filteredBreakdown = getBreakdownItems();
+    state.filteredList = getLedgerItems();
+    const totalPages = Math.max(1, Math.ceil(state.filteredList.length / state.pageSize));
     if (state.page > totalPages) state.page = totalPages;
     if (state.page < 1) state.page = 1;
   }
@@ -325,7 +351,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function buildCategoryGroups() {
     const bucket = new Map();
-    state.filtered.forEach((item) => {
+    state.filteredBreakdown.forEach((item) => {
       const key = item.categoryId || item.categoryName || item.id;
       if (!bucket.has(key)) {
         bucket.set(key, {
@@ -341,7 +367,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function currentBreakdownCopy() {
-    switch (state.type) {
+    switch (state.breakdownType) {
       case 'expense':
         return {
           eyebrow: t('Cơ cấu chi tiêu', 'Expense breakdown'),
@@ -590,8 +616,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const container = qs('transactionPagination');
     if (!container) return;
 
-    const totalPages = Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
-    if (state.filtered.length <= state.pageSize) {
+    const totalPages = Math.max(1, Math.ceil(state.filteredList.length / state.pageSize));
+    if (state.filteredList.length <= state.pageSize) {
       container.innerHTML = '';
       return;
     }
@@ -615,7 +641,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const empty = qs('transactionEmptyState');
     if (!shell || !empty) return;
 
-    if (!state.filtered.length) {
+    if (!state.filteredList.length) {
       shell.innerHTML = '';
       empty.classList.remove('d-none');
       qs('transactionPagination').innerHTML = '';
@@ -624,7 +650,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     empty.classList.add('d-none');
     const start = (state.page - 1) * state.pageSize;
-    const pageItems = state.filtered.slice(start, start + state.pageSize);
+    const pageItems = state.filteredList.slice(start, start + state.pageSize);
 
     shell.innerHTML = pageItems.map((item) => `
       <div class="tx-row-card">
@@ -725,7 +751,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function buildCalendarDayMap() {
     const map = new Map();
-    filterByBaseConditions(transactions).forEach((item) => {
+    getCalendarItems().forEach((item) => {
       if (!map.has(item.transactionDate)) {
         map.set(item.transactionDate, {
           count: 0,
@@ -828,7 +854,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function renderDayDrawer(dateText) {
     const date = parseIso(dateText);
-    const items = filterByBaseConditions(transactions)
+    const items = getCalendarItems()
       .filter((item) => item.transactionDate === dateText)
       .sort((left, right) => right.id.localeCompare(left.id));
 
@@ -1235,7 +1261,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function exportVisibleTransactions() {
-    if (!state.filtered.length) {
+    if (!state.filteredList.length) {
       alert(t('Không có dữ liệu để xuất.', 'No data to export.'));
       return;
     }
@@ -1244,7 +1270,7 @@ document.addEventListener('DOMContentLoaded', () => {
       ['Date', 'Type', 'Category', 'Wallet', 'Amount', 'Currency', 'Note']
     ];
 
-    state.filtered.forEach((item) => {
+    state.filteredList.forEach((item) => {
       rows.push([
         item.transactionDate,
         item.transactionType,
@@ -1303,32 +1329,46 @@ document.addEventListener('DOMContentLoaded', () => {
     renderBreakdownChart();
     renderList();
     renderCalendar();
+    if (state.selectedCalendarDate && dayOffcanvasEl?.classList.contains('show')) renderDayDrawer(state.selectedCalendarDate);
     syncAddPreview();
     if (state.detailId) syncDetailPreview();
   }
 
     function bindEvents() {
-        qsa('#transactionTypeTabs button[data-type]').forEach((button) => {
+        qsa('#breakdownTypeTabs button[data-type]').forEach((button) => {
             button.addEventListener('click', () => {
-                qsa('#transactionTypeTabs button[data-type]').forEach((item) => item.classList.remove('active'));
+                qsa('#breakdownTypeTabs button[data-type]').forEach((item) => item.classList.remove('active'));
                 button.classList.add('active');
-                state.type = button.dataset.type || 'all';
+                state.breakdownType = button.dataset.type || 'expense';
+                refresh();
+            });
+        });
+
+        qsa('#ledgerTypeTabs button[data-type]').forEach((button) => {
+            button.addEventListener('click', () => {
+                qsa('#ledgerTypeTabs button[data-type]').forEach((item) => item.classList.remove('active'));
+                button.classList.add('active');
+                state.ledgerType = button.dataset.type || 'all';
+                state.page = 1;
                 refresh();
             });
         });
 
         qs('walletFilter')?.addEventListener('change', () => {
             state.walletId = qs('walletFilter').value || 'all';
+            state.page = 1;
             refresh();
         });
 
         qs('transactionSearchInput')?.addEventListener('input', () => {
             state.keyword = (qs('transactionSearchInput').value || '').trim().toLowerCase();
+            state.page = 1;
             refresh();
         });
 
         qs('periodFilter')?.addEventListener('change', () => {
             state.period = qs('periodFilter').value || 'today';
+            state.page = 1;
             if (state.period === 'custom' && !state.from && !state.to) {
                 state.from = formatIso(addDays(state.anchorDate, -6));
                 state.to = formatIso(state.anchorDate);
