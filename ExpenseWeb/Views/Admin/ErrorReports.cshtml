@@ -1,4 +1,4 @@
-@model ExpenseWeb.Models.ViewModels.Admin.AdminErrorReportsPageViewModel
+﻿@model ExpenseWeb.Models.ViewModels.Admin.AdminErrorReportsPageViewModel
 @{
     var lang = (Context.Request.Query["lang"].FirstOrDefault() ?? ViewBag.Lang as string ?? "vi").ToLower();
     string T(string vi, string en) => lang == "en" ? en : vi;
@@ -6,70 +6,7 @@
 }
 
 @section Styles {
-    <link rel="stylesheet" href="~/sneat/css/pages/core-page-hero.css" />
-    <link rel="stylesheet" href="~/sneat/css/pages/report-page.css" />
-    <link rel="stylesheet" href="~/sneat/css/pages/admin-reports.css" />
-    <style>
-        .table-custom-scroll {
-            max-height: 600px;
-            overflow-y: auto;
-            display: block;
-        }
-
-            .table-custom-scroll table {
-                width: 100%;
-            }
-
-        .support-attachment-grid {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 16px;
-            margin-top: 10px;
-        }
-
-        .support-attachment-card {
-            width: 180px;
-            border: 1px solid #d9dee3;
-            border-radius: 8px;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            background-color: #fff;
-        }
-
-        .support-attachment-preview,
-        .support-attachment-video {
-            width: 100%;
-            height: 140px;
-            object-fit: cover;
-            display: block;
-            border-bottom: 1px solid #d9dee3;
-        }
-
-        .support-attachment-body {
-            padding: 10px;
-            background-color: #f8f9fa;
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-        }
-
-        .support-attachment-name {
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            font-weight: 600;
-            font-size: 0.85rem;
-            margin-bottom: 4px;
-        }
-
-        .support-attachment-meta {
-            font-size: 0.75rem;
-            color: #697a8d;
-            margin-bottom: 8px;
-        }
-    </style>
+    <link rel="stylesheet" href="~/css/pages/page.admin-reports.css" asp-append-version="true" />
 }
 
 <div class="container-xxl flex-grow-1 container-p-y">

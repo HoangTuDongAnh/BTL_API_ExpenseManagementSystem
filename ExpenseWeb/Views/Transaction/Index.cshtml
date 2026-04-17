@@ -1,4 +1,4 @@
-@model ExpenseWeb.Models.ViewModels.Transaction.TransactionPageViewModel
+﻿@model ExpenseWeb.Models.ViewModels.Transaction.TransactionPageViewModel
 @using System.Globalization
 @using System.Text.Json
 @using System.Text.Encodings.Web
@@ -60,9 +60,7 @@
 }
 
 @section Styles {
-    <link rel="stylesheet" href="~/sneat/css/pages/core-page-hero.css" />
-    <link rel="stylesheet" href="~/sneat/css/pages/analytics-overview.css" />
-    <link rel="stylesheet" href="~/sneat/css/pages/transaction-ledger.css" />
+    <link rel="stylesheet" href="~/css/pages/page.transaction.css" asp-append-version="true" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
 }
 
@@ -444,6 +442,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/vn.js"></script>
-    <script src="~/sneat/js/chart/transaction-donut-chart.js"></script>
-    <script src="~/sneat/js/pages/transaction-ledger.js"></script>
+    <script src="~/js/chart/transaction-donut-chart.js"></script>
+    <script src="~/js/pages/transaction-ledger.js"></script>
 }

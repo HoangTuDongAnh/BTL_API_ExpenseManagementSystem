@@ -1,4 +1,4 @@
-@model ExpenseWeb.Models.ViewModels.Dashboard.DashboardIndexViewModel
+﻿@model ExpenseWeb.Models.ViewModels.Dashboard.DashboardIndexViewModel
 @using System.Linq
 @using System.Text.Json
 
@@ -32,9 +32,7 @@
 }
 
 @section Styles {
-    <link rel="stylesheet" href="~/sneat/css/pages/core-page-hero.css" />
-    <link rel="stylesheet" href="~/sneat/css/pages/wallet-dashboard.css" />
-    <link rel="stylesheet" href="~/sneat/css/pages/dashboard-overview.css" />
+    <link rel="stylesheet" href="~/css/pages/page.dashboard.css" asp-append-version="true" />
 }
 
 <div class="dashboard-page" data-dashboard-insights-url="@Url.Action("Insights", "Dashboard")">
@@ -548,6 +546,6 @@
 
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="~/sneat/js/pages/wallet-dashboard.js"></script>
-    <script src="~/sneat/js/pages/dashboard-overview.js"></script>
+    <script src="~/js/pages/wallet-dashboard.js"></script>
+    <script src="~/js/pages/dashboard-overview.js"></script>
 }

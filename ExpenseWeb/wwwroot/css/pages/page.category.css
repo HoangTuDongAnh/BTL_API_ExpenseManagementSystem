@@ -1,0 +1,137 @@
+@import url('./fragments/core-page-hero.css');
+@import url('./fragments/category-page.css');
+
+.category-card.has-budget {
+  background-color: #fff;
+  border: 1px solid #e1e4e8 !important;
+  position: relative;
+  box-shadow: 0 2px 6px 0 rgba(67, 89, 113, 0.05);
+  transition: all 0.3s ease-in-out;
+}
+
+.category-card.has-budget:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px 0 rgba(67, 89, 113, 0.15);
+  border-color: #696cff !important;
+}
+
+.category-card.over-budget {
+  background-color: #fffaf9 !important;
+  border-color: #ff3e1d !important;
+}
+
+.category-card.over-budget:hover {
+  box-shadow: 0 4px 12px 0 rgba(255, 62, 29, 0.2);
+}
+
+.budget-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  font-size: 1.25rem;
+  color: #696cff;
+}
+
+.bg-lighter {
+  background-color: #f8f9fa;
+}
+
+.progress {
+  border-radius: 10px;
+  background-color: #e9ecef;
+}
+
+.progress-bar {
+  border-radius: 10px;
+}
+
+.icon-scroll-box {
+  max-height: 192px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border: 1px solid #d9dee3;
+  border-radius: 1rem;
+  padding: 0.75rem;
+  background: linear-gradient(180deg, #fcfdff 0%, #f6f8fb 100%);
+}
+
+.icon-scroll-box::-webkit-scrollbar {
+  width: 8px;
+}
+
+.icon-scroll-box::-webkit-scrollbar-thumb {
+  background: rgba(105, 108, 255, 0.22);
+  border-radius: 999px;
+}
+
+.category-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.9rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #566a7f;
+}
+
+.category-section-title i {
+  font-size: 1rem;
+  color: #696cff;
+}
+
+.category-icon-group-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.category-icon-group-block {
+  border: 1px solid rgba(67, 89, 113, 0.10);
+  border-radius: 1rem;
+  background: #fff;
+  padding: 0.85rem;
+}
+
+.category-icon-group-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.category-icon-group-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #233446;
+  line-height: 1.2;
+}
+
+.category-icon-group-desc {
+  margin-top: 0.2rem;
+  font-size: 0.78rem;
+  color: #8592a3;
+  line-height: 1.35;
+}
+
+.category-icon-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(54px, 1fr));
+  gap: 0.55rem;
+}
+
+.category-icon-picker--create,
+.category-icon-picker--tall {
+  max-height: 320px;
+}
+
+@media (max-width: 767.98px) {
+  .category-icon-picker-grid {
+    grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
+  }
+
+  .category-icon-group-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

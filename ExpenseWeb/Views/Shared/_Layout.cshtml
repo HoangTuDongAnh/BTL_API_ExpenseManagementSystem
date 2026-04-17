@@ -1,4 +1,4 @@
-@{
+﻿@{
     var lang = (Context.Request.Query["lang"].FirstOrDefault() ?? "vi").ToLower();
     if (lang != "en") lang = "vi";
 
@@ -25,7 +25,7 @@
     <link rel="stylesheet" href="~/sneat/css/demo.css" />
     <link rel="stylesheet" href="~/sneat/vendor/libs/perfect-scrollbar/perfect-scrollbar.css" />
     <link rel="stylesheet" href="~/sneat/vendor/libs/apex-charts/apex-charts.css" />
-    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/app.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/popup.base.css" asp-append-version="true" />
 
     @RenderSection("Styles", required: false)
