@@ -27,11 +27,8 @@ namespace ExpenseWeb.Controllers
 
         public IActionResult Index()
         {
-            ViewBag.Title = "Admin Dashboard";
-            return View();
+            return View(new AdminDashboardViewModel());
         }
-
-     
 
         private static (string lastName, string firstName) SplitFullName(string? fullName)
         {

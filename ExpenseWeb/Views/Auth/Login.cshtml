@@ -362,28 +362,69 @@
 </div>
 
 @section Scripts {
-    <partial name="_ValidationScriptsPartial" />
-
     <script>
-        (function () {
-            const loginErrors = @Html.Raw(loginErrorsJson);
-            const registerErrors = @Html.Raw(registerErrorsJson);
-            const openRegister = @(openRegister ? "true" : "false");
+        document.addEventListener('DOMContentLoaded', function () {
+            const loginForm = document.querySelector('[data-auth-form="login"]');
+            if (!loginForm) return;
 
-            if (Array.isArray(loginErrors) && loginErrors.length > 0 && !openRegister) {
-                window.AuthPage?.showMessages(window.AuthPage.t("loginError"), loginErrors, "error");
-            }
+            loginForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
 
-            if (Array.isArray(registerErrors) && registerErrors.length > 0 && openRegister) {
-                window.AuthPage?.showMessages(window.AuthPage.t("registerError"), registerErrors, "error");
-            }
+                const email = document.querySelector('[name="Email"]').value;
+                const password = document.querySelector('[name="Password"]').value;
+                const submitBtn = this.querySelector('.auth-submit');
 
-            @if (TempData["SuccessMessage"] != null)
-            {
-                <text>
-                window.AuthToast?.success(window.AuthPage?.t("success"), ["@TempData["SuccessMessage"]"]);
-                </text>
-            }
-        })();
+                submitBtn.disabled = true;
+                submitBtn.innerText = "Đang xác thực...";
+
+                try {
+                    // 1. Gọi API FastAPI
+                    const res = await fetch("http://127.0.0.1:8000/auth/login", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ email: email, password: password })
+                    });
+
+                    // ✅ CHỈ ĐỌC JSON MỘT LẦN DUY NHẤT
+                    const data = await res.json();
+
+                            if (res.ok) {
+            const data = await res.json();
+            localStorage.setItem("access_token", data.access_token);
+
+            // ✅ Gửi đầy đủ thông tin, bao gồm cả avatar sang C#
+            await fetch("/Auth/SetTokenToSession", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    accessToken: data.access_token,
+                    role: data.user.role,
+                    email: data.user.email,
+                    fullName: data.user.full_name,
+                    avatar: data.user.avatar // ✅ Gửi ảnh đại diện về
+                })
+            });
+
+            window.location.replace("/Admin/Index");
+        }
+
+                        if (syncRes.ok) {
+                            window.location.replace("/Admin/Index");
+                        } else {
+                            alert("Đăng nhập thành công nhưng không thể đồng bộ phiên làm việc!");
+                        }
+                    } else {
+                        alert("Lỗi: " + (data.detail || "Tài khoản hoặc mật khẩu không đúng"));
+                        submitBtn.disabled = false;
+                        submitBtn.innerText = "Đăng nhập";
+                    }
+                } catch (err) {
+                    console.error("Lỗi kết nối:", err);
+                    alert("Không thể kết nối tới Backend Port 8000. Hãy chắc chắn Python đang chạy!");
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = "Đăng nhập";
+                }
+            });
+        });
     </script>
 }

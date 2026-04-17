@@ -17,12 +17,23 @@ namespace ExpenseWeb.Controllers
 
         private string GetLang()
         {
-            var lang = HttpContext.Request.Query["lang"].ToString().ToLower();
-            if (string.IsNullOrWhiteSpace(lang))
+            // 1. Ưu tiên lấy từ Query String (?lang=en)
+            string lang = Request.Query["lang"];
+
+            // 2. Nếu không có, thử lấy từ Session
+            if (string.IsNullOrEmpty(lang))
             {
-                lang = Request.Form["lang"].ToString().ToLower();
+                lang = HttpContext.Session.GetString("CurrentLanguage");
             }
-            return lang == "en" ? "en" : "vi";
+
+            // 3. CHỈ đọc Form nếu là request POST và có dữ liệu Form hợp lệ
+            // Tránh lỗi "This request does not have a Content-Type header"
+            if (string.IsNullOrEmpty(lang) && Request.Method == "POST" && Request.HasFormContentType)
+            {
+                lang = Request.Form["lang"];
+            }
+
+            return (lang?.ToLower() == "en") ? "en" : "vi";
         }
 
         private List<string> GetModelErrors()
@@ -44,7 +55,6 @@ namespace ExpenseWeb.Controllers
 
             ViewData[key] = cleanErrors.Count > 0 ? JsonSerializer.Serialize(cleanErrors) : "[]";
         }
-
 
         private string GetAuthText(string key, string lang)
         {
@@ -113,10 +123,7 @@ namespace ExpenseWeb.Controllers
 
             if (!result.Success || result.Data == null)
             {
-                SetToastErrors("LoginErrorsJson", new[]
-                {
-                    GetAuthText("LoginFailed", lang)
-                });
+                SetToastErrors("LoginErrorsJson", new[] { GetAuthText("LoginFailed", lang) });
                 return View(model);
             }
 
@@ -125,8 +132,7 @@ namespace ExpenseWeb.Controllers
             HttpContext.Session.SetString("UserEmail", result.Data.user?.email ?? "");
             HttpContext.Session.SetString("UserFullName", result.Data.user?.full_name ?? "");
             HttpContext.Session.SetString("UserRole", result.Data.user?.role ?? "");
-
-            HttpContext.Session.SetString("UserAvatar", result.Data.user?.avatar ?? "");
+            HttpContext.Session.SetString("UserAvatar", result.Data.user?.avatar ?? "/sneat/img/avatars/default/teams_1.png");
 
             return RedirectAfterLogin(lang);
         }
@@ -169,10 +175,7 @@ namespace ExpenseWeb.Controllers
 
             if (!result.Success)
             {
-                SetToastErrors("RegisterErrorsJson", new[]
-                {
-                    result.ErrorMessage ?? GetAuthText("RegisterFailed", lang)
-                });
+                SetToastErrors("RegisterErrorsJson", new[] { result.ErrorMessage ?? GetAuthText("RegisterFailed", lang) });
                 return View("Login", new LoginViewModel());
             }
 
@@ -185,10 +188,7 @@ namespace ExpenseWeb.Controllers
         [HttpGet]
         public IActionResult VerifyOtp(string email)
         {
-            if (string.IsNullOrWhiteSpace(email))
-            {
-                return RedirectToAction("Login", new { lang = GetLang() });
-            }
+            if (string.IsNullOrWhiteSpace(email)) return RedirectToAction("Login", new { lang = GetLang() });
             return View(new VerifyOtpViewModel { Email = email });
         }
 
@@ -218,8 +218,7 @@ namespace ExpenseWeb.Controllers
                     HttpContext.Session.SetString("UserEmail", loginResult.Data.user?.email ?? "");
                     HttpContext.Session.SetString("UserFullName", loginResult.Data.user?.full_name ?? "");
                     HttpContext.Session.SetString("UserRole", loginResult.Data.user?.role ?? "");
-
-                    HttpContext.Session.SetString("UserAvatar", loginResult.Data.user?.avatar ?? "");
+                    HttpContext.Session.SetString("UserAvatar", loginResult.Data.user?.avatar ?? "/sneat/img/avatars/default/teams_1.png");
 
                     HttpContext.Session.Remove("TempEmail");
                     HttpContext.Session.Remove("TempPassword");
@@ -236,11 +235,7 @@ namespace ExpenseWeb.Controllers
         public async Task<IActionResult> ResendOtp(string email, string? lang = "vi")
         {
             lang = (lang ?? "vi").ToLower() == "en" ? "en" : "vi";
-            if (string.IsNullOrWhiteSpace(email))
-            {
-                TempData["ErrorMessage"] = lang == "en" ? "Invalid email for resending OTP." : "Email không hợp lệ để gửi lại OTP.";
-                return RedirectToAction("Login", new { lang });
-            }
+            if (string.IsNullOrWhiteSpace(email)) return RedirectToAction("Login", new { lang });
 
             var result = await _authApiService.ResendOtpAsync(email);
             TempData[result.Success ? "SuccessMessage" : "ErrorMessage"] = result.Success
@@ -271,22 +266,17 @@ namespace ExpenseWeb.Controllers
                 return View(model);
             }
 
-            TempData["SuccessMessage"] = lang == "en" ? "Password reset request sent successfully. Please check your email." : "Yêu cầu đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra email của bạn.";
+            TempData["SuccessMessage"] = lang == "en" ? "Request sent. Check your email." : "Yêu cầu đã được gửi. Kiểm tra email của bạn.";
             return RedirectToAction("ForgotPasswordConfirmation", new { lang });
         }
 
         [HttpGet]
-        public IActionResult ForgotPasswordConfirmation(string? lang = "vi")
-        {
-            return View();
-        }
+        public IActionResult ForgotPasswordConfirmation() => View();
 
         [HttpGet]
         public IActionResult ResetPassword(string token, string? lang = "vi")
         {
-            if (string.IsNullOrWhiteSpace(token))
-                return RedirectToAction("Login", new { lang });
-
+            if (string.IsNullOrWhiteSpace(token)) return RedirectToAction("Login", new { lang });
             return View(new ResetPasswordViewModel { Token = token });
         }
 
@@ -304,39 +294,45 @@ namespace ExpenseWeb.Controllers
                 return View(model);
             }
 
-            TempData["SuccessMessage"] = lang == "en" ? "Password reset successfully! Please sign in again." : "Đặt lại mật khẩu thành công! Vui lòng đăng nhập lại.";
+            TempData["SuccessMessage"] = lang == "en" ? "Success! Please sign in." : "Thành công! Vui lòng đăng nhập.";
             return RedirectToAction("Login", new { lang });
         }
 
-        [HttpGet]
+        [HttpPost]
+        public IActionResult SetTokenToSession([FromBody] TokenSyncRequest request)
+        {
+            if (request == null) return BadRequest();
+            HttpContext.Session.SetString("AccessToken", request.AccessToken);
+            HttpContext.Session.SetString("UserRole", request.Role ?? "admin");
+            HttpContext.Session.SetString("UserEmail", request.Email ?? "");
+            HttpContext.Session.SetString("UserFullName", request.FullName ?? "");
+            HttpContext.Session.SetString("UserAvatar", request.Avatar ?? "/sneat/img/avatars/default/teams_1.png");
+            return Ok(new { success = true });
+        }
+
+        [HttpGet, HttpPost]
         public IActionResult Logout(string? lang = null)
         {
+            // 1. Xóa sạch Session C#
             HttpContext.Session.Clear();
-            var currentLang = (lang ?? GetLang()) == "en" ? "en" : "vi";
-            return RedirectToAction("Login", new { lang = currentLang });
-        }
 
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public IActionResult LogoutPost(string? lang = null)
-        {
-            HttpContext.Session.Clear();
-            var currentLang = (lang ?? GetLang()) == "en" ? "en" : "vi";
-            return RedirectToAction("Login", new { lang = currentLang });
-        }
+            // 2. Lấy ngôn ngữ an toàn để quay về trang Login
+            var currentLang = (lang ?? GetLang());
 
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        [ActionName("Logout")]
-        public IActionResult LogoutConfirmed(string? lang = null)
-        {
-            return LogoutPost(lang);
+            // 3. Chuyển hướng
+            return RedirectToAction("Login", new { lang = currentLang });
         }
 
         [HttpGet]
-        public IActionResult Profile()
+        public IActionResult Profile() => RedirectToAction("Index", "Dashboard", new { lang = GetLang() });
+
+        public class TokenSyncRequest
         {
-            return RedirectToAction("Index", "Dashboard", new { lang = GetLang() });
+            public string AccessToken { get; set; }
+            public string Role { get; set; }
+            public string Email { get; set; }
+            public string FullName { get; set; }
+            public string Avatar { get; set; }
         }
     }
 }
