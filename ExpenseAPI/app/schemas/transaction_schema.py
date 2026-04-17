@@ -40,3 +40,14 @@ class TransactionResponse(BaseModel):
     recur_interval: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+class TransferCreateRequest(BaseModel):
+    from_wallet_id: str = Field(..., min_length=1, max_length=12)
+    to_wallet_id: str = Field(..., min_length=1, max_length=12)
+    amount: Decimal = Field(..., gt=0)
+    transfer_date: date
+    note: Optional[str] = Field(default=None, max_length=500)
+
+class TransferResponse(BaseModel):
+    expense: TransactionResponse
+    income: TransactionResponse
