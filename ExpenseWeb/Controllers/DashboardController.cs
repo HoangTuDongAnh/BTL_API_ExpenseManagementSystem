@@ -81,22 +81,26 @@ namespace ExpenseWeb.Controllers
                 model.TotalBalance = model.Wallets.Sum(x => x.CurrentBalance);
 
                 var today = now.Date;
-                var todayTransactions = transactions
-                    .Where(x => x.transaction_date.Date == today)
-                    .OrderByDescending(x => x.transaction_date)
-                    .ThenByDescending(x => x.transaction_id)
-                    .ToList();
 
-                model.TodayIncome = todayTransactions.Where(x => x.transaction_type == "income").Sum(x => x.amount);
-                model.TodayExpense = todayTransactions.Where(x => x.transaction_type == "expense").Sum(x => x.amount);
+                var todayTransactions = transactions
+                .Where(x => x.transaction_date.ToLocalTime().Date == today)
+                .ToList();
+
+                model.TodayIncome = Math.Abs(todayTransactions.Where(x => x.transaction_type == "income").Sum(x => x.amount));
+                model.TodayExpense = Math.Abs(todayTransactions.Where(x => x.transaction_type == "expense").Sum(x => x.amount));
                 model.TodayIncomeCount = todayTransactions.Count(x => x.transaction_type == "income");
                 model.TodayExpenseCount = todayTransactions.Count(x => x.transaction_type == "expense");
 
                 var walletLookup = wallets.ToDictionary(x => x.wallet_id, x => x.wallet_name);
                 var categoryLookup = categories.ToDictionary(x => x.category_id, x => x);
 
-                model.RecentTransactions = todayTransactions
+                var recentLatestTransactions = transactions
+                    .OrderByDescending(x => x.transaction_date)
+                    .ThenByDescending(x => x.transaction_id)
                     .Take(5)
+                    .ToList();
+
+                model.RecentTransactions = recentLatestTransactions
                     .Select(x => MapRecentTransaction(x, walletLookup, categoryLookup))
                     .ToList();
             }
@@ -133,7 +137,7 @@ namespace ExpenseWeb.Controllers
                 await PopulateReportDataAsync(model, token, NormalizePeriod(period), now);
 
                 var warningBudgets = model.BudgetProgress
-                    .Where(x => x.Status == "over" || x.Status == "reached" || x.PercentageUsed >= 80)
+                    .Where(x => x.LimitAmount > 0 && x.PercentageUsed >= 80m)
                     .OrderByDescending(x => x.PercentageUsed)
                     .Take(4)
                     .ToList();
@@ -344,11 +348,60 @@ namespace ExpenseWeb.Controllers
             var categorySummary = await _reportApiService.GetCategorySummaryRangeAsync(token, resolvedStartDate, resolvedEndDate);
             model.CategoryBreakdown = categorySummary.Select(MapCategoryBreakdown).ToList();
 
-            var budgetProgress = await _reportApiService.GetBudgetProgressAsync(token, budgetMonth, budgetYear);
-            model.BudgetProgress = budgetProgress
-                .Select(MapBudgetProgress)
-                .OrderByDescending(x => x.PercentageUsed)
-                .ToList();
+            
+            try
+            {
+                var transactions = await _transactionApiService.GetTransactionsAsync(token);
+                var categories = await _categoryApiService.GetCategoriesAsync(token, false);
+
+                int? queryMonth = periodPreset == "month" ? now.Month : null;
+                int? queryWeek = periodPreset == "week" ? ISOWeek.GetWeekOfYear(now) : null;
+
+                var budgets = await _categoryApiService.GetBudgetsAsync(token, periodType: periodPreset, year: now.Year, month: queryMonth, week: queryWeek);
+
+                var budgetProgressList = new List<DashboardBudgetProgressItemViewModel>();
+
+                foreach (var b in budgets)
+                {
+                    var cat = categories.FirstOrDefault(c => c.category_id == b.category_id);
+                    if (cat == null) continue;
+
+                    decimal spent = Math.Abs(transactions
+                        .Where(t => t.category_id == cat.category_id
+                                    && t.transaction_date.Date >= resolvedStartDate.Date
+                                    && t.transaction_date.Date <= resolvedEndDate.Date)
+                        .Sum(t => t.amount));
+
+                    decimal limit = Math.Abs(b.limit_amount);
+                    if (limit == 0) continue;
+
+                    decimal percentage = (spent / limit) * 100m;
+                    string status = "ok";
+                    if (percentage > 100m) status = "over";
+                    else if (percentage == 100m) status = "reached";
+                    else if (percentage >= 80m) status = "warning";
+
+                    budgetProgressList.Add(new DashboardBudgetProgressItemViewModel
+                    {
+                        BudgetId = b.budget_id,
+                        CategoryId = cat.category_id,
+                        CategoryName = string.IsNullOrWhiteSpace(cat.category_name) ? "Danh mục" : cat.category_name,
+                        CategoryIcon = cat.icon,
+                        CategoryColor = cat.color,
+                        LimitAmount = limit,
+                        SpentAmount = spent,
+                        RemainingAmount = limit >= spent ? limit - spent : 0m,
+                        PercentageUsed = percentage,
+                        Status = status
+                    });
+                }
+                model.BudgetProgress = budgetProgressList.OrderByDescending(x => x.PercentageUsed).ToList();
+            }
+            catch
+            {
+                var budgetProgress = await _reportApiService.GetBudgetProgressAsync(token, budgetMonth, budgetYear);
+                model.BudgetProgress = budgetProgress.Select(MapBudgetProgress).OrderByDescending(x => x.PercentageUsed).ToList();
+            }
         }
 
         private static string NormalizePeriod(string? period)
@@ -459,7 +512,7 @@ namespace ExpenseWeb.Controllers
                 CategoryName = dto.category_name,
                 Icon = dto.icon,
                 Color = string.IsNullOrWhiteSpace(dto.color) ? "#8592A3" : dto.color,
-                TotalAmount = dto.total_amount,
+                TotalAmount = Math.Abs(dto.total_amount),
                 Percentage = dto.percentage
             };
         }
@@ -477,7 +530,7 @@ namespace ExpenseWeb.Controllers
                 TransactionId = dto.transaction_id,
                 TransactionDate = dto.transaction_date,
                 TransactionType = string.IsNullOrWhiteSpace(dto.transaction_type) ? "expense" : dto.transaction_type,
-                Amount = dto.amount,
+                Amount = Math.Abs(dto.amount),
                 WalletName = walletName ?? dto.wallet_id,
                 CategoryName = IsTransferCategory(category) ? "Chuyển khoản" : (category?.category_name ?? dto.category_id),
                 CategoryType = category?.category_type ?? dto.transaction_type,
@@ -500,7 +553,7 @@ namespace ExpenseWeb.Controllers
             {
                 TransactionId = dto.transaction_id,
                 TransactionDate = dto.transaction_date,
-                Amount = dto.amount,
+                Amount = Math.Abs(dto.amount),
                 Note = string.IsNullOrWhiteSpace(dto.note) ? "Không có ghi chú" : dto.note!,
                 WalletName = dto.wallet_name,
                 CategoryName = dto.category_name,
@@ -511,18 +564,28 @@ namespace ExpenseWeb.Controllers
 
         private static DashboardBudgetProgressItemViewModel MapBudgetProgress(BudgetProgressItemDto dto)
         {
+            decimal limit = Math.Abs(dto.limit_amount);
+            decimal spent = Math.Abs(dto.spent_amount);
+
+            decimal percentage = limit > 0 ? (spent / limit) * 100m : 0m;
+
+            string status = "ok";
+            if (percentage > 100m) status = "over";
+            else if (percentage == 100m) status = "reached";
+            else if (percentage >= 80m) status = "warning";
+
             return new DashboardBudgetProgressItemViewModel
             {
                 BudgetId = dto.budget_id,
                 CategoryId = dto.category_id,
-                CategoryName = dto.category_name,
+                CategoryName = string.IsNullOrWhiteSpace(dto.category_name) ? "Danh mục" : dto.category_name,
                 CategoryIcon = dto.category_icon,
                 CategoryColor = dto.category_color,
-                LimitAmount = dto.limit_amount,
-                SpentAmount = dto.spent_amount,
-                RemainingAmount = dto.remaining_amount,
-                PercentageUsed = dto.percentage_used,
-                Status = dto.status
+                LimitAmount = limit,
+                SpentAmount = spent,
+                RemainingAmount = limit >= spent ? limit - spent : 0m,
+                PercentageUsed = percentage,
+                Status = status
             };
         }
 

@@ -1,6 +1,7 @@
 ﻿@model ExpenseWeb.Models.ViewModels.Dashboard.DashboardIndexViewModel
 @using System.Linq
 @using System.Text.Json
+@using System.Globalization
 
 @{
     ViewBag.Title = "Dashboard";
@@ -8,6 +9,7 @@
 
     var lang = (Context.Request.Query["lang"].FirstOrDefault() ?? "vi").ToLower();
     string T(string vi, string en) => lang == "en" ? en : vi;
+    var viCulture = new CultureInfo("vi-VN"); 
 
     var orderedWallets = Model.Wallets
         .OrderByDescending(x => x.IsDefault)
@@ -23,13 +25,14 @@
     var donutColors = JsonSerializer.Serialize(Model.CategoryBreakdown.Select(x => string.IsNullOrWhiteSpace(x.Color) ? "#696cff" : x.Color));
     var donutItems = JsonSerializer.Serialize(Model.CategoryBreakdown.Select(x => new { x.CategoryId, x.CategoryName, x.Icon, Color = string.IsNullOrWhiteSpace(x.Color) ? "#696cff" : x.Color, x.TotalAmount, x.Percentage }));
 
-    var warningBudgets = Model.BudgetProgress
-        .Where(x => x.Status == "over" || x.Status == "reached" || x.PercentageUsed >= 80)
-        .OrderByDescending(x => x.PercentageUsed)
-        .Take(4)
-        .ToList();
+    var allWarningBudgets = Model.BudgetProgress
+    .Where(x => x.LimitAmount > 0 && x.PercentageUsed >= 80m)
+    .OrderByDescending(x => x.PercentageUsed)
+    .ToList();
 
-    var warningCount = warningBudgets.Count;
+    var warningCount = allWarningBudgets.Count;
+
+    var warningBudgets = allWarningBudgets.Take(4).ToList();
 }
 
 @section Styles {
@@ -95,7 +98,7 @@
                                         <span class="wallet-default-badge"><i class="bx bx-check-circle"></i>@T("Ví mặc định", "Default")</span>
                                     }
                                 </div>
-                                <div class="wallet-card-balance">@wallet.CurrentBalance.ToString("N0") @wallet.Currency</div>
+                                <div class="wallet-card-balance">@wallet.CurrentBalance.ToString("N0", viCulture) @wallet.Currency</div>
                                 <div class="wallet-card-helper">@T("Chạm để xem chi tiết, chỉnh sửa hoặc đổi thiết lập ví.", "Open details to edit this wallet or update its settings.")</div>
                             </div>
                         </button>
@@ -119,7 +122,7 @@
             <span class="dashboard-mini-icon"><i class="bx bx-trending-down"></i></span>
             <div class="dashboard-mini-copy">
                 <div class="dashboard-mini-label">@T("Chi hôm nay", "Today expense")</div>
-                <div class="dashboard-mini-value">@Model.TodayExpense.ToString("N0")</div>
+                <div class="dashboard-mini-value">@Model.TodayExpense.ToString("N0", viCulture)</div>
                 <div class="dashboard-mini-meta">@Model.TodayExpenseCount @T("giao dịch chi", "expense transactions")</div>
             </div>
         </article>
@@ -127,7 +130,7 @@
             <span class="dashboard-mini-icon"><i class="bx bx-trending-up"></i></span>
             <div class="dashboard-mini-copy">
                 <div class="dashboard-mini-label">@T("Thu hôm nay", "Today income")</div>
-                <div class="dashboard-mini-value">@Model.TodayIncome.ToString("N0")</div>
+                <div class="dashboard-mini-value">@Model.TodayIncome.ToString("N0", viCulture)</div>
                 <div class="dashboard-mini-meta">@Model.TodayIncomeCount @T("giao dịch thu", "income transactions")</div>
             </div>
         </article>
@@ -135,7 +138,7 @@
             <span class="dashboard-mini-icon"><i class="bx bx-wallet-alt"></i></span>
             <div class="dashboard-mini-copy">
                 <div class="dashboard-mini-label">@T("Tổng số dư hiện có", "Current total balance")</div>
-                <div class="dashboard-mini-value">@Model.TotalBalance.ToString("N0")</div>
+                <div class="dashboard-mini-value">@Model.TotalBalance.ToString("N0", viCulture)</div>
                 <div class="dashboard-mini-meta">@Model.ActiveWalletCount @T("ví đang hoạt động", "active wallets")</div>
             </div>
         </article>
@@ -144,7 +147,10 @@
             <div class="dashboard-mini-copy">
                 <div class="dashboard-mini-label">@T("Ngân sách cần chú ý", "Budgets to review")</div>
                 <div class="dashboard-mini-value">@warningCount</div>
-                <div class="dashboard-mini-meta">@warningBudgets.Count(x => x.Status == "over") @T("đã vượt", "over") • @warningBudgets.Count(x => x.Status != "over") @T("sắp chạm mức", "near limit")</div>
+                <div class="dashboard-mini-meta">
+                    @allWarningBudgets.Count(x => (x.Status ?? "").ToLower() == "over") @T("đã vượt", "over") •
+                    @allWarningBudgets.Count(x => (x.Status ?? "").ToLower() == "warning" || (x.Status ?? "").ToLower() == "reached") @T("sắp chạm mức", "near limit")
+                </div>
             </div>
         </article>
     </section>
@@ -177,11 +183,11 @@
             <div class="dashboard-trend-stats" id="dashboardTrendStats">
                 <div class="trend-stat-box">
                     <span class="label">@T("Tổng thu", "Income")</span>
-                    <strong id="dashboardRangeIncome">@Model.RangeIncome.ToString("N0")</strong>
+                    <strong id="dashboardRangeIncome">@Model.RangeIncome.ToString("N0", viCulture)</strong>
                 </div>
                 <div class="trend-stat-box">
                     <span class="label">@T("Tổng chi", "Expense")</span>
-                    <strong id="dashboardRangeExpense">@Model.RangeExpense.ToString("N0")</strong>
+                    <strong id="dashboardRangeExpense">@Model.RangeExpense.ToString("N0", viCulture)</strong>
                 </div>
                 <div class="trend-stat-box">
                     <span class="label">@T("Giao dịch", "Transactions")</span>
@@ -243,7 +249,7 @@
                                             </div>
                                             <div class="legend-right">
                                                 <strong>@item.Percentage.ToString("0.##")%</strong>
-                                                <small>@item.TotalAmount.ToString("N0")</small>
+                                                <small>@item.TotalAmount.ToString("N0", viCulture)</small>
                                             </div>
                                         </div>
                                     }
@@ -269,44 +275,55 @@
             <div class="card-body">
                 <div class="dashboard-card-head compact">
                     <div>
-                        <span class="dashboard-card-eyebrow">@T("Hoạt động trong ngày", "Daily activity")</span>
-                        <h2 class="dashboard-card-title">@T("Giao dịch hôm nay", "Today's transactions")</h2>
+                        <span class="dashboard-card-eyebrow">@T("Hoạt động gần nhất", "Recent activity")</span>
+                        <h2 class="dashboard-card-title">@T("Giao dịch gần đây", "Recent transactions")</h2>
                     </div>
                     <a class="dashboard-link-action" asp-controller="Transaction" asp-action="Index">@T("Xem tất cả", "View all") <i class="bx bx-right-arrow-alt"></i></a>
                 </div>
 
                 @if (Model.RecentTransactions.Any())
                 {
-                    <div class="dashboard-table-wrap">
-                        <table class="dashboard-mini-table">
-                            <thead>
+                    <div class="table-responsive text-nowrap mt-3">
+                        <table class="table table-hover table-borderless mb-0">
+                            <thead style="border-bottom: 1px solid #ebeef3;">
                                 <tr>
-                                    <th>@T("Danh mục", "Category")</th>
-                                    <th>@T("Ví", "Wallet")</th>
-                                    <th>@T("Ghi chú", "Note")</th>
-                                    <th class="text-end">@T("Số tiền", "Amount")</th>
+                                    <th class="text-muted fw-semibold" style="font-size: 0.75rem; padding: 1rem 0.5rem 1rem 1.5rem; letter-spacing: 0.5px;">@T("GIAO DỊCH", "TRANSACTION")</th>
+                                    <th class="text-muted fw-semibold" style="font-size: 0.75rem; padding: 1rem 0.5rem; letter-spacing: 0.5px;">@T("DANH MỤC", "CATEGORY")</th>
+                                    <th class="text-muted fw-semibold" style="font-size: 0.75rem; padding: 1rem 0.5rem; letter-spacing: 0.5px;">@T("NGÀY", "DATE")</th>
+                                    <th class="text-muted fw-semibold text-end" style="font-size: 0.75rem; padding: 1rem 1.5rem 1rem 0.5rem; letter-spacing: 0.5px;">@T("SỐ TIỀN", "AMOUNT")</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach (var item in Model.RecentTransactions.Take(5))
                                 {
                                     var icon = string.IsNullOrWhiteSpace(item.CategoryIcon) ? "bx-category" : item.CategoryIcon;
+                                    var catColor = string.IsNullOrWhiteSpace(item.CategoryColor) ? "#696cff" : item.CategoryColor;
                                     var isIncome = item.TransactionType == "income";
-                                    <tr>
-                                        <td>
-                                            <div class="txn-category-cell">
-                                                <span class="txn-category-icon" style="background:@(string.IsNullOrWhiteSpace(item.CategoryColor) ? "#eef2ff" : item.CategoryColor + "22"); color:@(string.IsNullOrWhiteSpace(item.CategoryColor) ? "#696cff" : item.CategoryColor)">
-                                                    <i class='bx @icon'></i>
-                                                </span>
-                                                <div>
-                                                    <strong>@item.CategoryName</strong>
-                                                    <small>@item.TransactionDate.ToString("dd/MM")</small>
+                                    var amountColorClass = isIncome ? "text-success" : "text-danger";
+
+                                    <tr style="border-bottom: 1px solid #ebeef3;">
+                                        <td style="padding: 1rem 0.5rem 1rem 1.5rem; vertical-align: middle;">
+                                            <div class="d-flex align-items-center">
+                                                <div class="d-flex align-items-center justify-content-center me-3" style="width: 42px; height: 42px; background-color: @(catColor)22; color: @catColor; border-radius: 12px;">
+                                                    <i class='bx @icon' style="font-size: 1.4rem;"></i>
+                                                </div>
+                                                <div class="d-flex flex-column">
+                                                    <strong style="color: #3b4754; font-size: 0.95rem; font-weight: 600;" class="mb-1 text-truncate" style="max-width: 150px;">@(string.IsNullOrWhiteSpace(item.Note) ? T("Không có ghi chú", "No note") : item.Note)</strong>
+                                                    <small class="text-muted">@item.WalletName</small>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td>@item.WalletName</td>
-                                        <td class="txn-note">@item.Note</td>
-                                        <td class="text-end @(isIncome ? "amount-income" : "amount-expense")">@(isIncome ? "+" : "-")@item.Amount.ToString("N0")</td>
+                                        <td style="padding: 1rem 0.5rem; vertical-align: middle;">
+                                            <span class="badge rounded-pill px-3 py-2" style="background-color: @(catColor)22; color: @catColor; font-weight: 600;">
+                                                <i class='bx @icon me-1'></i> @item.CategoryName
+                                            </span>
+                                        </td>
+                                        <td style="padding: 1rem 0.5rem; vertical-align: middle;">
+                                            <span style="color: #3b4754; font-weight: 600;">@item.TransactionDate.ToString("dd-MM-yyyy")</span>
+                                        </td>
+                                        <td style="padding: 1rem 1.5rem 1rem 0.5rem; vertical-align: middle; text-align: right;">
+                                            <strong class="@amountColorClass" style="font-size: 0.95rem;">@(isIncome ? "+" : "-")@item.Amount.ToString("N0", viCulture) VND</strong>
+                                        </td>
                                     </tr>
                                 }
                             </tbody>
@@ -317,7 +334,7 @@
                 {
                     <div class="dashboard-empty-state small-empty">
                         <span class="dashboard-empty-icon"><i class="bx bx-receipt"></i></span>
-                        <h3>@T("Hôm nay chưa có giao dịch nào", "No transactions yet today")</h3>
+                        <h3>@T("Chưa có giao dịch nào", "No transactions yet")</h3>
                         <p>@T("Khi bạn thêm giao dịch mới, dashboard sẽ hiển thị 3 - 5 giao dịch gần nhất ngay tại đây.", "New transactions will appear here as a compact table once they are created.")</p>
                     </div>
                 }
@@ -340,13 +357,18 @@
                         <div class="budget-alert-grid" id="dashboardBudgetAlerts">
                             @foreach (var item in warningBudgets)
                             {
-                                var statusClass = item.Status == "over" ? "over" : item.Status == "reached" ? "reached" : "warning";
-                                var statusText = item.Status == "over"
+                                var statusLower = (item.Status ?? "").ToLower();
+
+                                var statusClass = statusLower == "over" ? "over" : statusLower == "reached" ? "reached" : "warning";
+
+                                var statusText = statusLower == "over"
                                 ? T("Đã vượt mức", "Over budget")
-                                : item.Status == "reached"
+                                : statusLower == "reached"
                                 ? T("Đã chạm mức", "Reached limit")
                                 : T("Sắp chạm mức", "Near limit");
+
                                 var percentageText = Math.Round(item.PercentageUsed, 0).ToString("0");
+
                                 <article class="budget-alert-card @statusClass">
                                     <div class="budget-alert-head">
                                         <div class="budget-alert-title-wrap">
@@ -360,8 +382,8 @@
                                     </div>
                                     <div class="budget-alert-bar"><span style="width:@Math.Min(item.PercentageUsed, 100).ToString(System.Globalization.CultureInfo.InvariantCulture)%"></span></div>
                                     <div class="budget-alert-meta">
-                                        <span>@item.SpentAmount.ToString("N0") / @item.LimitAmount.ToString("N0")</span>
-                                        <span>@T("Còn lại", "Remaining"): @item.RemainingAmount.ToString("N0")</span>
+                                        <span>@item.SpentAmount.ToString("N0", viCulture) / @item.LimitAmount.ToString("N0", viCulture)</span>
+                                        <span>@T("Còn lại", "Remaining"): @item.RemainingAmount.ToString("N0", viCulture)</span>
                                     </div>
                                 </article>
                             }
@@ -370,9 +392,9 @@
                     else
                     {
                         <div class="dashboard-empty-state small-empty alert-empty-ok">
-                            <span class="dashboard-empty-icon success"><i class="bx bx-check-shield"></i></span>
-                            <h3>@T("Chưa có ngân sách nào vượt ngưỡng", "No budgets need attention")</h3>
-                            <p>@T("Hiện chưa có danh mục nào vượt hoặc gần chạm mức cảnh báo trong tháng này.", "No budget category is over or near its warning threshold this month.")</p>
+                            <span class="dashboard-empty-icon success" style="background-color: #e8fadf; color: #71dd37;"><i class="bx bx-check-shield"></i></span>
+                            <h3 style="color: #566a7f;">@T("Tuyệt vời! Ngân sách an toàn", "All budgets are safe")</h3>
+                            <p>@T("Hiện chưa có danh mục nào chi tiêu vượt hoặc gần chạm mức cảnh báo (80%) trong tháng này.", "No budget category is over or near its warning threshold this month.")</p>
                         </div>
                     }
                 </div>
