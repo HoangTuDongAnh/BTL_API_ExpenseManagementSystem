@@ -24,7 +24,9 @@
             updateSuccess: "Wallet updated successfully.",
             deleteSuccess: "Wallet deleted successfully.",
             standardWallet: "Standard wallet",
-            defaultWallet: "Default wallet"
+            defaultWallet: "Default wallet",
+            switchDefaultConfirm: "This will replace the current default wallet. Continue?",
+            unsetDefaultBlocked: "A default wallet must always exist. Choose another wallet as default instead."
           }
         : {
             unknownError: "Có lỗi xảy ra.",
@@ -38,7 +40,9 @@
             updateSuccess: "Cập nhật ví thành công.",
             deleteSuccess: "Xóa ví thành công.",
             standardWallet: "Ví thường",
-            defaultWallet: "Ví mặc định"
+            defaultWallet: "Ví mặc định",
+            switchDefaultConfirm: "Thao tác này sẽ đổi ví mặc định hiện tại sang ví này. Bạn có muốn tiếp tục không?",
+            unsetDefaultBlocked: "Hệ thống luôn phải có 1 ví mặc định. Hãy chọn ví khác làm mặc định thay vì bỏ chọn trực tiếp."
           };
 
     function queueToast(type, message) {
@@ -95,6 +99,11 @@
             opt.hidden = opt.value === currentWalletId;
         });
         replacementWalletId.value = "";
+    }
+
+    function hasAnotherDefaultWallet(currentWalletId) {
+        return Array.from(document.querySelectorAll('[data-wallet-is-default="true"]'))
+            .some(el => (el.getAttribute('data-wallet-id') || '') !== (currentWalletId || ''));
     }
 
     function setDetailWalletData(trigger) {
@@ -168,6 +177,7 @@
 
         if (!wallet_name) return showAlert(walletActionAlert, dict.emptyName);
         if (initial_balance < 0) return showAlert(walletActionAlert, dict.invalidBalance);
+        if (is_default && hasAnotherDefaultWallet('') && !window.confirm(dict.switchDefaultConfirm)) return;
 
         try {
             const data = await sendJson("/Dashboard/CreateWalletAjax", "POST", { wallet_name, initial_balance, currency, is_default });
@@ -185,9 +195,13 @@
         const wallet_name = (document.getElementById("detailWalletName")?.value || "").trim();
         const currency = document.getElementById("detailWalletCurrencySelect")?.value || "VND";
         const is_default = !!document.getElementById("detailWalletDefault")?.checked;
+        const currentIsDefault = Array.from(document.querySelectorAll('[data-wallet-id]'))
+            .some(el => (el.getAttribute('data-wallet-id') || '') === walletId && (el.getAttribute('data-wallet-is-default') || 'false') === 'true');
 
         if (!walletId) return showAlert(detailWalletActionAlert, dict.unknownWalletUpdate);
         if (!wallet_name) return showAlert(detailWalletActionAlert, dict.emptyName);
+        if (!is_default && currentIsDefault) return showAlert(detailWalletActionAlert, dict.unsetDefaultBlocked);
+        if (is_default && !currentIsDefault && hasAnotherDefaultWallet(walletId) && !window.confirm(dict.switchDefaultConfirm)) return;
 
         try {
             const data = await sendJson(`/Dashboard/UpdateWalletAjax/${encodeURIComponent(walletId)}`, "PUT", { wallet_name, currency, is_default });

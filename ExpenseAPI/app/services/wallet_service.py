@@ -1,4 +1,4 @@
-﻿from datetime import datetime
+from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy.orm import Session
@@ -41,7 +41,10 @@ class WalletService:
         if existing_wallet:
             raise ValueError("Wallet name already exists")
 
-        if data.is_default:
+        existing_wallets = self.wallet_repo.get_all_by_user(db, user_id)
+        should_be_default = data.is_default or len(existing_wallets) == 0
+
+        if should_be_default:
             self._clear_default_wallet(db, user_id)
 
         wallet = Wallet(
@@ -51,7 +54,7 @@ class WalletService:
             InitialBalance=data.initial_balance,
             CurrentBalance=data.initial_balance,
             Currency=data.currency,
-            IsDefault=data.is_default,
+            IsDefault=should_be_default,
         )
 
         return self.wallet_repo.create(db, wallet)
@@ -72,8 +75,12 @@ class WalletService:
 
         if data.is_default is not None:
             if data.is_default:
-                self._clear_default_wallet(db, user_id)
-            wallet.IsDefault = data.is_default
+                self._clear_default_wallet(db, user_id, exclude_wallet_id=wallet.WalletID)
+                wallet.IsDefault = True
+            else:
+                if wallet.IsDefault:
+                    raise ValueError("Default wallet cannot be unset directly. Please choose another wallet as default instead.")
+                wallet.IsDefault = False
 
         wallet.UpdatedAt = datetime.now()
         db.commit()
@@ -90,6 +97,8 @@ class WalletService:
             .filter(Transaction.WalletID == wallet_id, Transaction.UserID == user_id)
             .all()
         )
+
+        replacement_wallet = None
 
         if data.mode == "delete_all":
             for t in transactions:
@@ -133,12 +142,39 @@ class WalletService:
         else:
             raise ValueError("Invalid delete mode")
 
+        was_default = bool(wallet.IsDefault)
         db.delete(wallet)
+        db.flush()
+
+        if was_default:
+            self._assign_new_default_wallet(db, user_id, preferred_wallet_id=replacement_wallet.WalletID if replacement_wallet else None)
+
         db.commit()
 
-    def _clear_default_wallet(self, db: Session, user_id: str):
+    def _clear_default_wallet(self, db: Session, user_id: str, exclude_wallet_id: str | None = None):
         wallets = self.wallet_repo.get_all_by_user(db, user_id)
         for wallet in wallets:
+            if exclude_wallet_id and wallet.WalletID == exclude_wallet_id:
+                continue
             if wallet.IsDefault:
                 wallet.IsDefault = False
-        db.commit()
+                wallet.UpdatedAt = datetime.now()
+        db.flush()
+
+    def _assign_new_default_wallet(self, db: Session, user_id: str, preferred_wallet_id: str | None = None):
+        wallets = self.wallet_repo.get_all_by_user(db, user_id)
+        if not wallets:
+            return
+
+        target_wallet = None
+        if preferred_wallet_id:
+            target_wallet = next((w for w in wallets if w.WalletID == preferred_wallet_id), None)
+
+        if target_wallet is None:
+            target_wallet = wallets[0]
+
+        for wallet in wallets:
+            wallet.IsDefault = wallet.WalletID == target_wallet.WalletID
+            wallet.UpdatedAt = datetime.now()
+
+        db.flush()
