@@ -1,6 +1,7 @@
 
 
 using ExpenseWeb.Filters;
+using ExpenseWeb.Models.Dtos.Admin;
 using ExpenseWeb.Models.Dtos.Auth;
 using ExpenseWeb.Models.Dtos.Support;
 using ExpenseWeb.Models.ViewModels.Admin;
@@ -8,6 +9,7 @@ using ExpenseWeb.Models.ViewModels.Profile;
 using ExpenseWeb.Services.Api;
 using Microsoft.AspNetCore.Mvc;
 using System.IO;
+using System.Net;
 
 namespace ExpenseWeb.Controllers
 {
@@ -16,18 +18,62 @@ namespace ExpenseWeb.Controllers
     {
         private readonly SupportApiService _supportApiService;
         private readonly AuthApiService _authApiService;
+        private readonly AdminApiService _adminApiService;
 
-        public AdminController(SupportApiService supportApiService, AuthApiService authApiService)
+        public AdminController(SupportApiService supportApiService, AuthApiService authApiService, AdminApiService adminApiService)
         {
             _supportApiService = supportApiService;
             _authApiService = authApiService;
+            _adminApiService = adminApiService;
         }
 
         private string? GetAccessToken() => HttpContext.Session.GetString("AccessToken");
 
-        public IActionResult Index()
+        public async Task<IActionResult> Index()
         {
-            return View(new AdminDashboardViewModel());
+            var token = GetAccessToken();
+            if (string.IsNullOrWhiteSpace(token))
+                return RedirectToAction("Login", "Auth");
+
+            var result = await _adminApiService.GetDashboardAsync(token);
+            if (!result.Success || result.Data == null)
+            {
+                if (result.StatusCode == HttpStatusCode.Unauthorized)
+                {
+                    HttpContext.Session.Clear();
+                    return RedirectToAction("Login", "Auth");
+                }
+
+                TempData["AdminDashboardError"] = result.ErrorMessage;
+                return View(new AdminDashboardViewModel());
+            }
+
+            return View(MapDashboard(result.Data));
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> DashboardData()
+        {
+            var token = GetAccessToken();
+            if (string.IsNullOrWhiteSpace(token))
+                return Unauthorized(new { message = "Phiên đăng nhập đã hết hạn." });
+
+            var result = await _adminApiService.GetDashboardAsync(token);
+            if (!result.Success || result.Data == null)
+            {
+                if (result.StatusCode == HttpStatusCode.Unauthorized)
+                {
+                    HttpContext.Session.Clear();
+                    return Unauthorized(new { message = "Phiên đăng nhập đã hết hạn." });
+                }
+
+                return StatusCode((int)(((int)result.StatusCode == 0) ? HttpStatusCode.BadGateway : result.StatusCode), new
+                {
+                    message = string.IsNullOrWhiteSpace(result.ErrorMessage) ? "Không thể tải dữ liệu dashboard." : result.ErrorMessage
+                });
+            }
+
+            return Json(MapDashboard(result.Data));
         }
 
         private static (string lastName, string firstName) SplitFullName(string? fullName)
@@ -42,6 +88,57 @@ namespace ExpenseWeb.Controllers
             var firstName = parts[^1];
             var lastName = string.Join(" ", parts.Take(parts.Length - 1));
             return (lastName, firstName);
+        }
+
+        private static AdminDashboardViewModel MapDashboard(AdminDashboardDto dto)
+        {
+            return new AdminDashboardViewModel
+            {
+                TotalUsers = dto.total_users,
+                ActiveUsers = dto.active_users,
+                InactiveUsers = dto.inactive_users,
+                PendingRequests = dto.pending_requests,
+                NewUsersToday = dto.new_users_today,
+                NewUsersWeekTotal = dto.new_users_week_total,
+                HighPriorityOpenRequests = dto.high_priority_open_requests,
+                LastUpdatedAt = dto.last_updated_at,
+                NewUsersWeek = dto.new_users_week ?? new List<int>(),
+                NewUsersWeekLabels = dto.new_users_week_labels ?? new List<string>(),
+                RecentUsers = dto.recent_users?.Select(MapDashboardUser).ToList() ?? new List<AdminUserItemViewModel>(),
+                RecentPendingRequests = dto.recent_pending_requests?.Select(MapSupportQueueItem).ToList() ?? new List<AdminSupportQueueItemViewModel>()
+            };
+        }
+
+        private static AdminUserItemViewModel MapDashboardUser(AdminDashboardUserDto dto)
+        {
+            return new AdminUserItemViewModel
+            {
+                UserId = dto.user_id,
+                FullName = dto.full_name,
+                Email = dto.email,
+                PhoneNumber = dto.phone_number,
+                Role = dto.role,
+                Status = dto.status,
+                Avatar = dto.avatar,
+                CreatedAt = dto.created_at
+            };
+        }
+
+        private static AdminSupportQueueItemViewModel MapSupportQueueItem(AdminDashboardSupportRequestDto dto)
+        {
+            return new AdminSupportQueueItemViewModel
+            {
+                SupportRequestId = dto.support_request_id,
+                Subject = dto.subject,
+                SupportType = dto.support_type,
+                Priority = dto.priority,
+                Status = dto.status,
+                CreatedAt = dto.created_at,
+                UserId = dto.user_id,
+                UserFullName = dto.user_full_name,
+                UserEmail = dto.user_email,
+                UserAvatar = dto.user_avatar
+            };
         }
 
         [HttpGet]
@@ -273,14 +370,36 @@ namespace ExpenseWeb.Controllers
             return RedirectToAction(nameof(ErrorReports), new { selectedId = supportRequestId });
         }
 
+        private static string DecodeText(string? value) => string.IsNullOrWhiteSpace(value) ? string.Empty : WebUtility.HtmlDecode(value);
+
+        private static bool IsPdf(string? fileType, string? fileName)
+        {
+            return (!string.IsNullOrWhiteSpace(fileType) && fileType.Equals("application/pdf", StringComparison.OrdinalIgnoreCase))
+                || (!string.IsNullOrWhiteSpace(fileName) && fileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static bool IsDocument(string? fileType, string? fileName)
+        {
+            if (!string.IsNullOrWhiteSpace(fileType))
+            {
+                if (fileType.Equals("application/msword", StringComparison.OrdinalIgnoreCase)
+                    || fileType.Equals("application/vnd.openxmlformats-officedocument.wordprocessingml.document", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return (!string.IsNullOrWhiteSpace(fileName) && (fileName.EndsWith(".doc", StringComparison.OrdinalIgnoreCase) || fileName.EndsWith(".docx", StringComparison.OrdinalIgnoreCase)));
+        }
+
         private static AdminSupportRequestListItemViewModel MapAdminListItem(SupportRequestListItemDto dto)
         {
             return new AdminSupportRequestListItemViewModel
             {
                 SupportRequestId = dto.support_request_id,
-                Subject = dto.subject,
-                UserFullName = string.IsNullOrWhiteSpace(dto.user_full_name) ? dto.user_id : dto.user_full_name,
-                UserEmail = dto.user_email,
+                Subject = DecodeText(dto.subject),
+                UserFullName = DecodeText(string.IsNullOrWhiteSpace(dto.user_full_name) ? dto.user_id : dto.user_full_name),
+                UserEmail = DecodeText(dto.user_email),
                 SupportType = dto.support_type,
                 SupportTypeLabel = ToSupportTypeLabel(dto.support_type),
                 SupportTypeBadgeClass = ToSupportTypeBadgeClass(dto.support_type),
@@ -301,18 +420,18 @@ namespace ExpenseWeb.Controllers
             {
                 SupportRequestId = dto.support_request_id,
                 UserId = dto.user_id,
-                UserFullName = string.IsNullOrWhiteSpace(dto.user_full_name) ? dto.user_id : dto.user_full_name,
-                UserEmail = dto.user_email,
+                UserFullName = DecodeText(string.IsNullOrWhiteSpace(dto.user_full_name) ? dto.user_id : dto.user_full_name),
+                UserEmail = DecodeText(dto.user_email),
                 UserAvatar = dto.user_avatar,
-                Subject = dto.subject,
-                Message = dto.message,
+                Subject = DecodeText(dto.subject),
+                Message = DecodeText(dto.message),
                 SupportType = dto.support_type,
                 SupportTypeLabel = ToSupportTypeLabel(dto.support_type),
                 Priority = dto.priority,
                 PriorityLabel = ToPriorityLabel(dto.priority),
                 Status = dto.status,
                 StatusLabel = ToStatusLabel(dto.status),
-                AdminReply = dto.admin_reply,
+                AdminReply = DecodeText(dto.admin_reply),
                 CreatedAt = dto.created_at,
                 ViewedAt = dto.viewed_at,
                 RepliedAt = dto.replied_at,
@@ -320,13 +439,15 @@ namespace ExpenseWeb.Controllers
                 Attachments = dto.attachments.Select(a => new SupportAttachmentViewModel
                 {
                     AttachmentId = a.attachment_id,
-                    FileName = a.file_name,
+                    FileName = DecodeText(a.file_name),
                     FileUrl = a.file_url,
                     FileType = a.file_type,
                     FileSize = a.file_size,
                     DisplaySize = FormatFileSize(a.file_size),
                     IsImage = IsImage(a.file_type),
-                    IsVideo = IsVideo(a.file_type)
+                    IsVideo = IsVideo(a.file_type),
+                    IsPdf = IsPdf(a.file_type, a.file_name),
+                    IsDocument = IsDocument(a.file_type, a.file_name)
                 }).ToList()
             };
         }

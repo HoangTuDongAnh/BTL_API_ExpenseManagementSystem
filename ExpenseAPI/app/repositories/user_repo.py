@@ -1,5 +1,8 @@
-from sqlalchemy.orm import Session
+﻿from datetime import date, timedelta
+
 from sqlalchemy import func
+from sqlalchemy.orm import Session
+
 from app.models.user import User
 
 
@@ -26,13 +29,34 @@ class UserRepository:
         db.commit()
 
     def count_all(self, db: Session) -> int:
-        return db.query(func.count(User.UserID)).scalar()
+        return db.query(func.count(User.UserID)).scalar() or 0
 
     def count_active(self, db: Session) -> int:
-        return db.query(func.count(User.UserID)).filter(User.Status == "active").scalar()
+        return db.query(func.count(User.UserID)).filter(User.Status == "active").scalar() or 0
 
     def count_inactive(self, db: Session) -> int:
-        return db.query(func.count(User.UserID)).filter(User.Status != "active").scalar()
+        return db.query(func.count(User.UserID)).filter(User.Status != "active").scalar() or 0
+
+    def count_created_on_date(self, db: Session, target_date: date) -> int:
+        return (
+            db.query(func.count(User.UserID))
+            .filter(func.date(User.CreatedAt) == target_date)
+            .scalar()
+            or 0
+        )
 
     def get_recent_users(self, db: Session, limit: int = 5):
-        return db.query(User).order_by(User.UserID.desc()).limit(limit).all()
+        return (
+            db.query(User)
+            .order_by(User.CreatedAt.desc(), User.UserID.desc())
+            .limit(limit)
+            .all()
+        )
+
+    def get_new_users_trend(self, db: Session, end_date: date, days: int = 7) -> list[tuple[date, int]]:
+        safe_days = max(days, 1)
+        output: list[tuple[date, int]] = []
+        for offset in range(safe_days - 1, -1, -1):
+            target_date = end_date - timedelta(days=offset)
+            output.append((target_date, self.count_created_on_date(db, target_date)))
+        return output

@@ -83,8 +83,8 @@ namespace ExpenseWeb.Controllers
                 var today = now.Date;
 
                 var todayTransactions = transactions
-                .Where(x => x.transaction_date.ToLocalTime().Date == today)
-                .ToList();
+                    .Where(x => x.transaction_date.ToLocalTime().Date == today)
+                    .ToList();
 
                 model.TodayIncome = Math.Abs(todayTransactions.Where(x => x.transaction_type == "income").Sum(x => x.amount));
                 model.TodayExpense = Math.Abs(todayTransactions.Where(x => x.transaction_type == "expense").Sum(x => x.amount));
@@ -93,6 +93,9 @@ namespace ExpenseWeb.Controllers
 
                 var walletLookup = wallets.ToDictionary(x => x.wallet_id, x => x.wallet_name);
                 var categoryLookup = categories.ToDictionary(x => x.category_id, x => x);
+
+                model.TodayExpenseBreakdown = BuildTodayBreakdown(todayTransactions, categoryLookup, "expense");
+                model.TodayIncomeBreakdown = BuildTodayBreakdown(todayTransactions, categoryLookup, "income");
 
                 var recentLatestTransactions = transactions
                     .OrderByDescending(x => x.transaction_date)
@@ -402,6 +405,8 @@ namespace ExpenseWeb.Controllers
                 var budgetProgress = await _reportApiService.GetBudgetProgressAsync(token, budgetMonth, budgetYear);
                 model.BudgetProgress = budgetProgress.Select(MapBudgetProgress).OrderByDescending(x => x.PercentageUsed).ToList();
             }
+
+            PopulateBudgetAttentionSummary(model);
         }
 
         private static string NormalizePeriod(string? period)
@@ -489,6 +494,63 @@ namespace ExpenseWeb.Controllers
             }
 
             return rawLabel;
+        }
+
+        private static List<DashboardCategoryBreakdownViewModel> BuildTodayBreakdown(
+            IEnumerable<TransactionResponseDto> transactions,
+            IReadOnlyDictionary<string, CategoryResponseDto> categoryLookup,
+            string transactionType)
+        {
+            var filtered = transactions
+                .Where(x => string.Equals(x.transaction_type, transactionType, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            var grouped = filtered
+                .GroupBy(x => x.category_id)
+                .Select(group =>
+                {
+                    categoryLookup.TryGetValue(group.Key, out var category);
+                    var totalAmount = Math.Abs(group.Sum(x => x.amount));
+
+                    return new DashboardCategoryBreakdownViewModel
+                    {
+                        CategoryId = group.Key,
+                        CategoryName = string.IsNullOrWhiteSpace(category?.category_name) ? "Danh mục" : category.category_name,
+                        Icon = category?.icon,
+                        Color = string.IsNullOrWhiteSpace(category?.color) ? "#8592A3" : category.color,
+                        TotalAmount = totalAmount
+                    };
+                })
+                .Where(x => x.TotalAmount > 0)
+                .OrderByDescending(x => x.TotalAmount)
+                .ToList();
+
+            var total = grouped.Sum(x => x.TotalAmount);
+            if (total <= 0)
+            {
+                return grouped;
+            }
+
+            foreach (var item in grouped)
+            {
+                item.Percentage = Math.Round((item.TotalAmount / total) * 100m, 2);
+            }
+
+            return grouped;
+        }
+
+        private static void PopulateBudgetAttentionSummary(DashboardIndexViewModel model)
+        {
+            var activeBudgets = model.BudgetProgress
+                .Where(x => x.LimitAmount > 0)
+                .ToList();
+
+            model.BudgetOverCount = activeBudgets.Count(x => string.Equals(x.Status, "over", StringComparison.OrdinalIgnoreCase));
+            model.BudgetReachedCount = activeBudgets.Count(x => string.Equals(x.Status, "reached", StringComparison.OrdinalIgnoreCase));
+            model.BudgetWarningCount = activeBudgets.Count(x =>
+                string.Equals(x.Status, "warning", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(x.Status, "near", StringComparison.OrdinalIgnoreCase));
+            model.BudgetAttentionCount = model.BudgetOverCount + model.BudgetReachedCount + model.BudgetWarningCount;
         }
 
         private static DashboardWalletItemViewModel MapWallet(WalletResponseDto dto)

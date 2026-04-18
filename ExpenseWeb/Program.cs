@@ -18,17 +18,11 @@ builder.Services.AddSession(options =>
 });
 
 static IHttpClientBuilder ConfigureApiClient<T>(WebApplicationBuilder b) where T : class =>
-    b.Services.AddHttpClient<T>()
-        .ConfigureHttpClient(client =>
-        {
-            client.BaseAddress = new Uri(b.Configuration["ApiSettings:BaseUrl"]!);
-            client.Timeout = TimeSpan.FromSeconds(30);
-        })
-        .ConfigureHttpClient(client =>
-        {
-            client.BaseAddress = new Uri(b.Configuration["ApiSettings:BaseUrl"]!);
-            client.Timeout = TimeSpan.FromSeconds(120); // Tăng lên 2 phút để test
-        });
+    b.Services.AddHttpClient<T>(client =>
+    {
+        client.BaseAddress = new Uri(b.Configuration["ApiSettings:BaseUrl"]!);
+        client.Timeout = TimeSpan.FromSeconds(120);
+    });
 
 ConfigureApiClient<AuthApiService>(builder);
 ConfigureApiClient<CategoryApiService>(builder);
@@ -36,6 +30,7 @@ ConfigureApiClient<WalletApiService>(builder);
 ConfigureApiClient<TransactionApiService>(builder);
 ConfigureApiClient<ReportApiService>(builder);
 ConfigureApiClient<SupportApiService>(builder);
+ConfigureApiClient<AdminApiService>(builder); 
 
 var app = builder.Build();
 

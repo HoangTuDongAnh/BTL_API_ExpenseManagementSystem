@@ -36,6 +36,12 @@ namespace ExpenseWeb.Models.ViewModels.Dashboard
         public List<DashboardCashflowSeriesItemViewModel> CashflowSeries { get; set; } = new();
         public List<DashboardReportPointViewModel> MonthlyTrend { get; set; } = new();
         public List<DashboardCategoryBreakdownViewModel> CategoryBreakdown { get; set; } = new();
+        public List<DashboardCategoryBreakdownViewModel> TodayExpenseBreakdown { get; set; } = new();
+        public List<DashboardCategoryBreakdownViewModel> TodayIncomeBreakdown { get; set; } = new();
+        public int BudgetAttentionCount { get; set; }
+        public int BudgetOverCount { get; set; }
+        public int BudgetReachedCount { get; set; }
+        public int BudgetWarningCount { get; set; }
         public List<DashboardTopExpenseItemViewModel> TopExpenses { get; set; } = new();
         public List<DashboardRecentTransactionItemViewModel> RecentTransactions { get; set; } = new();
         public List<DashboardBudgetProgressItemViewModel> BudgetProgress { get; set; } = new();

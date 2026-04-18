@@ -25,6 +25,9 @@
     var donutColors = JsonSerializer.Serialize(Model.CategoryBreakdown.Select(x => string.IsNullOrWhiteSpace(x.Color) ? "#696cff" : x.Color));
     var donutItems = JsonSerializer.Serialize(Model.CategoryBreakdown.Select(x => new { x.CategoryId, x.CategoryName, x.Icon, Color = string.IsNullOrWhiteSpace(x.Color) ? "#696cff" : x.Color, x.TotalAmount, x.Percentage }));
 
+    var todayExpenseBreakdownJson = JsonSerializer.Serialize(Model.TodayExpenseBreakdown.Select(x => new { x.CategoryId, x.CategoryName, x.Icon, Color = string.IsNullOrWhiteSpace(x.Color) ? "#696cff" : x.Color, Value = x.TotalAmount, x.Percentage }));
+    var todayIncomeBreakdownJson = JsonSerializer.Serialize(Model.TodayIncomeBreakdown.Select(x => new { x.CategoryId, x.CategoryName, x.Icon, Color = string.IsNullOrWhiteSpace(x.Color) ? "#696cff" : x.Color, Value = x.TotalAmount, x.Percentage }));
+
     var allWarningBudgets = Model.BudgetProgress
     .Where(x => x.LimitAmount > 0 && x.PercentageUsed >= 80m)
     .OrderByDescending(x => x.PercentageUsed)
@@ -37,6 +40,7 @@
 
 @section Styles {
     <link rel="stylesheet" href="~/css/pages/page.dashboard.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/pages/page.transaction.css" asp-append-version="true" />
 }
 
 <div class="dashboard-page" data-dashboard-insights-url="@Url.Action("Insights", "Dashboard")">
@@ -155,128 +159,54 @@
         </article>
     </section>
 
-    <section class="card dashboard-report-card mb-4">
+    <section class="card dashboard-report-card mb-4 dashboard-today-breakdown-card"
+             data-today-expense='@Html.Raw(todayExpenseBreakdownJson)'
+             data-today-income='@Html.Raw(todayIncomeBreakdownJson)'>
         <div class="card-body">
-            <div class="dashboard-card-head">
+            <div class="tx-breakdown-head compact">
                 <div>
-                    <span class="dashboard-card-eyebrow">@T("Xu hướng thu chi", "Cashflow trend")</span>
-                    <h2 class="dashboard-card-title" id="dashboardTrendTitle">@T("Thu và chi trong", "Income and expense in") @Model.PeriodLabel.ToLower()</h2>
-                    <p class="dashboard-card-text" id="dashboardTrendSubtitle">@T("Chọn nhanh khung thời gian để xem nhịp thu chi theo tuần gần nhất, tháng hiện tại hoặc toàn bộ năm.", "Quickly switch between the last 7 days, current month, or the full year.")</p>
+                    <span class="tx-breakdown-eyebrow" id="dashboardTodayBreakdownEyebrow">@T("Cơ cấu giao dịch hôm nay", "Today's breakdown")</span>
+                    <h2 class="tx-breakdown-title" id="dashboardTodayBreakdownTitle">@T("Danh mục chi tiêu trong hôm nay", "Today's expense categories")</h2>
+                    <p class="tx-breakdown-text" id="dashboardTodayBreakdownSubtitle">@T("Giữ nguyên trải nghiệm biểu đồ tròn như trang Giao dịch nhưng rút gọn còn chế độ xem trong ngày, chỉ cần chuyển nhanh giữa Chi tiêu và Thu nhập.", "Keep the same doughnut experience as the Transactions page, simplified to a daily view with a quick Expense or Income toggle.")</p>
                 </div>
-                <div class="dashboard-card-actions">
-                    <div class="dashboard-period-switch" role="tablist" aria-label="Dashboard period">
-                        <button type="button" class="period-chip @(Model.PeriodPreset == "week" ? "active" : null)" data-period-chip="week">7 @T("ngày", "days")</button>
-                        <button type="button" class="period-chip @(Model.PeriodPreset == "month" ? "active" : null)" data-period-chip="month">@T("Tháng này", "This month")</button>
-                        <button type="button" class="period-chip @(Model.PeriodPreset == "year" ? "active" : null)" data-period-chip="year">@T("Năm nay", "This year")</button>
+                <div class="tx-card-toggle-shell">
+                    <span class="tx-inline-filter-label">@T("Loại giao dịch", "Transaction type")</span>
+                    <div class="tx-segmented" id="dashboardTodayTypeTabs">
+                        <button type="button" class="active" data-type="expense">@T("Chi tiêu", "Expense")</button>
+                        <button type="button" data-type="income">@T("Thu nhập", "Income")</button>
                     </div>
-                    <a class="dashboard-link-action" asp-controller="Transaction" asp-action="Index">@T("Mở trang giao dịch", "Open transactions") <i class="bx bx-right-arrow-alt"></i></a>
                 </div>
             </div>
 
-            <div class="dashboard-trend-chart-shell">
-                <canvas id="dashboardCashflowChart"
-                        data-labels='@Html.Raw(trendLabels)'
-                        data-income='@Html.Raw(trendIncome)'
-                        data-expense='@Html.Raw(trendExpense)'></canvas>
-            </div>
-
-            <div class="dashboard-trend-stats" id="dashboardTrendStats">
-                <div class="trend-stat-box">
-                    <span class="label">@T("Tổng thu", "Income")</span>
-                    <strong id="dashboardRangeIncome">@Model.RangeIncome.ToString("N0", viCulture)</strong>
+            <div class="tx-breakdown-layout">
+                <div class="tx-breakdown-chart-card">
+                    <div class="tx-summary-canvas-wrap tx-breakdown-canvas-wrap">
+                        <canvas id="dashboardTodayBreakdownChart" class="tx-summary-chart"></canvas>
+                    </div>
                 </div>
-                <div class="trend-stat-box">
-                    <span class="label">@T("Tổng chi", "Expense")</span>
-                    <strong id="dashboardRangeExpense">@Model.RangeExpense.ToString("N0", viCulture)</strong>
-                </div>
-                <div class="trend-stat-box">
-                    <span class="label">@T("Giao dịch", "Transactions")</span>
-                    <strong id="dashboardRangeTransactionCount">@Model.RangeTransactionCount</strong>
-                </div>
-                <div class="trend-stat-box">
-                    <span class="label">@T("Nhịp nổi bật", "Busiest point")</span>
-                    <strong id="dashboardBusiestLabel">@(string.IsNullOrWhiteSpace(Model.BusiestLabel) ? T("Chưa có", "No data") : Model.BusiestLabel)</strong>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section class="card dashboard-report-card mb-4">
-        <div class="card-body">
-            <div class="dashboard-card-head compact">
-                <div>
-                    <span class="dashboard-card-eyebrow">@T("Cơ cấu chi tiêu", "Spending breakdown")</span>
-                    <h2 class="dashboard-card-title" id="dashboardDonutTitle">@T("Danh mục chi tiêu trong", "Spending categories in") @Model.PeriodLabel.ToLower()</h2>
-                    <p class="dashboard-card-text">@T("Biểu đồ tròn cho biết nhóm chi tiêu nổi bật, còn danh sách bên cạnh giúp bạn đọc nhanh số tiền và tỷ trọng của từng danh mục.", "The doughnut chart highlights your top spending groups, while the panel beside it summarizes the amount and share of each category.")</p>
-                </div>
-                <a class="dashboard-link-action" asp-controller="Category" asp-action="Index">@T("Quản lý danh mục", "Manage categories") <i class="bx bx-right-arrow-alt"></i></a>
-            </div>
-
-            <div id="dashboardCategoryPanel">
-                @if (Model.CategoryBreakdown.Any())
-                {
-                    <div class="dashboard-breakdown-layout">
-                        <div class="dashboard-breakdown-chart-card">
-                            <div class="dashboard-donut-shell">
-                                <canvas id="dashboardExpenseDonutChart"
-                                        data-labels='@Html.Raw(donutLabels)'
-                                        data-series='@Html.Raw(donutSeries)'
-                                        data-colors='@Html.Raw(donutColors)'
-                                        data-items='@Html.Raw(donutItems)'></canvas>
-                            </div>
-                        </div>
-                        <div class="dashboard-breakdown-sidecard">
-                            <div class="dashboard-breakdown-summary">
-                                <div class="summary-pill summary-pill--highlight">
-                                    <span>@T("Danh mục phát sinh", "Active categories")</span>
-                                    <strong>@Model.CategoryBreakdown.Count</strong>
-                                </div>
-                            </div>
-                            <div class="dashboard-legend-shell">
-                                <div class="dashboard-legend-scroll" id="dashboardCategoryLegend">
-                                    @for (var i = 0; i < Model.CategoryBreakdown.Count; i++)
-                                    {
-                                        var item = Model.CategoryBreakdown[i];
-                                        var itemColor = string.IsNullOrWhiteSpace(item.Color) ? "#696cff" : item.Color;
-                                        var itemIcon = string.IsNullOrWhiteSpace(item.Icon) ? "bx bx-category" : item.Icon;
-                                        <div class="legend-row" data-legend-index="@i">
-                                            <div class="legend-left">
-                                                <span class="legend-icon" style="--legend-color:@itemColor"><i class="@itemIcon"></i></span>
-                                                <div>
-                                                    <strong>@item.CategoryName</strong>
-                                                    <small>@T("Tỷ trọng trong kỳ", "Share in period")</small>
-                                                </div>
-                                            </div>
-                                            <div class="legend-right">
-                                                <strong>@item.Percentage.ToString("0.##")%</strong>
-                                                <small>@item.TotalAmount.ToString("N0", viCulture)</small>
-                                            </div>
-                                        </div>
-                                    }
-                                </div>
-                            </div>
+                <div class="tx-breakdown-sidecard">
+                    <div class="tx-breakdown-summary">
+                        <div class="summary-pill summary-pill--highlight">
+                            <span id="dashboardTodayBreakdownSummaryLabel">@T("Danh mục phát sinh", "Active categories")</span>
+                            <strong id="dashboardTodayBreakdownCount">0</strong>
                         </div>
                     </div>
-                }
-                else
-                {
-                    <div class="dashboard-empty-state small-empty">
-                        <span class="dashboard-empty-icon"><i class="bx bx-pie-chart-alt-2"></i></span>
-                        <h3>@T("Chưa có dữ liệu chi tiêu", "No spending data yet")</h3>
-                        <p>@T("Biểu đồ tròn sẽ xuất hiện khi kỳ đang xem có giao dịch chi tiêu.", "The doughnut chart will appear once there are expense transactions in the selected period.")</p>
+                    <div class="dashboard-legend-shell tx-legend-shell">
+                        <div class="dashboard-legend-scroll tx-breakdown-legend" id="dashboardTodayBreakdownLegend"></div>
                     </div>
-                }
+                </div>
             </div>
         </div>
     </section>
 
     <section class="dashboard-split-grid mb-4">
-        <article class="card dashboard-report-card">
-            <div class="card-body">
+        <article class="card dashboard-report-card dashboard-recent-card">
+            <div class="card-body dashboard-recent-card-body">
                 <div class="dashboard-card-head compact">
                     <div>
                         <span class="dashboard-card-eyebrow">@T("Hoạt động gần nhất", "Recent activity")</span>
                         <h2 class="dashboard-card-title">@T("Giao dịch gần đây", "Recent transactions")</h2>
+                        <p class="dashboard-card-text dashboard-card-text--compact">@T("Hiển thị 5 giao dịch gần nhất để bạn theo dõi nhanh biến động mới nhất.", "Showing the 5 latest transactions for a quick recent overview.")</p>
                     </div>
                     <a class="dashboard-link-action" asp-controller="Transaction" asp-action="Index">@T("Xem tất cả", "View all") <i class="bx bx-right-arrow-alt"></i></a>
                 </div>
@@ -341,14 +271,15 @@
             </div>
         </article>
 
-        <section class="card dashboard-report-card mb-4">
-            <div class="card-body">
-                <div class="dashboard-card-head compact">
-                    <div>
+        <section class="card dashboard-report-card mb-4 dashboard-budget-card">
+            <div class="card-body dashboard-budget-card-body">
+                <div class="dashboard-card-head compact dashboard-card-head--budget">
+                    <div class="dashboard-card-copy">
                         <span class="dashboard-card-eyebrow">@T("Cảnh báo nhanh", "Quick alerts")</span>
                         <h2 class="dashboard-card-title">@T("Ngân sách cần chú ý", "Budgets to review")</h2>
+                        <p class="dashboard-card-text dashboard-card-text--compact">@T("Có " + warningCount + " ngân sách đang vượt mức, chạm mức hoặc sắp chạm ngưỡng cảnh báo. Hiển thị tối đa 4 mục cùng lúc.", warningCount + " budgets are over, reached, or near the warning threshold. Showing up to 4 items at once.")</p>
                     </div>
-                    <a class="dashboard-link-action" asp-controller="Category" asp-action="Index">@T("Quản lý danh mục và budget", "Open categories & budgets") <i class="bx bx-right-arrow-alt"></i></a>
+                    <a class="dashboard-link-action dashboard-link-action--compact" asp-controller="Category" asp-action="Index">@T("Quản lý budget", "Manage budgets") <i class="bx bx-right-arrow-alt"></i></a>
                 </div>
 
                 <div id="dashboardBudgetPanel">

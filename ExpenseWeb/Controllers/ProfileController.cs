@@ -11,13 +11,14 @@ namespace ExpenseWeb.Controllers
         private readonly AuthApiService _authApiService;
         private readonly SupportApiService _supportApiService;
 
-        private const int MaxSupportFiles = 5;
+        private const int MaxSupportFiles = 10;
         private const long MaxSupportFileSize = 20 * 1024 * 1024; // 20 MB
 
         private static readonly HashSet<string> AllowedSupportExtensions = new(StringComparer.OrdinalIgnoreCase)
         {
             ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp",
-            ".mp4", ".mov", ".avi", ".mkv", ".webm"
+            ".mp4", ".mov", ".avi", ".mkv", ".webm",
+            ".pdf", ".doc", ".docx"
         };
 
         public ProfileController(AuthApiService authApiService, SupportApiService supportApiService)
@@ -272,7 +273,7 @@ namespace ExpenseWeb.Controllers
                 var extension = Path.GetExtension(file.FileName);
                 if (string.IsNullOrWhiteSpace(extension) || !AllowedSupportExtensions.Contains(extension))
                 {
-                    ModelState.AddModelError("Form.Files", $"Tệp '{file.FileName}' không đúng định dạng ảnh/video được hỗ trợ.");
+                    ModelState.AddModelError("Form.Files", $"Tệp '{file.FileName}' không đúng định dạng được hỗ trợ (ảnh, video, PDF, DOC, DOCX).");
                 }
             }
         }
@@ -373,7 +374,9 @@ namespace ExpenseWeb.Controllers
                             FileSize = a.file_size,
                             DisplaySize = FormatFileSize(a.file_size),
                             IsImage = IsImage(a.file_type),
-                            IsVideo = IsVideo(a.file_type)
+                            IsVideo = IsVideo(a.file_type),
+                            IsPdf = IsPdf(a.file_type, a.file_name),
+                            IsDocument = IsDocument(a.file_type, a.file_name)
                         }).ToList();
                     }
 
@@ -418,6 +421,26 @@ namespace ExpenseWeb.Controllers
             => !string.IsNullOrWhiteSpace(fileType) &&
                fileType.StartsWith("video/", StringComparison.OrdinalIgnoreCase);
 
+        private static bool IsPdf(string? fileType, string? fileName = null)
+            => (!string.IsNullOrWhiteSpace(fileType) && fileType.Equals("application/pdf", StringComparison.OrdinalIgnoreCase))
+               || string.Equals(Path.GetExtension(fileName ?? string.Empty), ".pdf", StringComparison.OrdinalIgnoreCase);
+
+        private static bool IsDocument(string? fileType, string? fileName = null)
+        {
+            if (!string.IsNullOrWhiteSpace(fileType))
+            {
+                if (fileType.Equals("application/msword", StringComparison.OrdinalIgnoreCase)
+                    || fileType.Equals("application/vnd.openxmlformats-officedocument.wordprocessingml.document", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            var extension = Path.GetExtension(fileName ?? string.Empty);
+            return string.Equals(extension, ".doc", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(extension, ".docx", StringComparison.OrdinalIgnoreCase);
+        }
+
         private static string FormatFileSize(long? bytes)
         {
             if (!bytes.HasValue || bytes.Value <= 0) return string.Empty;
@@ -448,6 +471,9 @@ namespace ExpenseWeb.Controllers
             ".avi" => "video/x-msvideo",
             ".mkv" => "video/x-matroska",
             ".webm" => "video/webm",
+            ".pdf" => "application/pdf",
+            ".doc" => "application/msword",
+            ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             _ => "application/octet-stream"
         };
 

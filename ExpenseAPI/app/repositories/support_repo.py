@@ -1,4 +1,4 @@
-from datetime import datetime
+﻿from datetime import datetime
 
 from sqlalchemy import func, or_, text
 from sqlalchemy.orm import Session
@@ -167,3 +167,33 @@ class SupportRepository:
         db.commit()
         db.refresh(item)
         return item
+
+    def count_by_status(self, db: Session, status: str) -> int:
+        return (
+            db.query(func.count(SupportRequest.SupportRequestID))
+            .filter(SupportRequest.Status == status)
+            .scalar()
+            or 0
+        )
+
+    def count_open_high_priority(self, db: Session) -> int:
+        return (
+            db.query(func.count(SupportRequest.SupportRequestID))
+            .filter(
+                SupportRequest.Status.in_(["pending", "viewed"]),
+                SupportRequest.Priority.in_(["high", "urgent"]),
+            )
+            .scalar()
+            or 0
+        )
+
+    def get_recent_open_requests_with_user(self, db: Session, limit: int = 6):
+        return (
+            db.query(SupportRequest, User)
+            .join(User, User.UserID == SupportRequest.UserID)
+            .filter(SupportRequest.Status.in_(["pending", "viewed"]))
+            .order_by(SupportRequest.CreatedAt.desc(), SupportRequest.SupportRequestID.desc())
+            .limit(limit)
+            .all()
+        )
+

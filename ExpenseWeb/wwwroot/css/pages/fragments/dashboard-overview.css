@@ -732,3 +732,77 @@
     font-weight: 700;
     margin-top: .28rem;
 }
+
+
+.dashboard-split-grid > .dashboard-report-card {
+    height: 100%;
+}
+
+.dashboard-recent-card-body,
+.dashboard-budget-card-body {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.dashboard-card-copy {
+    min-width: 0;
+}
+
+.dashboard-card-head--budget {
+    align-items: flex-start;
+    gap: .85rem;
+}
+
+.dashboard-card-head--budget .dashboard-link-action {
+    flex: 0 0 auto;
+}
+
+.dashboard-card-text--compact {
+    max-width: 520px;
+    font-size: .96rem;
+    margin-top: .45rem;
+}
+
+.dashboard-link-action--compact {
+    white-space: nowrap;
+    padding-top: .2rem;
+}
+
+#dashboardBudgetPanel {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.budget-alert-grid {
+    flex: 1 1 auto;
+    align-content: start;
+}
+
+.budget-alert-card {
+    min-height: 132px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.budget-alert-title-wrap > div {
+    min-width: 0;
+}
+
+.budget-alert-title-wrap h3,
+.budget-alert-title-wrap p {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@media (max-width: 991px) {
+    .dashboard-card-text--compact {
+        max-width: none;
+    }
+
+    .dashboard-link-action--compact {
+        white-space: normal;
+    }
+}

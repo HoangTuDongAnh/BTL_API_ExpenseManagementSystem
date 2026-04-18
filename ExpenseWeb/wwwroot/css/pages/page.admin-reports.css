@@ -1,3 +1,4 @@
+@import url('./fragments/support-page.css');
 @import url('./fragments/core-page-hero.css');
 @import url('./fragments/report-page.css');
 @import url('./fragments/admin-reports.css');
@@ -54,4 +55,22 @@
 video.media-popup-item {
   background-color: #000;
   outline: none;
+}
+
+
+.admin-support-modal {
+  z-index: 1080;
+}
+
+#adminSupportLightbox {
+  z-index: 20000;
+}
+
+#adminSupportLightbox .support-lightbox-backdrop {
+  z-index: 0;
+}
+
+#adminSupportLightbox .support-lightbox-dialog {
+  position: relative;
+  z-index: 1;
 }

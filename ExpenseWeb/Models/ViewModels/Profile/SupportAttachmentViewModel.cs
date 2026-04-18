@@ -10,5 +10,7 @@ namespace ExpenseWeb.Models.ViewModels.Profile
         public string DisplaySize { get; set; } = string.Empty;
         public bool IsImage { get; set; }
         public bool IsVideo { get; set; }
+        public bool IsPdf { get; set; }
+        public bool IsDocument { get; set; }
     }
 }
