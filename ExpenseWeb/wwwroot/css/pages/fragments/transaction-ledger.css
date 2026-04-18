@@ -544,11 +544,29 @@
         color: #ff6b53
     }
 
+.tx-pagination-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--tx-border)
+}
+
+.tx-pagination-info {
+    color: var(--tx-muted);
+    font-size: .92rem;
+    font-weight: 600
+}
+
+    .tx-pagination-info strong {
+        color: var(--tx-heading)
+    }
+
 .transaction-pagination {
     display: flex;
     justify-content: flex-end;
-    gap: .45rem;
-    padding-top: 1rem
+    gap: .45rem
 }
 
     .transaction-pagination button {
@@ -558,13 +576,30 @@
         border: 1px solid #d8dfee;
         background: #fff;
         font-weight: 700;
-        color: #617082
+        color: #617082;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: .2s ease
     }
 
         .transaction-pagination button.active {
             background: var(--tx-primary);
             border-color: var(--tx-primary);
-            color: #fff
+            color: #fff;
+            box-shadow: 0 10px 20px rgba(105,108,255,.2)
+        }
+
+        .transaction-pagination button:disabled {
+            opacity: .45;
+            cursor: not-allowed
+        }
+
+        .transaction-pagination button.tx-page-nav {
+            min-width: 34px;
+            width: 34px;
+            border-radius: 999px;
+            padding: 0
         }
 
 .tx-empty-state {
@@ -2427,6 +2462,11 @@
     margin-bottom: 1rem;
 }
 
+.tx-breakdown-head > div {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
 .tx-breakdown-eyebrow {
     display: inline-block;
     font-size: .82rem;
@@ -2446,9 +2486,12 @@
 
 .tx-breakdown-text {
     margin: .55rem 0 0;
-    max-width: 760px;
+    max-width: none;
+    width: 100%;
     color: #7f8e83;
     line-height: 1.6;
+    white-space: normal;
+    text-wrap: pretty;
 }
 
 .tx-breakdown-layout {
@@ -2478,7 +2521,9 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
-    padding: 1rem;
+    height: 100%;
+    padding: 0; /* remove bottom gap */
+    align-self: stretch;
 }
 
 .tx-breakdown-summary {
@@ -2512,6 +2557,8 @@
 }
 
 .tx-legend-shell {
+    display: flex;
+    flex-direction: column;
     flex: 1 1 auto;
     min-height: 0;
     border: 1px solid #edf1ea;
@@ -2523,10 +2570,10 @@
 
 .tx-breakdown-legend {
     display: flex;
+    flex: 1 1 auto;
     flex-direction: column;
     gap: .7rem;
     min-height: 0;
-    max-height: 100%;
     overflow: auto;
     padding-right: .35rem;
     scrollbar-width: thin;
@@ -2551,19 +2598,18 @@
     border: 1px solid #edf1ea;
     border-radius: 16px;
     background: #fafcf9;
-    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease;
+    transition: border-color .18s ease, background .18s ease;
 }
 
 .tx-breakdown-legend .legend-row:hover {
-    transform: translateY(-1px);
-    border-color: #d9e5f6;
-    box-shadow: 0 10px 22px rgba(49, 67, 84, 0.06);
+    border-color: color-mix(in srgb, var(--legend-active-color, #696cff) 56%, #dfe7e2);
+    background: #fff;
 }
 
 .tx-breakdown-legend .legend-row.is-active {
     background: #ffffff;
     border-color: var(--legend-active-color, #d9e5f6);
-    box-shadow: 0 12px 28px color-mix(in srgb, var(--legend-active-color, #696cff) 14%, transparent);
+    box-shadow: none;
 }
 
 .tx-breakdown-legend .legend-left {
@@ -2610,7 +2656,7 @@
     justify-content: center;
     flex: 0 0 auto;
     overflow: hidden;
-    box-shadow: 0 6px 14px rgba(67, 89, 113, 0.08);
+    box-shadow: none;
 }
 
 .tx-legend-icon img,
@@ -2719,5 +2765,18 @@
 
     .tx-breakdown-card .card-body {
         padding: 1rem;
+    }
+}
+
+
+.tx-breakdown-layout > .tx-breakdown-chart-card,
+.tx-breakdown-layout > .tx-breakdown-sidecard {
+    height: 100%;
+}
+
+@media (max-width: 767.98px) {
+    .tx-pagination-bar {
+        flex-direction: column;
+        align-items: flex-start
     }
 }

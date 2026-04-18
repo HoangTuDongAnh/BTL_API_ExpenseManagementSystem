@@ -1,10 +1,15 @@
 ﻿@model ExpenseWeb.Models.ViewModels.Profile.SupportPageViewModel
 @using System.Linq
+@using System.Text.Json
 @{
     var lang = (Context.Request.Query["lang"].FirstOrDefault() ?? ViewBag.Lang as string ?? "vi").ToLower();
     string T(string vi, string en) => lang == "en" ? en : vi;
     ViewData["Title"] = T("Hỗ trợ & Liên hệ admin", "Support & Contact Admin");
     Layout = "~/Views/Shared/_Layout.cshtml";
+
+    var jsShowing = JsonSerializer.Serialize(T("Hiển thị", "Showing"));
+    var jsOfTotal = JsonSerializer.Serialize(T("trong tổng số", "of total"));
+    var jsRequests = JsonSerializer.Serialize(T("yêu cầu", "requests"));
 }
 
 @section Styles {
@@ -299,7 +304,7 @@
     </div>
 </div>
 
-<div class="modal fade mimo-popup-shell" id="requestUserDetailModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="false" style="background-color: rgba(0,0,0,0.6);">
+<div class="modal fade mimo-popup-shell" id="requestUserDetailModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="true" style="background-color: rgba(0,0,0,0.6);">
     <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
         <div class="modal-content mimo-popup-content">
             <button type="button" class="mimo-popup-close" data-bs-dismiss="modal" aria-label="Close"><i class="bx bx-x"></i></button>
@@ -319,97 +324,122 @@
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
     <script>
-        document.addEventListener("DOMContentLoaded", function () {
+        (function () {
             const rowsPerPage = 5;
-            const table = document.getElementById('supportHistoryTable');
-            const tableBody = document.getElementById('supportHistoryListShell');
-            const emptyState = document.getElementById('supportEmptyState');
 
-            if (tableBody) {
-                const rows = Array.from(tableBody.querySelectorAll('.support-row-item'));
-                const actualPages = Math.ceil(rows.length / rowsPerPage);
-                const totalPages = Math.max(3, actualPages);
+            function initSupportHistory() {
+                const table = document.getElementById('supportHistoryTable');
+                const tableBody = document.getElementById('supportHistoryListShell');
+                const emptyState = document.getElementById('supportEmptyState');
                 const paginationControls = document.getElementById('paginationControls');
                 const paginationInfo = document.getElementById('paginationInfo');
+                const modalElement = document.getElementById('requestUserDetailModal');
+                const modalBody = document.getElementById('modalUserDetailContent');
 
-                function displayPage(page) {
-                    if (page < 1 || page > totalPages) return;
+                if (!tableBody) return;
 
-                    let hasVisible = false;
+                const rows = Array.from(tableBody.querySelectorAll('.support-row-item'));
+                const totalRows = rows.length;
+                const totalPages = Math.max(1, Math.ceil(totalRows / rowsPerPage));
+                let currentPage = 1;
+
+                function renderPage(page) {
+                    currentPage = Math.min(Math.max(page, 1), totalPages);
+
                     rows.forEach((row, index) => {
-                        const isVisible = (Math.floor(index / rowsPerPage) + 1 === page);
-                        row.style.display = isVisible ? '' : 'none';
-                        if (isVisible) hasVisible = true;
+                        const pageIndex = Math.floor(index / rowsPerPage) + 1;
+                        row.style.display = pageIndex === currentPage ? '' : 'none';
                     });
 
-                    if (!hasVisible) {
-                        table.style.display = 'none';
-                        emptyState.classList.remove('d-none');
-                    } else {
-                        table.style.display = '';
-                        emptyState.classList.add('d-none');
+                    const visibleCount = rows.filter(row => row.style.display !== 'none').length;
+
+                    if (table) {
+                        table.style.display = visibleCount > 0 ? '' : 'none';
+                    }
+                    if (emptyState) {
+                        emptyState.classList.toggle('d-none', visibleCount > 0);
                     }
 
-                    // TÍNH TOÁN VÀ ĐIỀN CHỮ CHUẨN CHỈNH
                     if (paginationInfo) {
-                        const start = rows.length === 0 ? 0 : (page - 1) * rowsPerPage + 1;
-                        const end = Math.min(page * rowsPerPage, rows.length);
-                        const strDisplay = '@Html.Raw(T("Hiển thị", "Showing"))';
-                        const strOfTotal = '@Html.Raw(T("trong tổng số", "of total"))';
-                        const strReq = '@Html.Raw(T("yêu cầu", "requests"))';
-                        paginationInfo.innerHTML = `${strDisplay} <span class="fw-bold text-dark">${start} - ${end}</span> ${strOfTotal} <span class="fw-bold text-dark">${rows.length}</span> ${strReq}`;
+                        const start = totalRows === 0 ? 0 : ((currentPage - 1) * rowsPerPage) + 1;
+                        const end = Math.min(currentPage * rowsPerPage, totalRows);
+                        const strDisplay = @jsShowing;
+                        const strOfTotal = @jsOfTotal;
+                        const strReq = @jsRequests;
+                        paginationInfo.innerHTML = `${strDisplay} <span class="fw-bold text-dark">${start} - ${end}</span> ${strOfTotal} <span class="fw-bold text-dark">${totalRows}</span> ${strReq}`;
                     }
 
                     if (!paginationControls) return;
                     paginationControls.innerHTML = '';
 
-                    const prevLi = document.createElement('div');
-                    prevLi.innerHTML = `<i class="bx bx-chevron-left" style="font-size: 1.3rem;"></i>`;
-                    prevLi.style.cssText = `width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; cursor: ${page === 1 ? 'not-allowed' : 'pointer'}; color: ${page === 1 ? '#c9cdd4' : '#697a8d'}; border-radius: 50%;`;
-                    if (page > 1) prevLi.addEventListener('click', () => displayPage(page - 1));
-                    paginationControls.appendChild(prevLi);
+                    const prevButton = document.createElement('button');
+                    prevButton.type = 'button';
+                    prevButton.className = 'tx-page-nav';
+                    prevButton.innerHTML = '<i class="bx bx-chevron-left"></i>';
+                    prevButton.disabled = currentPage === 1;
+                    prevButton.addEventListener('click', function () {
+                        if (currentPage > 1) renderPage(currentPage - 1);
+                    });
+                    paginationControls.appendChild(prevButton);
 
-                    let startPage = Math.max(1, page - 1);
-                    let endPage = startPage + 2;
-                    if (endPage > totalPages) {
-                        endPage = totalPages;
-                        startPage = Math.max(1, endPage - 2);
-                    }
+                    let startPage = Math.max(1, currentPage - 1);
+                    let endPage = Math.min(totalPages, startPage + 2);
+                    startPage = Math.max(1, endPage - 2);
 
                     for (let i = startPage; i <= endPage; i++) {
-                        const li = document.createElement('div');
-                        const isActive = i === page;
-
-                        li.style.cssText = isActive
-                            ? 'background-color: #696cff; color: white; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; font-weight: 600; cursor: pointer; box-shadow: 0 2px 4px rgba(105, 108, 255, 0.4);'
-                            : 'background-color: white; border: 1px solid #d9dee3; color: #697a8d; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; font-weight: 600; cursor: pointer;';
-
-                        li.innerHTML = i;
-                        li.addEventListener('click', () => displayPage(i));
-                        paginationControls.appendChild(li);
+                        const pageButton = document.createElement('button');
+                        pageButton.type = 'button';
+                        pageButton.textContent = i;
+                        if (i === currentPage) {
+                            pageButton.className = 'active';
+                        }
+                        pageButton.addEventListener('click', function () {
+                            renderPage(i);
+                        });
+                        paginationControls.appendChild(pageButton);
                     }
 
-                    const nextLi = document.createElement('div');
-                    nextLi.innerHTML = `<i class="bx bx-chevron-right" style="font-size: 1.3rem;"></i>`;
-                    nextLi.style.cssText = `width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; cursor: ${page === totalPages ? 'not-allowed' : 'pointer'}; color: ${page === totalPages ? '#c9cdd4' : '#697a8d'}; border-radius: 50%;`;
-                    if (page < totalPages) nextLi.addEventListener('click', () => displayPage(page + 1));
-                    paginationControls.appendChild(nextLi);
+                    const nextButton = document.createElement('button');
+                    nextButton.type = 'button';
+                    nextButton.className = 'tx-page-nav';
+                    nextButton.innerHTML = '<i class="bx bx-chevron-right"></i>';
+                    nextButton.disabled = currentPage === totalPages;
+                    nextButton.addEventListener('click', function () {
+                        if (currentPage < totalPages) renderPage(currentPage + 1);
+                    });
+                    paginationControls.appendChild(nextButton);
                 }
 
-                displayPage(1);
+                tableBody.addEventListener('click', function (event) {
+                    const button = event.target.closest('.view-detail-btn');
+                    if (!button) return;
+
+                    const reqId = button.getAttribute('data-id');
+                    const template = document.getElementById(`tpl_detail_${reqId}`);
+                    if (!template || !modalBody || !modalElement) return;
+
+                    modalBody.innerHTML = template.innerHTML;
+
+                    if (window.bootstrap && window.bootstrap.Modal) {
+                        const modal = window.bootstrap.Modal.getOrCreateInstance(modalElement);
+                        modal.show();
+                    }
+                });
+
+                if (modalElement && modalBody) {
+                    modalElement.addEventListener('hidden.bs.modal', function () {
+                        modalBody.innerHTML = '';
+                    });
+                }
+
+                renderPage(1);
             }
 
-            $('.view-detail-btn').on('click', function () {
-                const reqId = $(this).data('id');
-                const templateHtml = $('#tpl_detail_' + reqId).html();
-
-                $('#modalUserDetailContent').html(templateHtml);
-                $('#requestUserDetailModal').modal('show');
-            });
-
-            $('#requestUserDetailModal').on('hidden.bs.modal', function () {
-                $('#modalUserDetailContent').empty();
-            });
-        });
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initSupportHistory);
+            } else {
+                initSupportHistory();
+            }
+        })();
     </script>
 }
