@@ -254,6 +254,23 @@ class CategoryService:
         if existing_category:
             raise ValueError("Tên danh mục đã tồn tại hoặc trùng với danh mục mặc định")
 
+        soft_deleted_category = self.category_repo.get_by_name_and_user_any_status(
+            db=db,
+            category_name=normalized_name,
+            user_id=user_id,
+        )
+
+        if soft_deleted_category and soft_deleted_category.IsDeleted:
+            soft_deleted_category.CategoryType = data.category_type
+            soft_deleted_category.Icon = data.icon
+            soft_deleted_category.Color = data.color
+            soft_deleted_category.IsDefault = False
+            soft_deleted_category.IsDeleted = False
+            soft_deleted_category.UpdatedAt = datetime.now()
+            db.commit()
+            db.refresh(soft_deleted_category)
+            return soft_deleted_category
+
         category = Category(
             CategoryID=self._generate_category_id(db),
             UserID=user_id,

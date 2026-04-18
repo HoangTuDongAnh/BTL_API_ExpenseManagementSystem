@@ -802,7 +802,7 @@
         const detailColorInput = document.getElementById("detailCategoryColor");
 
         if (deleteButton) deleteButton.disabled = !canDelete;
-        if (updateButton) updateButton.disabled = !canEdit;
+        if (updateButton) updateButton.disabled = false;
         if (detailNameInput) detailNameInput.readOnly = !canEdit;
         if (detailColorInput) detailColorInput.disabled = !canEdit;
 
@@ -971,25 +971,35 @@
     const btnUpdate = document.getElementById("btnUpdateCategoryStatic");
     if (btnUpdate) {
         btnUpdate.addEventListener("click", async function () {
-            if (document.getElementById("detailCategoryCanEdit")?.value !== "true") {
-                alert("Danh mục mặc định chỉ có thể xem, không thể chỉnh sửa.");
-                return;
-            }
-
+            const canEdit = document.getElementById("detailCategoryCanEdit")?.value === "true";
             const categoryId = document.getElementById("detailCategoryId")?.textContent || "";
             const categoryName = (document.getElementById("detailCategoryName")?.value || "").trim();
             const color = document.getElementById("detailCategoryColor")?.value || "#FFAB00";
             const icon = document.getElementById("detailCategoryIcon")?.value || state.defaultIcon;
+            const originalName = state.currentCategory?.name || categoryName;
+            const originalColor = state.currentCategory?.color || color;
+            const originalIcon = state.currentCategory?.icon || icon;
 
-            if (!categoryId || !categoryName) {
+            if (!categoryId || !(canEdit ? categoryName : originalName)) {
                 alert("Dữ liệu danh mục chưa hợp lệ.");
                 return;
             }
 
             btnUpdate.disabled = true;
             try {
-                const categoryType = normalizeCategoryType(document.getElementById('detailCategoryType')?.value || state.currentCategory?.type || 'expense');
-                await sendJson(buildUpdateUrl(categoryId), "PUT", { category_name: categoryName, category_type: categoryType, color, icon });
+                const categoryType = canEdit
+                    ? normalizeCategoryType(document.getElementById('detailCategoryType')?.value || state.currentCategory?.type || 'expense')
+                    : normalizeCategoryType(state.currentCategory?.type || document.getElementById('detailCategoryType')?.value || 'expense');
+
+                if (canEdit) {
+                    await sendJson(buildUpdateUrl(categoryId), "PUT", {
+                        category_name: categoryName,
+                        category_type: categoryType,
+                        color,
+                        icon
+                    });
+                }
+
                 await persistDetailDraftChanges(categoryId, categoryType);
                 toastUpdated?.show();
                 setTimeout(function () { window.location.reload(); }, 700);
@@ -997,6 +1007,15 @@
                 alert(error.message || "Cập nhật danh mục thất bại.");
             } finally {
                 btnUpdate.disabled = false;
+                if (!canEdit) {
+                    const nameInput = document.getElementById("detailCategoryName");
+                    const colorInput = document.getElementById("detailCategoryColor");
+                    const iconInput = document.getElementById("detailCategoryIcon");
+                    if (nameInput) nameInput.value = originalName;
+                    if (colorInput) colorInput.value = originalColor;
+                    if (iconInput) iconInput.value = originalIcon;
+                    updateDetailPreview();
+                }
             }
         });
     }
@@ -1143,6 +1162,39 @@
         });
     }
 
+    function applyCategoryFilter(filterValue) {
+        const normalizedFilter = normalizeCategoryType(filterValue) === filterValue ? filterValue : (filterValue || 'all');
+        const cards = Array.from(document.querySelectorAll('.category-card-col'));
+        let visibleCount = 0;
+
+        cards.forEach(function (col) {
+            const card = col.querySelector('.category-card[data-category-id]');
+            if (!card) return;
+            const cardType = normalizeCategoryType(card.getAttribute('data-category-type') || 'expense');
+            const shouldShow = normalizedFilter === 'all' || cardType === normalizedFilter;
+            col.classList.toggle('d-none', !shouldShow);
+            if (shouldShow) visibleCount += 1;
+        });
+
+        document.querySelectorAll('[data-category-filter]').forEach(function (button) {
+            const isActive = (button.getAttribute('data-category-filter') || 'all') === normalizedFilter;
+            button.classList.toggle('active', isActive);
+            button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        });
+
+        const emptyState = document.getElementById('categoryFilterEmptyState');
+        if (emptyState) {
+            const shouldHideEmptyState = cards.length === 0 || visibleCount > 0;
+            emptyState.classList.toggle('d-none', shouldHideEmptyState);
+        }
+    }
+
+    document.querySelectorAll('[data-category-filter]').forEach(function (button) {
+        button.addEventListener('click', function () {
+            applyCategoryFilter(button.getAttribute('data-category-filter') || 'all');
+        });
+    });
+
     const btnSaveBudget = document.getElementById("btnSaveBudget");
     if (btnSaveBudget) {
         btnSaveBudget.addEventListener("click", async function () {
@@ -1255,6 +1307,7 @@
         });
     }
 
+    applyCategoryFilter('all');
     setCategoryTypeToggle('add', document.getElementById('addCategoryType')?.value || 'expense', true);
     setCategoryTypeToggle('detail', document.getElementById('detailCategoryType')?.value || 'expense', true);
     updateAddPreview();

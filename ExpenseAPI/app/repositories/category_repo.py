@@ -55,6 +55,26 @@ class CategoryRepository:
             .first()
         )
 
+    def get_by_name_and_user_any_status(
+        self,
+        db: Session,
+        category_name: str,
+        user_id: str,
+        category_type: str | None = None,
+    ) -> Category | None:
+        query = (
+            db.query(Category)
+            .filter(
+                Category.CategoryName == category_name,
+                Category.UserID == user_id,
+            )
+        )
+
+        if category_type:
+            query = query.filter(Category.CategoryType == category_type)
+
+        return query.order_by(Category.IsDeleted.asc(), Category.UpdatedAt.desc(), Category.CreatedAt.desc()).first()
+
     def create(self, db: Session, category: Category) -> Category:
         db.add(category)
         db.commit()

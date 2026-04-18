@@ -52,7 +52,7 @@
         currency = item.Currency
     }).ToList();
 
-    var categoryData = Model.Categories.Select(c => new { c.category_id, c.category_name, c.icon, c.color }).ToList();
+    var categoryData = Model.Categories.Select(c => new { c.category_id, c.category_name, c.icon, c.color, category_type = c.category_type }).ToList();
     var walletData = Model.Wallets.Select(w => new { w.wallet_id, w.wallet_name, w.currency }).ToList();
 
     var transactionsJson = JsonSerializer.Serialize(txData);
@@ -226,7 +226,7 @@
                 <h6>@T("Không có giao dịch phù hợp", "No matching transactions")</h6>
                 <p>@T("Thử thay đổi bộ lọc hoặc khoảng thời gian.", "Try changing filters or the date range.")</p>
             </div>
-            <div class="transaction-pagination" id="transactionPagination"></div>
+            <div class="tx-pagination-bar"><span class="tx-pagination-info" id="transactionPaginationInfo"></span><div class="transaction-pagination" id="transactionPagination"></div></div>
         </div>
     </div>
 
@@ -347,12 +347,12 @@
                         </div>
                         <div class="tx-form-card tx-form-category-card">
                             <label class="form-label mb-2">@T("Danh mục", "Category")</label>
-                            <div class="tx-category-grid" id="detailCategoryGrid">
+                            <div class="tx-category-grid tx-category-grid-scroll" id="detailCategoryGrid">
                                 @foreach (var category in Model.Categories)
                                 {
                                     var categoryColor = string.IsNullOrWhiteSpace(category.color) ? "#8592A3" : category.color;
                                     var categoryIcon = string.IsNullOrWhiteSpace(category.icon) ? "bx bx-category" : category.icon;
-                                    <button type="button" class="tx-category-chip" data-id="@category.category_id" data-name="@category.category_name" data-icon="@categoryIcon" data-color="@categoryColor">
+                                    <button type="button" class="tx-category-chip" data-id="@category.category_id" data-name="@category.category_name" data-icon="@categoryIcon" data-color="@categoryColor" data-type="@(string.IsNullOrWhiteSpace(category.category_type) ? "expense" : category.category_type!.ToLower())">
                                         <span class="tx-category-icon" style="background:@($"{categoryColor}18"); color:@categoryColor;">@RenderCategoryIcon(categoryIcon, category.category_name, "tx-inline-icon")</span>
                                         <span>@category.category_name</span>
                                     </button>
@@ -477,7 +477,7 @@
                             </div>
                             <div class="tx-form-card tx-form-category-card">
                                 <label class="form-label mb-2">@T("Danh mục", "Category")</label>
-                                <div class="tx-category-grid" id="addCategoryGrid">
+                                <div class="tx-category-grid tx-category-grid-scroll" id="addCategoryGrid">
                                     @foreach (var category in Model.Categories)
                                     {
                                         var categoryColor = string.IsNullOrWhiteSpace(category.color) ? "#8592A3" : category.color;
@@ -487,7 +487,7 @@
                                                 data-id="@category.category_id"
                                                 data-name="@category.category_name"
                                                 data-icon="@categoryIcon"
-                                                data-color="@categoryColor">
+                                                data-color="@categoryColor" data-type="@(string.IsNullOrWhiteSpace(category.category_type) ? "expense" : category.category_type!.ToLower())">
                                             <span class="tx-category-icon" style="background:@($"{categoryColor}18"); color:@categoryColor;">
                                                 @RenderCategoryIcon(categoryIcon, category.category_name, "tx-inline-icon")
                                             </span>
@@ -566,5 +566,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/vn.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
     <script src="~/js/pages/transaction-ledger.js"></script>
 }
